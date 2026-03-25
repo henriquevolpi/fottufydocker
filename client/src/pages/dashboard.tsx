@@ -811,152 +811,73 @@ function UploadModal({
       });
       return;
     }
-    
+
+    // ── Constantes de lote ──────────────────────────────────────────────
+    // Cada lote tem no máximo BATCH_SIZE fotos comprimidas na memória de uma vez.
+    // Isso evita o estouro de heap que causava tela branca para 500-900 fotos.
+    const BATCH_SIZE = 30;
+    const totalFiles = selectedFiles.length;
+    const totalBatches = Math.ceil(totalFiles / BATCH_SIZE);
+    // Cada lote recebe uma fatia igual dos 75% de barra reservados para upload (20-95%)
+    const batchProgressWeight = 75 / totalBatches;
+
     try {
       setIsUploading(true);
       setUploadProgress(0);
-      
-      // ETAPA 1: Redimensionar imagens no front-end antes do upload
-      console.log(`[Frontend Dashboard] Iniciando redimensionamento de ${selectedFiles.length} imagens antes do upload`);
-      
-      setUploadProgress(5); // 5% - iniciando processamento
-      
-      const compressedFiles = await compressMultipleImages(
-        selectedFiles,
-        {
-          maxWidthOrHeight: 970, // Largura máxima padronizada
-          quality: 0.9, // Qualidade padronizada
-          useWebWorker: true,
-        },
-        (processed, total) => {
-          // Atualizar progresso da compressão (5% a 25%)
-          const compressionProgress = 5 + (processed / total) * 20;
-          setUploadProgress(Math.round(compressionProgress));
+
+      // ── ETAPA 1: Comprimir APENAS o primeiro lote ────────────────────
+      // O projeto é criado com as fotos do primeiro lote.
+      // Os demais lotes são comprimidos e enviados depois, um de cada vez.
+      const firstBatchFiles = selectedFiles.slice(0, BATCH_SIZE);
+
+      console.log(`[Frontend Dashboard] Upload em lotes: ${totalFiles} fotos, ${totalBatches} lote(s) de até ${BATCH_SIZE}`);
+      console.log(`[Frontend Dashboard] Comprimindo lote 1/${totalBatches}: ${firstBatchFiles.length} imagens`);
+
+      setUploadProgress(5);
+
+      const firstBatchCompressed = await compressMultipleImages(
+        firstBatchFiles,
+        { maxWidthOrHeight: 970, quality: 0.9, useWebWorker: true },
+        (processed, _total) => {
+          // Compressão do lote 1 ocupa a faixa 5% → 20%
+          const progress = 5 + (processed / totalFiles) * 15;
+          setUploadProgress(Math.round(progress));
         }
       );
 
-      console.log(`[Frontend Dashboard] Redimensionamento concluído: ${compressedFiles.length} imagens processadas`);
-      setUploadProgress(25); // 25% - compressão concluída
-      
-      // Create FormData for file upload
+      setUploadProgress(20);
+
+      // ── ETAPA 2: Criar o projeto com o primeiro lote ─────────────────
       const formData = new FormData();
       formData.append('projectName', data.projectName);
       formData.append('clientName', data.clientName);
       formData.append('clientEmail', data.clientEmail || '');
       formData.append('data', data.data);
       formData.append('includedPhotos', data.includedPhotos?.toString() || '0');
-      // Convert additionalPhotoPrice from Reais to Cents
       const priceInCents = Math.round(Number(data.additionalPhotoPrice || 0) * 100);
       formData.append('additionalPhotoPrice', priceInCents.toString());
-
-      
-      // Add photographer ID from the user context
       if (user && user.id) {
         formData.append('photographerId', user.id.toString());
       }
-      
-      // Append compressed files to FormData
-      console.log(`[Frontend Debug] Adicionando ${compressedFiles.length} arquivos ao FormData`);
-      compressedFiles.forEach((file, index) => {
-        console.log(`[Frontend Debug] Arquivo ${index + 1}: ${file.name}, tipo: ${file.type}, tamanho: ${file.size} bytes`);
-        formData.append('photos', file);
-      });
-      
-      // Debug: log FormData entries
-      console.log('[Frontend Debug] FormData entries:');
-      for (let [key, value] of formData.entries()) {
-        if (value instanceof File) {
-          console.log(`  ${key}: File(${value.name}, ${value.size} bytes)`);
-        } else {
-          console.log(`  ${key}: ${value}`);
-        }
-      }
-      
-      // Use XMLHttpRequest para monitorar o progresso do upload
+      firstBatchCompressed.forEach(file => formData.append('photos', file));
+
+      console.log(`[Frontend Dashboard] Criando projeto com lote 1/${totalBatches}: ${firstBatchCompressed.length} fotos`);
+
       const result = await new Promise<any>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
-        
-        // Configuração melhorada do callback de progresso com boot inicial e impulso
+
         xhr.upload.onprogress = (event) => {
           if (event.lengthComputable) {
-            // Começar a partir de 25% já que a compressão foi concluída
-            // Para uploads grandes, começamos com 25% para feedback visual imediato
-            let nextProgress = 25;
-            
-            // Se o upload já começou de verdade (mais de 3% carregado)
-            if (event.loaded > 0.03 * event.total) {
-              // Calcular percentual atual com um pequeno boost para uploads grandes
-              // A fórmula abaixo mapeia o progresso real de upload para 25%-95%
-              const boost = compressedFiles.length > 50 ? 1.25 : 1;
-              const rawPercent = 25 + ((event.loaded / event.total) * 70 * boost);
-              
-              // Limitar o boost a 95% para garantir que não chegue a 100% antes do tempo
-              nextProgress = Math.min(Math.round(rawPercent), 95);
-            } else if (event.loaded > 0) {
-              // Se estamos no início (menos de 3%), mas já começou, forçar entre 25-35%
-              nextProgress = Math.max(25, Math.min(35, Math.round(25 + (event.loaded / event.total) * 300)));
-            }
-            
-            // Para arquivos maiores que 10MB, aumentar o impulso inicial
-            const totalSize = compressedFiles.reduce((acc, file) => acc + file.size, 0);
-            const averageFileSize = totalSize / compressedFiles.length;
-            
-            if (averageFileSize > 10 * 1024 * 1024 && nextProgress < 10) {
-              nextProgress = 10; // Começar em 10% para arquivos grandes
-            }
-            
-            // Para mais de 100 arquivos, comportamento especial
-            if (compressedFiles.length > 100) {
-              // Progredir mais rápido no início para feedback visual
-              if (event.loaded < 0.1 * event.total) {
-                nextProgress = Math.max(nextProgress, 30);
-              }
-            }
-            
-            // Manter a barra em movimento para arquivos muito grandes
-            const currentProgress = uploadProgress;
-            if (nextProgress <= currentProgress && event.loaded > event.total * 0.1) {
-              // Se parece travado mas o upload está progredindo, incrementar manualmente
-              nextProgress = currentProgress + 1;
-            }
-            
-            // Limitar a 98% até receber a resposta completa
-            nextProgress = Math.min(nextProgress, 98);
-            
-            // Quando o upload realmente terminar no XHR, começar simulação do processamento no servidor
-            if (event.loaded === event.total && nextProgress >= 90) {
-              // Simular processamento no servidor com intervalos
-              const simulateProcessing = () => {
-                setUploadProgress(prev => {
-                  if (prev < 98) {
-                    return prev + 1;
-                  }
-                  return prev;
-                });
-              };
-              
-              // Incrementos mais frequentes para manter a barra em movimento
-              const processingInterval = setInterval(simulateProcessing, 300);
-              
-              // Limpar o intervalo quando a resposta for recebida
-              xhr.addEventListener('load', () => {
-                clearInterval(processingInterval);
-                // Definir como 100% quando realmente estiver completo
-                setTimeout(() => setUploadProgress(100), 500);
-              });
-            }
-            
-            // Atualizar o progresso
-            setUploadProgress(nextProgress);
+            // Lote 1 de upload ocupa a faixa 20% → 20% + batchProgressWeight
+            const progress = 20 + (event.loaded / event.total) * batchProgressWeight;
+            setUploadProgress(Math.min(Math.round(progress), 94));
           }
         };
-        
-        // Configurar callbacks de conclusão
+
         xhr.onload = () => {
           if (xhr.status >= 200 && xhr.status < 300) {
             try {
-              const response = JSON.parse(xhr.responseText);
-              resolve(response);
+              resolve(JSON.parse(xhr.responseText));
             } catch (e) {
               reject(new Error('Erro ao processar resposta do servidor'));
             }
@@ -973,39 +894,102 @@ function UploadModal({
             }
           }
         };
-        
-        xhr.onerror = () => {
-          reject(new Error('Erro de conexão ao enviar o projeto'));
-        };
-        
-        // Enviar a requisição
+
+        xhr.onerror = () => reject(new Error('Erro de conexão ao enviar o projeto'));
+
         xhr.open('POST', '/api/projects');
         xhr.withCredentials = true;
         xhr.send(formData);
       });
-      
+
+      const projectId = result.id;
+      let totalUploaded = firstBatchCompressed.length;
+
+      console.log(`[Frontend Dashboard] Projeto criado (ID=${projectId}) com ${firstBatchCompressed.length} fotos`);
+
+      // ── ETAPA 3: Lotes restantes — comprimir e enviar um por vez ─────
+      // Cada lote é comprimido, enviado e liberado da memória antes do próximo.
+      for (let batchIndex = 1; batchIndex < totalBatches; batchIndex++) {
+        const batchStart = batchIndex * BATCH_SIZE;
+        const batchEnd = Math.min(batchStart + BATCH_SIZE, totalFiles);
+        const batchFiles = selectedFiles.slice(batchStart, batchEnd);
+
+        console.log(`[Frontend Dashboard] Comprimindo lote ${batchIndex + 1}/${totalBatches}: ${batchFiles.length} imagens`);
+
+        // Compressão ocupa a primeira metade da fatia deste lote na barra
+        const batchBase = 20 + batchIndex * batchProgressWeight;
+
+        const batchCompressed = await compressMultipleImages(
+          batchFiles,
+          { maxWidthOrHeight: 970, quality: 0.9, useWebWorker: true },
+          (processed, _total) => {
+            const compressionShare = (processed / batchFiles.length) * (batchProgressWeight * 0.4);
+            setUploadProgress(Math.min(Math.round(batchBase + compressionShare), 94));
+          }
+        );
+
+        // Upload ocupa a segunda metade da fatia deste lote na barra
+        const batchFormData = new FormData();
+        batchCompressed.forEach(file => batchFormData.append('photos', file));
+
+        await new Promise<void>((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+
+          xhr.upload.onprogress = (event) => {
+            if (event.lengthComputable) {
+              const uploadShare = batchProgressWeight * 0.4 + (event.loaded / event.total) * batchProgressWeight * 0.6;
+              setUploadProgress(Math.min(Math.round(batchBase + uploadShare), 94));
+            }
+          };
+
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              totalUploaded += batchFiles.length;
+              console.log(`[Frontend Dashboard] ✅ Lote ${batchIndex + 1}/${totalBatches} enviado: ${batchFiles.length} fotos`);
+              resolve();
+            } else {
+              try {
+                const errorData = JSON.parse(xhr.responseText);
+                if (errorData.error === "UPLOAD_LIMIT_REACHED") {
+                  reject({ isLimitError: true, details: errorData.details });
+                } else {
+                  reject(new Error(errorData.message || `Erro ao enviar lote ${batchIndex + 1}`));
+                }
+              } catch {
+                reject(new Error(`Erro ao enviar lote ${batchIndex + 1}`));
+              }
+            }
+          };
+
+          xhr.onerror = () => reject(new Error(`Erro de conexão no lote ${batchIndex + 1}`));
+
+          xhr.open('POST', `/api/projects/${projectId}/photos/upload`);
+          xhr.withCredentials = true;
+          xhr.send(batchFormData);
+        });
+      }
+
+      setUploadProgress(100);
+
+      // ── ETAPA 4: Finalização ─────────────────────────────────────────
       console.log("Project created:", result);
-      
-      // Format project data to match expected structure in the dashboard
+
       const formattedProject = {
         ...result,
-        nome: result.name,                  // Map API field "name" to UI field "nome"
-        cliente: result.clientName,         // Map API field "clientName" to UI field "cliente"
-        emailCliente: result.clientEmail,   // Map API field "clientEmail" to UI field "emailCliente"
-        fotos: result.photos ? result.photos.length : 0,  // Set photo count based on photos array length
-        selecionadas: result.selectedPhotos ? result.selectedPhotos.length : 0  // Selected photos count
+        nome: result.name,
+        cliente: result.clientName,
+        emailCliente: result.clientEmail,
+        fotos: totalUploaded,
+        selecionadas: result.selectedPhotos ? result.selectedPhotos.length : 0
       };
-      
-      // Show success notification
+
       toast({
         title: "Projeto criado com sucesso",
-        description: `O projeto "${data.projectName}" foi criado com ${compressedFiles.length} fotos redimensionadas.`,
+        description: `O projeto "${data.projectName}" foi criado com ${totalUploaded} fotos redimensionadas.`,
       });
-      
-      // Call onUpload callback with the properly formatted project
+
       onUpload(formattedProject);
-      
-      // Reset form and close modal
+
       setSelectedFiles([]);
       setThumbnails([]);
       form.reset();
