@@ -963,7 +963,7 @@ function UploadModal({
 
           xhr.onerror = () => reject(new Error(`Erro de conexão no lote ${batchIndex + 1}`));
 
-          xhr.open('POST', `/api/projects/${projectId}/photos/upload`);
+          xhr.open('POST', `/api/projects/${projectId}/photos`);
           xhr.withCredentials = true;
           xhr.send(batchFormData);
         });

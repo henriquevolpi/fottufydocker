@@ -6,7 +6,8 @@
  */
 
 import * as fs from 'fs-extra';
-import { createWriteStream } from 'fs';
+import { createWriteStream, createReadStream, ReadStream } from 'fs';
+import { stat, unlink } from 'fs/promises';
 import * as path from 'path';
 import { randomUUID } from 'crypto';
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
@@ -79,7 +80,7 @@ export async function streamDirectToR2(
   contentType: string
 ): Promise<{ url: string, key: string }> {
   // Variável para armazenar o stream para que possamos fechá-lo em caso de erro
-  let fileStream: fs.ReadStream | null = null;
+  let fileStream: ReadStream | null = null;
   
   try {
     // Log de memória no início do upload
@@ -88,14 +89,14 @@ export async function streamDirectToR2(
     // Obter o tamanho do arquivo para o log
     let fileSize = 0;
     try {
-      const stats = await fs.stat(filePath);
+      const stats = await stat(filePath);
       fileSize = stats.size;
     } catch (statError) {
       console.error(`Erro ao obter tamanho do arquivo ${filePath}:`, statError);
     }
     
     // Criar stream do arquivo com melhor tratamento de erros
-    fileStream = fs.createReadStream(filePath);
+    fileStream = createReadStream(filePath);
     
     // Adicionar tratamento de erros ao stream
     fileStream.on('error', (err) => {
@@ -182,7 +183,7 @@ export async function processAndStreamToR2(
     // Obter o tamanho do arquivo para o log
     let fileSize = 0;
     try {
-      const stats = await fs.stat(filePath);
+      const stats = await stat(filePath);
       fileSize = stats.size;
       logMemory('processAndStreamToR2-file-size', `File: ${fileName}, Size: ${(fileSize / 1024 / 1024).toFixed(2)} MB`);
     } catch (statError) {
@@ -314,7 +315,7 @@ export function streamUploadMiddleware(options: StreamUploadOptions = {}) {
           logMemory('streamUploadMiddleware-after-write', `File written to disk: ${tmpFilePath}`);
           
           // Obter o tamanho do arquivo
-          const stats = await fs.stat(tmpFilePath);
+          const stats = await stat(tmpFilePath);
           totalSize += stats.size;
           
           // Log do tamanho do arquivo
@@ -411,7 +412,7 @@ export function cleanupTempFiles(req: Request & { files?: UploadedFile[] }, res:
       // Iniciar a limpeza de arquivos em background
       setTimeout(() => {
         Promise.all(filesToClean.map(file => {
-          return fs.unlink(file.path)
+          return unlink(file.path)
             .then(() => {
               if (process.env.DEBUG_MEMORY === 'true') {
                 console.log(`Arquivo temporário removido: ${file.path}`);
