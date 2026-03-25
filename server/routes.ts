@@ -1415,6 +1415,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Admin impersonate user (login as user without password)
+  app.post("/api/admin/impersonate/:userId", authenticate, requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid user ID" });
+      }
+
+      const targetUser = await storage.getUser(userId);
+      if (!targetUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Store admin's original ID in session so they can return
+      (req.session as any).adminOriginalId = req.user!.id;
+
+      req.login(targetUser, (err) => {
+        if (err) {
+          console.error("[IMPERSONATE] Error logging in as user:", err);
+          return res.status(500).json({ message: "Failed to impersonate user" });
+        }
+        console.log(`[IMPERSONATE] Admin impersonated user ${targetUser.email} (id=${targetUser.id})`);
+        res.json({ success: true, user: { id: targetUser.id, name: targetUser.name, email: targetUser.email } });
+      });
+    } catch (error) {
+      console.error("[IMPERSONATE] Error:", error);
+      res.status(500).json({ message: "Failed to impersonate user" });
+    }
+  });
+
   // Toggle user status (active/suspended)
   app.post("/api/admin/toggle-user", authenticate, requireAdmin, async (req: Request, res: Response) => {
     try {

@@ -46,6 +46,7 @@ import {
   ImageIcon,
   KeyIcon,
   Loader2,
+  LogIn,
   Mail,
   PencilIcon,
   Phone,
@@ -672,6 +673,30 @@ export default function Admin() {
     }
   };
 
+  // Handle impersonating a user (login as user from admin)
+  const handleImpersonate = async (user: User) => {
+    try {
+      const response = await apiRequest("POST", `/api/admin/impersonate/${user.id}`, {});
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Falha ao entrar como usuário");
+      }
+      toast({
+        title: "Entrando como usuário",
+        description: `Você agora está logado como ${user.name} (${user.email}). Redirecionando...`,
+      });
+      setTimeout(() => {
+        window.location.href = "/dashboard";
+      }, 1000);
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: error instanceof Error ? error.message : "Falha ao entrar como usuário",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Handle deleting a user
   const handleDeleteUser = (user: User) => {
     setEditingUser(user);
@@ -1012,6 +1037,16 @@ export default function Admin() {
                                   >
                                     <KeyIcon className="h-4 w-4 mr-1" />
                                     Reset Password
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-purple-600 border-purple-200 hover:bg-purple-50"
+                                    onClick={() => handleImpersonate(user)}
+                                    title={`Entrar como ${user.name}`}
+                                  >
+                                    <LogIn className="h-4 w-4 mr-1" />
+                                    Entrar como
                                   </Button>
                                   <Button 
                                     variant="outline" 
