@@ -6,6 +6,7 @@
  */
 
 import * as fs from 'fs-extra';
+import { createWriteStream } from 'fs';
 import * as path from 'path';
 import { randomUUID } from 'crypto';
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
@@ -296,7 +297,7 @@ export function streamUploadMiddleware(options: StreamUploadOptions = {}) {
           logMemory('streamUploadMiddleware-before-write', `Creating write stream for: ${tmpFilePath}`);
           
           // Criar um write stream para salvar o arquivo temporariamente
-          const writeStream = fs.createWriteStream(tmpFilePath);
+          const writeStream = createWriteStream(tmpFilePath);
           
           // Adicionar tratamento de erro também ao writeStream
           writeStream.on('error', (err) => {
