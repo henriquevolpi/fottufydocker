@@ -3,6 +3,11 @@
  * Apenas detecta e loga - não altera comportamento de upload
  */
 
+// Cache de módulo: detectar uma vez por sessão e reutilizar
+let _cachedDeviceInfo: any = null;
+let _cachedCapabilities: any = null;
+let _cachedSettings: any = null;
+
 export interface DeviceInfo {
   type: 'mobile' | 'tablet' | 'desktop';
   os: 'ios' | 'android' | 'windows' | 'macos' | 'linux' | 'unknown';
@@ -31,6 +36,7 @@ export interface ConnectionInfo {
  * Detecta informações do dispositivo atual
  */
 export function detectDevice(): DeviceInfo {
+  if (_cachedDeviceInfo) return _cachedDeviceInfo;
   const userAgent = navigator.userAgent.toLowerCase();
   
   // Detectar tipo de dispositivo
@@ -107,19 +113,15 @@ export function detectDevice(): DeviceInfo {
     }
   }
   
-  return {
-    type,
-    os,
-    browser,
-    isEmbeddedBrowser,
-    estimatedRAM
-  };
+  _cachedDeviceInfo = { type, os, browser, isEmbeddedBrowser, estimatedRAM };
+  return _cachedDeviceInfo;
 }
 
 /**
  * Testa capabilities do navegador
  */
 export function detectBrowserCapabilities(): BrowserCapabilities {
+  if (_cachedCapabilities) return _cachedCapabilities;
   const capabilities: BrowserCapabilities = {
     supportsWebWorker: false,
     supportsLargeFormData: false,
@@ -181,6 +183,7 @@ export function detectBrowserCapabilities(): BrowserCapabilities {
     capabilities.maxConcurrentConnections = 6;
   }
   
+  _cachedCapabilities = capabilities;
   return capabilities;
 }
 
@@ -259,6 +262,7 @@ export function getRecommendedUploadSettings(): {
   memoryThreshold: number;
   warnings: string[];
 } {
+  if (_cachedSettings) return _cachedSettings;
   const device = detectDevice();
   const capabilities = detectBrowserCapabilities();
   const connection = detectConnection();
@@ -311,5 +315,6 @@ export function getRecommendedUploadSettings(): {
     settings.warnings.push('Conexão lenta - batch reduzido para evitar timeouts');
   }
   
+  _cachedSettings = settings;
   return settings;
 }

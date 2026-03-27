@@ -825,6 +825,13 @@ function UploadModal({
       setIsUploading(true);
       setUploadProgress(0);
 
+      // ── PRÉ-VERIFICAÇÃO: Pausa se memória estiver alta antes de comprimir ──
+      const _memInfoPre = (window.performance as any)?.memory;
+      if (_memInfoPre && _memInfoPre.usedJSHeapSize > _memInfoPre.totalJSHeapSize * 0.80) {
+        console.log(`[Frontend Dashboard] Memória alta (${((_memInfoPre.usedJSHeapSize / _memInfoPre.totalJSHeapSize) * 100).toFixed(1)}%) - aguardando GC por 2s antes de comprimir`);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+
       // ── ETAPA 1: Comprimir APENAS o primeiro lote ────────────────────
       // O projeto é criado com as fotos do primeiro lote.
       // Os demais lotes são comprimidos e enviados depois, um de cada vez.
@@ -865,12 +872,18 @@ function UploadModal({
 
       const result = await new Promise<any>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
+        let _lastProgressTime1 = 0;
+        let _lastProgressValue1 = -1;
 
         xhr.upload.onprogress = (event) => {
           if (event.lengthComputable) {
-            // Lote 1 de upload ocupa a faixa 20% → 20% + batchProgressWeight
-            const progress = 20 + (event.loaded / event.total) * batchProgressWeight;
-            setUploadProgress(Math.min(Math.round(progress), 94));
+            const now = Date.now();
+            const progress = Math.min(Math.round(20 + (event.loaded / event.total) * batchProgressWeight), 94);
+            if (now - _lastProgressTime1 > 150 && progress !== _lastProgressValue1) {
+              _lastProgressTime1 = now;
+              _lastProgressValue1 = progress;
+              setUploadProgress(progress);
+            }
           }
         };
 
@@ -934,11 +947,19 @@ function UploadModal({
 
         await new Promise<void>((resolve, reject) => {
           const xhr = new XMLHttpRequest();
+          let _lastProgressTimeN = 0;
+          let _lastProgressValueN = -1;
 
           xhr.upload.onprogress = (event) => {
             if (event.lengthComputable) {
+              const now = Date.now();
               const uploadShare = batchProgressWeight * 0.4 + (event.loaded / event.total) * batchProgressWeight * 0.6;
-              setUploadProgress(Math.min(Math.round(batchBase + uploadShare), 94));
+              const progress = Math.min(Math.round(batchBase + uploadShare), 94);
+              if (now - _lastProgressTimeN > 150 && progress !== _lastProgressValueN) {
+                _lastProgressTimeN = now;
+                _lastProgressValueN = progress;
+                setUploadProgress(progress);
+              }
             }
           };
 

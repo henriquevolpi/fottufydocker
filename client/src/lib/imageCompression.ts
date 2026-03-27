@@ -47,23 +47,9 @@ function aggressiveMemoryCleanup(forced: boolean = false): void {
     }
     
     if (shouldClean) {
-      // Limpeza imediata se crítico
-      if (cleanupLevel === 'aggressive' && (window as any).gc) {
-        try {
-          (window as any).gc();
-          console.log(`🧹 Limpeza agressiva executada - memória: ${(memInfo?.usedJSHeapSize / memInfo?.totalJSHeapSize * 100 || 0).toFixed(1)}%`);
-        } catch (e) {}
-      }
-      
-      // Limpeza com delay para não bloquear UI
-      const delay = cleanupLevel === 'aggressive' ? 50 : 200;
-      setTimeout(() => {
-        if ((window as any).gc) {
-          try {
-            (window as any).gc();
-          } catch (e) {}
-        }
-      }, delay);
+      // Pausa para dar espaço ao GC do browser (window.gc não existe em produção)
+      const delay = cleanupLevel === 'aggressive' ? 200 : 100;
+      setTimeout(() => { /* yield to GC */ }, delay);
     }
   } catch (error) {
     console.warn('Erro na limpeza de memória:', error);
@@ -97,14 +83,8 @@ export async function compressImage(
     const memInfo = (window.performance as any)?.memory;
     if (memInfo && memInfo.usedJSHeapSize > memInfo.totalJSHeapSize * 0.85) {
       console.warn(`🚨 Memory pressure detected before processing ${file.name} - ${((memInfo.usedJSHeapSize / memInfo.totalJSHeapSize) * 100).toFixed(1)}% used`);
-      // Força limpeza antes de continuar
-      if ((window as any).gc) {
-        try {
-          (window as any).gc();
-          // Espera um pouco para limpeza completar
-          await new Promise(resolve => setTimeout(resolve, 100));
-        } catch (e) {}
-      }
+      // Pausa real para dar tempo ao GC do browser (window.gc não existe em produção)
+      await new Promise(resolve => setTimeout(resolve, 800));
     }
     
     // Mesclar opções padrão com opções customizadas
