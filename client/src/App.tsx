@@ -3,6 +3,7 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import React, { useEffect } from "react";
+import { ErrorBoundary } from "@/components/error-boundary";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/dashboard";
 import Upload from "@/pages/upload";
@@ -159,15 +160,19 @@ function Router() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <UploadProtectionProvider>
-          <Router />
-          <Toaster />
-          <UploadProtectionSystem />
-        </UploadProtectionProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <UploadProtectionProvider>
+            <ErrorBoundary>
+              <Router />
+            </ErrorBoundary>
+            <Toaster />
+            <UploadProtectionSystem />
+          </UploadProtectionProvider>
+        </AuthProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 

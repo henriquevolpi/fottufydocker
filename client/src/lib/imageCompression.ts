@@ -63,20 +63,6 @@ function aggressiveMemoryCleanup(forced: boolean = false): void {
             (window as any).gc();
           } catch (e) {}
         }
-        
-        // Forçar limpeza de event listeners e observers órfãos
-        if (cleanupLevel === 'aggressive') {
-          // Cleanup de possíveis leaks
-          try {
-            const images = document.querySelectorAll('img[src^="blob:"]');
-            images.forEach(img => {
-              const src = img.getAttribute('src');
-              if (src && src.startsWith('blob:')) {
-                URL.revokeObjectURL(src);
-              }
-            });
-          } catch (e) {}
-        }
       }, delay);
     }
   } catch (error) {

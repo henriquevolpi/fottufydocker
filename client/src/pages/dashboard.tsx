@@ -1015,7 +1015,7 @@ function UploadModal({
   };
   
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen && isUploading) return; onClose(); }}>
       <DialogContent className="w-[calc(100%-2rem)] sm:max-w-[700px] max-h-[90vh] overflow-y-auto mx-auto bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-2xl rounded-3xl">
         <DialogHeader className="pb-6">
           <span className="inline-block px-4 py-2 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-full text-[10px] font-black uppercase tracking-widest mb-4 w-fit">
@@ -1192,7 +1192,7 @@ function UploadModal({
                   </span>
                 </div>
                 <div className="border border-slate-100 dark:border-slate-800 rounded-2xl max-h-[240px] overflow-y-auto bg-slate-50 dark:bg-slate-800/50">
-                  {selectedFiles.map((file, index) => (
+                  {selectedFiles.slice(0, 30).map((file, index) => (
                     <div 
                       key={index} 
                       className="flex items-center justify-between py-3 px-4 border-b border-slate-100 dark:border-slate-700/50 last:border-b-0 hover:bg-purple-50/50 dark:hover:bg-purple-900/10 transition-all group"
@@ -1214,6 +1214,11 @@ function UploadModal({
                       </Button>
                     </div>
                   ))}
+                  {selectedFiles.length > 30 && (
+                    <div className="py-3 px-4 text-xs font-bold text-slate-400 dark:text-slate-500 text-center uppercase tracking-widest border-t border-slate-100 dark:border-slate-700/50">
+                      + {selectedFiles.length - 30} foto(s) adicional(is) selecionada(s)
+                    </div>
+                  )}
                 </div>
               </div>
             )}
