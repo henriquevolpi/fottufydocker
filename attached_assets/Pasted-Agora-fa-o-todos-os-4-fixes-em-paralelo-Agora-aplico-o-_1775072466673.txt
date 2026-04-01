@@ -1,0 +1,40 @@
+Agora faço todos os 4 fixes em paralelo:
+
+Agora aplico o throttle no onprogress do primeiro XHR (lote 1):
+
+Agora aplico o throttle nos batches subsequentes:
+
+Agora corrijo o imageCompression.ts — substituo as chamadas inúteis de window.gc() por pausas reais:
+
+Agora corrijo o deviceDetection.ts — adiciono cache no nível do módulo para evitar criar Blob/FormData repetidamente:
+
+Preciso corrigir o tipo do cache e atualizar as funções para realmente usar o cache:
+
+Agora atualizo detectDevice, detectBrowserCapabilities e getRecommendedUploadSettings para usar o cache:
+
+Agora preciso completar o cache no retorno de detectBrowserCapabilities:
+
+Agora completo o cache nas duas funções restantes:
+
+Também vou limpar as chamadas inúteis de window.gc() da função aggressiveMemoryCleanup:
+
+Bom, vou verificar se o app continua funcionando corretamente:
+
+Tudo carregou sem erros. App online. Aqui está o diagnóstico completo que os logs revelaram e o que foi corrigido:
+
+Diagnóstico e Correções
+O que os logs mostraram
+Crash a 5-10% → acontece durante a compressão da primeira imagem do lote. Quando memória já está alta (vindo de sessão anterior), o código tentava chamar window.gc() para limpar memória — mas essa função não existe em produção (só no Chrome com flag especial de desenvolvedor). O código detectava o problema mas não fazia nada efetivo, e a compressão prosseguia com memória cheia.
+
+Crash a 89% → durante o upload do segundo projeto na mesma sessão. Os logs confirmaram: 1min66s após o primeiro upload, memória ainda estava em 89%. O V8 (motor JavaScript do Chrome) só executa o GC quando precisa de memória — se a sessão não exige mais alocação, o GC não roda, deixando a memória cheia para o próximo upload.
+
+Problema adicional: A cada tick de progresso do XHR (~30-60x por segundo durante o envio), setUploadProgress era chamado, causando re-render do React. Isso acordava o engine de layout do browser repetidamente enquanto o upload já estava consumindo banda.
+
+4 correções aplicadas
+1. Pausa preventiva antes de comprimir — se memória estiver acima de 80% ao abrir o upload, o sistema aguarda 2 segundos antes de começar. Isso dá tempo para o GC do browser coletar objetos da sessão anterior, reduzindo o risco de crash a 5-10%.
+
+2. Pausa real quando memória está crítica por arquivo — quando um arquivo específico é processado com memória acima de 85%, o sistema faz uma pausa de 800ms (em vez de tentar chamar window.gc() que não funciona). Isso cria espaço para o GC agir entre imagens.
+
+3. Throttle no progresso do XHR — atualiza a barra de progresso no máximo 1x a cada 150ms e só quando o valor muda. Antes, disparava dezenas de vezes por segundo, mantendo o browser ocupado com re-renders enquanto tentava fazer upload.
+
+4. Cache de detecção de dispositivo — as funções que identificam o tipo de dispositivo e capacidades do navegador agora executam uma única vez por sessão e reutilizam o resultado. Antes, criavam objetos FormData e Blob descartáveis em cada lote (que precisavam de GC).
