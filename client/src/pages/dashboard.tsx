@@ -880,7 +880,7 @@ function UploadModal({
 
         xhr.onerror = () => reject(new Error("Erro de rede"));
         xhr.ontimeout = () => reject(new Error("Tempo esgotado"));
-        xhr.timeout = 120_000; // 2 min por lote
+        xhr.timeout = 300_000; // 5 min por lote (seguro para conexões 3G/lentas)
 
         xhr.open(method, url);
         xhr.withCredentials = true;
@@ -897,8 +897,8 @@ function UploadModal({
     ): Promise<{ ok: boolean; data?: any }> => {
       for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
-          const data = await xhrSend(method, url, body, onProgress);
-          return { ok: true, data };
+          const responseData = await xhrSend(method, url, body, onProgress);
+          return { ok: true, data: responseData };
         } catch (err: any) {
           if (err?.isLimitError) throw err; // limite → para tudo
           if (attempt < maxRetries) {
@@ -965,7 +965,7 @@ function UploadModal({
 
       const projectId = firstResult.data.id;
       let totalUploaded = firstBatchCompressed.length;
-      let skippedBatches = 0;
+      let skippedPhotosCount = 0;
 
       console.log(`[Upload] Projeto ${projectId} criado com ${firstBatchCompressed.length} fotos`);
 
@@ -1002,8 +1002,8 @@ function UploadModal({
           totalUploaded += bFiles.length;
           console.log(`[Upload] ✅ Lote ${bIdx + 1}/${totalBatches} enviado: ${bFiles.length} fotos`);
         } else {
-          skippedBatches++;
-          console.warn(`[Upload] ⚠️ Lote ${bIdx + 1}/${totalBatches} ignorado após falhas`);
+          skippedPhotosCount += bFiles.length; // contagem exata (último lote pode ter menos de 30)
+          console.warn(`[Upload] ⚠️ Lote ${bIdx + 1}/${totalBatches} ignorado após falhas (${bFiles.length} fotos)`);
           // Continua normalmente com o próximo lote
         }
 
@@ -1015,10 +1015,9 @@ function UploadModal({
       setUploadStatusMsg("Upload concluído!");
 
       // ── Finalização ───────────────────────────────────────────────────
-      const skippedPhotos = skippedBatches * BATCH_SIZE;
-      const successMsg = skippedBatches === 0
+      const successMsg = skippedPhotosCount === 0
         ? `O projeto "${data.projectName}" foi criado com ${totalUploaded} fotos.`
-        : `${totalUploaded} fotos enviadas. ${skippedPhotos} foto(s) não foram enviadas por instabilidade de rede — você pode adicioná-las depois.`;
+        : `${totalUploaded} fotos enviadas. ${skippedPhotosCount} foto(s) não foram enviadas por instabilidade de rede — você pode adicioná-las depois.`;
 
       toast({
         title: "Projeto criado com sucesso",
@@ -1908,13 +1907,11 @@ export default function Dashboard() {
       };
       
       // Immediately add this to the projects list for a responsive UI experience
+      // Usa a forma funcional de setState para evitar closure stale
       try {
-        const initialUpdatedProjects = [initialFormattedProject, ...projects.filter(p => p.id !== initialFormattedProject.id)];
-        setProjects(initialUpdatedProjects);
-        
-        // Also update filtered projects right away
+        setProjects(prev => [initialFormattedProject, ...prev.filter(p => p.id !== initialFormattedProject.id)]);
         if (currentTab === "all" || initialFormattedProject.status === getStatusFilter(currentTab)) {
-          setFilteredProjects([initialFormattedProject, ...filteredProjects.filter(p => p.id !== initialFormattedProject.id)]);
+          setFilteredProjects(prev => [initialFormattedProject, ...prev.filter(p => p.id !== initialFormattedProject.id)]);
         }
       } catch (stateError) {
         console.error("Erro ao atualizar estado dos projetos:", stateError);
@@ -1947,20 +1944,28 @@ export default function Dashboard() {
             selecionadas: completeProject.selectedPhotos ? completeProject.selectedPhotos.length : 0
           };
           
-          // Update the projects state with the complete data
-          const finalUpdatedProjects = [completeFormattedProject, ...projects.filter(p => p.id !== completeFormattedProject.id)];
-          setProjects(finalUpdatedProjects);
+          // Update the projects state with the complete data (forma funcional evita closure stale)
+          let finalUpdatedProjects: any[] = [];
+          setProjects(prev => {
+            finalUpdatedProjects = [completeFormattedProject, ...prev.filter(p => p.id !== completeFormattedProject.id)];
+            return finalUpdatedProjects;
+          });
           
           // Final update to filtered projects based on current tab and complete data
           if (currentTab === "all" || completeFormattedProject.status === getStatusFilter(currentTab)) {
-            setFilteredProjects([completeFormattedProject, ...filteredProjects.filter(p => p.id !== completeFormattedProject.id)]);
+            setFilteredProjects(prev => [completeFormattedProject, ...prev.filter(p => p.id !== completeFormattedProject.id)]);
           }
           
           // Update user-specific localStorage with the complete data
           try {
             if (user && user.id) {
               const storageKey = `projects_user_${user.id}`;
-              localStorage.setItem(storageKey, JSON.stringify(finalUpdatedProjects));
+              // Pequena pausa para garantir que o state foi atualizado antes de salvar
+              setTimeout(() => {
+                try {
+                  localStorage.setItem(storageKey, JSON.stringify(finalUpdatedProjects));
+                } catch (e) {}
+              }, 100);
             }
           } catch (storageErr) {
             console.warn("Erro ao salvar no localStorage:", storageErr);

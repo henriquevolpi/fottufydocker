@@ -202,17 +202,33 @@ export async function compressMultipleImages(
 ): Promise<File[]> {
   const results: File[] = [];
   
-  // 📊 CALCULAR TAMANHO MÁXIMO DE LOTE BASEADO NO DISPOSITIVO
+  // 📊 CALCULAR TAMANHO MÁXIMO DE LOTE BASEADO NO DISPOSITIVO (inline, sem imports externos)
   const totalSizeMB = files.reduce((acc, file) => acc + file.size, 0) / 1024 / 1024;
-  let maxBatchSizeMB = 25; // Padrão conservador
-  
-  // Detectar limitações do dispositivo
+  let maxBatchSizeMB = 20; // Padrão conservador
+
   try {
-    const { getRecommendedUploadSettings } = await import('./deviceDetection');
-    const settings = getRecommendedUploadSettings();
-    maxBatchSizeMB = settings.maxBatchSizeMB;
+    const ram = (navigator as any).deviceMemory; // GB (Chrome/Edge only, undefined em Firefox/Safari)
+    const cores = navigator.hardwareConcurrency || 2;
+    const memInfo = (window.performance as any)?.memory;
+    const heapUsagePct = memInfo
+      ? memInfo.usedJSHeapSize / memInfo.jsHeapSizeLimit
+      : 0;
+
+    if (ram !== undefined) {
+      if (ram <= 2) maxBatchSizeMB = 8;        // Dispositivo fraco (≤2GB RAM)
+      else if (ram <= 4) maxBatchSizeMB = 15;  // Dispositivo médio (≤4GB RAM)
+      else maxBatchSizeMB = 25;                // Dispositivo potente (>4GB RAM)
+    } else if (cores <= 2) {
+      maxBatchSizeMB = 10; // CPU fraca — ser conservador
+    } else {
+      maxBatchSizeMB = 20;
+    }
+
+    // Reduzir ainda mais se memória já estiver alta
+    if (heapUsagePct > 0.6) maxBatchSizeMB = Math.min(maxBatchSizeMB, 10);
+    if (heapUsagePct > 0.75) maxBatchSizeMB = Math.min(maxBatchSizeMB, 6);
   } catch (e) {
-    console.warn('Não foi possível detectar configurações do dispositivo, usando padrão conservador');
+    // Usar padrão conservador se detecção falhar
   }
   
   console.log(`[Frontend] 📊 Processamento DINÂMICO: ${files.length} imagens (${totalSizeMB.toFixed(1)}MB total), max ${maxBatchSizeMB}MB por lote`);
