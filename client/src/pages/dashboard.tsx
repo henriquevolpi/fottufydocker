@@ -771,15 +771,25 @@ function UploadModal({
     if (!event.target.files || event.target.files.length === 0) return;
     
     const newFiles = Array.from(event.target.files);
+    const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
 
-    // Aceitar apenas imagens — sem limite de tamanho (a compressão cuida do resize)
-    const validFiles = newFiles.filter(file => file.type.startsWith('image/'));
-    const rejectedFiles = newFiles.filter(file => !file.type.startsWith('image/'));
+    const validFiles = newFiles.filter(file => file.type.startsWith('image/') && file.size <= MAX_FILE_SIZE);
+    const oversizedFiles = newFiles.filter(file => file.type.startsWith('image/') && file.size > MAX_FILE_SIZE);
+    const nonImageFiles = newFiles.filter(file => !file.type.startsWith('image/'));
 
-    if (rejectedFiles.length > 0) {
+    if (oversizedFiles.length > 0) {
+      const total = newFiles.filter(f => f.type.startsWith('image/')).length;
+      toast({
+        title: `${oversizedFiles.length} foto(s) acima de 2MB`,
+        description: `${oversizedFiles.length} de ${total} foto(s) foram ignoradas por ultrapassar 2MB. Exporte as fotos do seu editor com tamanho menor antes de enviar.`,
+        variant: "destructive",
+      });
+    }
+
+    if (nonImageFiles.length > 0) {
       toast({
         title: "Arquivos não suportados",
-        description: `Apenas imagens (JPG, PNG, WEBP) são aceitas. ${rejectedFiles.length} arquivo(s) ignorado(s).`,
+        description: `${nonImageFiles.length} arquivo(s) ignorado(s). Apenas imagens são aceitas.`,
         variant: "destructive",
       });
     }
@@ -1043,7 +1053,7 @@ function UploadModal({
             Criar Novo Projeto
           </DialogTitle>
           <DialogDescription className="text-slate-500 dark:text-slate-400 text-base leading-relaxed mt-2">
-            Preencha os detalhes do projeto e faça upload das suas fotos. As imagens são comprimidas automaticamente.
+            Preencha os detalhes do projeto e faça upload das suas fotos. Máximo 2MB por foto.
           </DialogDescription>
         </DialogHeader>
         
@@ -1190,7 +1200,7 @@ function UploadModal({
                     Clique ou arraste fotos
                   </p>
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                    JPG, PNG, WEBP — comprimidas automaticamente
+                    JPG, PNG, WEBP — até 2MB cada
                   </p>
                 </div>
               </div>
