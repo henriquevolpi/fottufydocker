@@ -742,6 +742,7 @@ function UploadModal({
   const [thumbnails, setThumbnails] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadStatusMsg, setUploadStatusMsg] = useState("");
 
   const { toast } = useToast();
   const { user } = useAuth();
@@ -815,225 +816,238 @@ function UploadModal({
       return;
     }
 
-    // ── Constantes de lote ──────────────────────────────────────────────
-    // Cada lote tem no máximo BATCH_SIZE fotos comprimidas na memória de uma vez.
-    // Isso evita o estouro de heap que causava tela branca para 500-900 fotos.
+    // ── Utilitários internos ─────────────────────────────────────────────
+
+    // Pausa sem bloquear a UI (permite GC e re-renders)
+    const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+    // Comprime com fallback total — nunca lança exceção
+    const safeCompress = async (
+      files: File[],
+      onProgress?: (p: number, t: number) => void
+    ): Promise<File[]> => {
+      try {
+        return await compressMultipleImages(
+          files,
+          { maxWidthOrHeight: 970, quality: 0.9, useWebWorker: true },
+          onProgress
+        );
+      } catch (compressErr) {
+        console.warn("[Upload] Compressão falhou, usando originais:", compressErr);
+        return files; // nunca bloqueia — envia as fotos originais
+      }
+    };
+
+    // XHR encapsulado como Promise com suporte a progresso
+    const xhrSend = (
+      method: string,
+      url: string,
+      body: FormData,
+      onProgress?: (pct: number) => void
+    ): Promise<any> =>
+      new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        let lastT = 0;
+        let lastV = -1;
+
+        xhr.upload.onprogress = (ev) => {
+          if (!ev.lengthComputable || !onProgress) return;
+          const now = Date.now();
+          const pct = Math.round((ev.loaded / ev.total) * 100);
+          if (now - lastT > 150 && pct !== lastV) {
+            lastT = now; lastV = pct;
+            onProgress(pct);
+          }
+        };
+
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try { resolve(JSON.parse(xhr.responseText)); }
+            catch { resolve({}); }
+          } else {
+            try {
+              const err = JSON.parse(xhr.responseText);
+              if (err.error === "UPLOAD_LIMIT_REACHED") {
+                reject({ isLimitError: true, details: err.details });
+              } else {
+                reject(new Error(err.message || `HTTP ${xhr.status}`));
+              }
+            } catch {
+              reject(new Error(`HTTP ${xhr.status}`));
+            }
+          }
+        };
+
+        xhr.onerror = () => reject(new Error("Erro de rede"));
+        xhr.ontimeout = () => reject(new Error("Tempo esgotado"));
+        xhr.timeout = 120_000; // 2 min por lote
+
+        xhr.open(method, url);
+        xhr.withCredentials = true;
+        xhr.send(body);
+      });
+
+    // Retry automático com backoff — propaga apenas erros de limite
+    const xhrWithRetry = async (
+      method: string,
+      url: string,
+      body: FormData,
+      onProgress?: (pct: number) => void,
+      maxRetries = 3
+    ): Promise<{ ok: boolean; data?: any }> => {
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          const data = await xhrSend(method, url, body, onProgress);
+          return { ok: true, data };
+        } catch (err: any) {
+          if (err?.isLimitError) throw err; // limite → para tudo
+          if (attempt < maxRetries) {
+            const waitSec = attempt * 2;
+            setUploadStatusMsg(`Conexão instável — tentando novamente em ${waitSec}s... (${attempt}/${maxRetries})`);
+            await sleep(waitSec * 1000);
+          } else {
+            console.warn(`[Upload] Lote falhou após ${maxRetries} tentativas:`, err?.message);
+          }
+        }
+      }
+      return { ok: false };
+    };
+
+    // ── Constantes ───────────────────────────────────────────────────────
     const BATCH_SIZE = 30;
     const totalFiles = selectedFiles.length;
     const totalBatches = Math.ceil(totalFiles / BATCH_SIZE);
-    // Cada lote recebe uma fatia igual dos 75% de barra reservados para upload (20-95%)
-    const batchProgressWeight = 75 / totalBatches;
+    const batchWeight = 75 / totalBatches; // fatia da barra por lote
 
     try {
       setIsUploading(true);
       setUploadProgress(0);
+      setUploadStatusMsg("Preparando arquivos...");
 
-      // ── PRÉ-VERIFICAÇÃO: Pausa se memória estiver alta antes de comprimir ──
-      const _memInfoPre = (window.performance as any)?.memory;
-      if (_memInfoPre && _memInfoPre.usedJSHeapSize > _memInfoPre.totalJSHeapSize * 0.80) {
-        console.log(`[Frontend Dashboard] Memória alta (${((_memInfoPre.usedJSHeapSize / _memInfoPre.totalJSHeapSize) * 100).toFixed(1)}%) - aguardando GC por 2s antes de comprimir`);
-        await new Promise(resolve => setTimeout(resolve, 2000));
+      // Pausa preventiva se memória estiver alta
+      const mem = (window.performance as any)?.memory;
+      if (mem && mem.usedJSHeapSize > mem.totalJSHeapSize * 0.80) {
+        setUploadStatusMsg("Liberando memória...");
+        await sleep(2000);
       }
 
-      // ── ETAPA 1: Comprimir APENAS o primeiro lote ────────────────────
-      // O projeto é criado com as fotos do primeiro lote.
-      // Os demais lotes são comprimidos e enviados depois, um de cada vez.
+      // ── Lote 1: comprimir ─────────────────────────────────────────────
       const firstBatchFiles = selectedFiles.slice(0, BATCH_SIZE);
-
-      console.log(`[Frontend Dashboard] Upload em lotes: ${totalFiles} fotos, ${totalBatches} lote(s) de até ${BATCH_SIZE}`);
-      console.log(`[Frontend Dashboard] Comprimindo lote 1/${totalBatches}: ${firstBatchFiles.length} imagens`);
-
+      setUploadStatusMsg(`Comprimindo lote 1/${totalBatches}...`);
       setUploadProgress(5);
 
-      const firstBatchCompressed = await compressMultipleImages(
-        firstBatchFiles,
-        { maxWidthOrHeight: 970, quality: 0.9, useWebWorker: true },
-        (processed, _total) => {
-          // Compressão do lote 1 ocupa a faixa 5% → 20%
-          const progress = 5 + (processed / totalFiles) * 15;
-          setUploadProgress(Math.round(progress));
-        }
-      );
+      const firstBatchCompressed = await safeCompress(firstBatchFiles, (done) => {
+        setUploadProgress(Math.round(5 + (done / totalFiles) * 15));
+      });
 
       setUploadProgress(20);
 
-      // ── ETAPA 2: Criar o projeto com o primeiro lote ─────────────────
+      // ── Lote 1: criar projeto ─────────────────────────────────────────
+      setUploadStatusMsg(`Enviando lote 1/${totalBatches}...`);
       const formData = new FormData();
       formData.append('projectName', data.projectName);
       formData.append('clientName', data.clientName);
       formData.append('clientEmail', data.clientEmail || '');
       formData.append('data', data.data);
       formData.append('includedPhotos', data.includedPhotos?.toString() || '0');
-      const priceInCents = Math.round(Number(data.additionalPhotoPrice || 0) * 100);
-      formData.append('additionalPhotoPrice', priceInCents.toString());
-      if (user && user.id) {
-        formData.append('photographerId', user.id.toString());
-      }
-      firstBatchCompressed.forEach(file => formData.append('photos', file));
+      formData.append('additionalPhotoPrice', Math.round(Number(data.additionalPhotoPrice || 0) * 100).toString());
+      if (user?.id) formData.append('photographerId', user.id.toString());
+      firstBatchCompressed.forEach(f => formData.append('photos', f));
 
-      console.log(`[Frontend Dashboard] Criando projeto com lote 1/${totalBatches}: ${firstBatchCompressed.length} fotos`);
-
-      const result = await new Promise<any>((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        let _lastProgressTime1 = 0;
-        let _lastProgressValue1 = -1;
-
-        xhr.upload.onprogress = (event) => {
-          if (event.lengthComputable) {
-            const now = Date.now();
-            const progress = Math.min(Math.round(20 + (event.loaded / event.total) * batchProgressWeight), 94);
-            if (now - _lastProgressTime1 > 150 && progress !== _lastProgressValue1) {
-              _lastProgressTime1 = now;
-              _lastProgressValue1 = progress;
-              setUploadProgress(progress);
-            }
-          }
-        };
-
-        xhr.onload = () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            try {
-              resolve(JSON.parse(xhr.responseText));
-            } catch (e) {
-              reject(new Error('Erro ao processar resposta do servidor'));
-            }
-          } else {
-            try {
-              const errorData = JSON.parse(xhr.responseText);
-              if (errorData.error === "UPLOAD_LIMIT_REACHED") {
-                reject({ isLimitError: true, details: errorData.details });
-              } else {
-                reject(new Error(errorData.message || 'Erro ao criar projeto'));
-              }
-            } catch {
-              reject(new Error('Erro ao criar projeto'));
-            }
-          }
-        };
-
-        xhr.onerror = () => reject(new Error('Erro de conexão ao enviar o projeto'));
-
-        xhr.open('POST', '/api/projects');
-        xhr.withCredentials = true;
-        xhr.send(formData);
+      // Primeiro lote DEVE ter sucesso — retenta e lança se falhar tudo
+      const firstResult = await xhrWithRetry('POST', '/api/projects', formData, (pct) => {
+        setUploadProgress(Math.min(Math.round(20 + pct * batchWeight / 100), 94));
       });
 
-      const projectId = result.id;
+      if (!firstResult.ok || !firstResult.data?.id) {
+        throw new Error("Não foi possível criar o projeto. Verifique sua conexão e tente novamente.");
+      }
+
+      const projectId = firstResult.data.id;
       let totalUploaded = firstBatchCompressed.length;
+      let skippedBatches = 0;
 
-      console.log(`[Frontend Dashboard] Projeto criado (ID=${projectId}) com ${firstBatchCompressed.length} fotos`);
+      console.log(`[Upload] Projeto ${projectId} criado com ${firstBatchCompressed.length} fotos`);
 
-      // ── ETAPA 3: Lotes restantes — comprimir e enviar um por vez ─────
-      // Cada lote é comprimido, enviado e liberado da memória antes do próximo.
-      for (let batchIndex = 1; batchIndex < totalBatches; batchIndex++) {
-        const batchStart = batchIndex * BATCH_SIZE;
-        const batchEnd = Math.min(batchStart + BATCH_SIZE, totalFiles);
-        const batchFiles = selectedFiles.slice(batchStart, batchEnd);
+      // ── Lotes restantes: comprimir → enviar → continuar ──────────────
+      for (let bIdx = 1; bIdx < totalBatches; bIdx++) {
+        const bStart = bIdx * BATCH_SIZE;
+        const bEnd = Math.min(bStart + BATCH_SIZE, totalFiles);
+        const bFiles = selectedFiles.slice(bStart, bEnd);
+        const bBase = 20 + bIdx * batchWeight;
 
-        console.log(`[Frontend Dashboard] Comprimindo lote ${batchIndex + 1}/${totalBatches}: ${batchFiles.length} imagens`);
+        setUploadStatusMsg(`Comprimindo lote ${bIdx + 1}/${totalBatches}...`);
 
-        // Compressão ocupa a primeira metade da fatia deste lote na barra
-        const batchBase = 20 + batchIndex * batchProgressWeight;
+        const bCompressed = await safeCompress(bFiles, (done) => {
+          const share = (done / bFiles.length) * batchWeight * 0.4;
+          setUploadProgress(Math.min(Math.round(bBase + share), 94));
+        });
 
-        const batchCompressed = await compressMultipleImages(
-          batchFiles,
-          { maxWidthOrHeight: 970, quality: 0.9, useWebWorker: true },
-          (processed, _total) => {
-            const compressionShare = (processed / batchFiles.length) * (batchProgressWeight * 0.4);
-            setUploadProgress(Math.min(Math.round(batchBase + compressionShare), 94));
+        setUploadStatusMsg(`Enviando lote ${bIdx + 1}/${totalBatches}...`);
+
+        const bFormData = new FormData();
+        bCompressed.forEach(f => bFormData.append('photos', f));
+
+        const bResult = await xhrWithRetry(
+          'POST',
+          `/api/projects/${projectId}/photos`,
+          bFormData,
+          (pct) => {
+            const share = batchWeight * 0.4 + pct * batchWeight * 0.6 / 100;
+            setUploadProgress(Math.min(Math.round(bBase + share), 94));
           }
         );
 
-        // Upload ocupa a segunda metade da fatia deste lote na barra
-        const batchFormData = new FormData();
-        batchCompressed.forEach(file => batchFormData.append('photos', file));
+        if (bResult.ok) {
+          totalUploaded += bFiles.length;
+          console.log(`[Upload] ✅ Lote ${bIdx + 1}/${totalBatches} enviado: ${bFiles.length} fotos`);
+        } else {
+          skippedBatches++;
+          console.warn(`[Upload] ⚠️ Lote ${bIdx + 1}/${totalBatches} ignorado após falhas`);
+          // Continua normalmente com o próximo lote
+        }
 
-        await new Promise<void>((resolve, reject) => {
-          const xhr = new XMLHttpRequest();
-          let _lastProgressTimeN = 0;
-          let _lastProgressValueN = -1;
-
-          xhr.upload.onprogress = (event) => {
-            if (event.lengthComputable) {
-              const now = Date.now();
-              const uploadShare = batchProgressWeight * 0.4 + (event.loaded / event.total) * batchProgressWeight * 0.6;
-              const progress = Math.min(Math.round(batchBase + uploadShare), 94);
-              if (now - _lastProgressTimeN > 150 && progress !== _lastProgressValueN) {
-                _lastProgressTimeN = now;
-                _lastProgressValueN = progress;
-                setUploadProgress(progress);
-              }
-            }
-          };
-
-          xhr.onload = () => {
-            if (xhr.status >= 200 && xhr.status < 300) {
-              totalUploaded += batchFiles.length;
-              console.log(`[Frontend Dashboard] ✅ Lote ${batchIndex + 1}/${totalBatches} enviado: ${batchFiles.length} fotos`);
-              resolve();
-            } else {
-              try {
-                const errorData = JSON.parse(xhr.responseText);
-                if (errorData.error === "UPLOAD_LIMIT_REACHED") {
-                  reject({ isLimitError: true, details: errorData.details });
-                } else {
-                  reject(new Error(errorData.message || `Erro ao enviar lote ${batchIndex + 1}`));
-                }
-              } catch {
-                reject(new Error(`Erro ao enviar lote ${batchIndex + 1}`));
-              }
-            }
-          };
-
-          xhr.onerror = () => reject(new Error(`Erro de conexão no lote ${batchIndex + 1}`));
-
-          xhr.open('POST', `/api/projects/${projectId}/photos`);
-          xhr.withCredentials = true;
-          xhr.send(batchFormData);
-        });
+        // Pequena pausa entre lotes para não sobrecarregar o servidor
+        await sleep(200);
       }
 
       setUploadProgress(100);
+      setUploadStatusMsg("Upload concluído!");
 
-      // ── ETAPA 4: Finalização ─────────────────────────────────────────
-      console.log("Project created:", result);
-
-      const formattedProject = {
-        ...result,
-        nome: result.name,
-        cliente: result.clientName,
-        emailCliente: result.clientEmail,
-        fotos: totalUploaded,
-        selecionadas: result.selectedPhotos ? result.selectedPhotos.length : 0
-      };
+      // ── Finalização ───────────────────────────────────────────────────
+      const skippedPhotos = skippedBatches * BATCH_SIZE;
+      const successMsg = skippedBatches === 0
+        ? `O projeto "${data.projectName}" foi criado com ${totalUploaded} fotos.`
+        : `${totalUploaded} fotos enviadas. ${skippedPhotos} foto(s) não foram enviadas por instabilidade de rede — você pode adicioná-las depois.`;
 
       toast({
         title: "Projeto criado com sucesso",
-        description: `O projeto "${data.projectName}" foi criado com ${totalUploaded} fotos redimensionadas.`,
+        description: successMsg,
       });
 
-      try {
-        onUpload(formattedProject);
-      } catch (callbackError) {
-        console.warn("[UploadModal] Erro no callback de upload (não crítico):", callbackError);
-      }
+      try { onUpload({ ...firstResult.data, nome: firstResult.data.name, cliente: firstResult.data.clientName, emailCliente: firstResult.data.clientEmail, fotos: totalUploaded, selecionadas: firstResult.data.selectedPhotos?.length ?? 0 }); }
+      catch (e) { console.warn("[Upload] Erro no callback (não crítico):", e); }
 
       setSelectedFiles([]);
       setThumbnails([]);
+      setUploadStatusMsg("");
       form.reset();
       onClose();
+
     } catch (error: any) {
-      console.error("Error during upload:", error);
+      console.error("[Upload] Erro fatal:", error);
+      setUploadStatusMsg("");
+
       if (error?.isLimitError) {
         toast({
           title: "Limite de uploads atingido",
-          description: error.details || "Você atingiu o limite do seu plano. Verifique sua assinatura na dashboard ou entre em contato com o suporte.",
+          description: error.details || "Você atingiu o limite do seu plano. Verifique sua assinatura ou entre em contato com o suporte.",
           variant: "destructive",
         });
       } else {
         toast({
           title: "Erro ao criar projeto",
-          description: error?.message || "Ocorreu um erro durante o upload. Por favor, tente novamente.",
+          description: error?.message || "Ocorreu um erro inesperado. Por favor, tente novamente.",
           variant: "destructive",
         });
       }
@@ -1262,7 +1276,7 @@ function UploadModal({
                     <div>
                       <p className="text-sm font-black text-slate-700 dark:text-slate-200">Processando {thumbnails.length} fotos</p>
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                        {uploadProgress < 30 ? "Preparando arquivos..." : uploadProgress < 70 ? "Enviando para servidor..." : uploadProgress < 90 ? "Processando imagens..." : "Finalizando..."}
+                        {uploadStatusMsg || (uploadProgress < 30 ? "Preparando arquivos..." : uploadProgress < 70 ? "Enviando para servidor..." : uploadProgress < 90 ? "Processando imagens..." : "Finalizando...")}
                       </p>
                     </div>
                   </div>
