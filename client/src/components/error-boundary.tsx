@@ -3,30 +3,41 @@ import { Component, ErrorInfo, ReactNode } from "react";
 interface Props {
   children: ReactNode;
   fallback?: ReactNode;
+  onReset?: () => void;
 }
 
 interface State {
   hasError: boolean;
   error: Error | null;
+  errorCount: number;
 }
 
 export class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = { hasError: false, error: null, errorCount: 0 };
   }
 
-  static getDerivedStateFromError(error: Error): State {
+  static getDerivedStateFromError(error: Error): Partial<State> {
     return { hasError: true, error };
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error("[ErrorBoundary] Erro capturado:", error, info.componentStack);
+    console.error("[ErrorBoundary] Erro capturado:", error.message, info.componentStack);
   }
 
   handleReload = () => {
-    this.setState({ hasError: false, error: null });
     window.location.reload();
+  };
+
+  handleReset = () => {
+    const newCount = this.state.errorCount + 1;
+    this.setState({ hasError: false, error: null, errorCount: newCount });
+    if (this.props.onReset) {
+      try {
+        this.props.onReset();
+      } catch (e) {}
+    }
   };
 
   render() {
@@ -34,6 +45,8 @@ export class ErrorBoundary extends Component<Props, State> {
       if (this.props.fallback) {
         return this.props.fallback;
       }
+
+      const canTryAgain = this.state.errorCount < 2;
 
       return (
         <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900 p-6">
@@ -49,12 +62,22 @@ export class ErrorBoundary extends Component<Props, State> {
             <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed mb-8">
               Ocorreu um erro inesperado. Seus dados estão seguros. Clique em recarregar para continuar.
             </p>
-            <button
-              onClick={this.handleReload}
-              className="w-full h-12 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-black text-xs tracking-widest uppercase rounded-2xl shadow-xl shadow-purple-500/20 transition-all"
-            >
-              Recarregar Página
-            </button>
+            <div className="flex flex-col gap-3">
+              {canTryAgain && (
+                <button
+                  onClick={this.handleReset}
+                  className="w-full h-12 bg-white border-2 border-purple-200 hover:border-purple-400 text-purple-700 font-bold text-xs tracking-widest uppercase rounded-2xl transition-all"
+                >
+                  Tentar Novamente
+                </button>
+              )}
+              <button
+                onClick={this.handleReload}
+                className="w-full h-12 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-black text-xs tracking-widest uppercase rounded-2xl shadow-xl shadow-purple-500/20 transition-all"
+              >
+                Recarregar Página
+              </button>
+            </div>
           </div>
         </div>
       );

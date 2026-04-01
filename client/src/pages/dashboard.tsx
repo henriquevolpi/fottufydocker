@@ -771,29 +771,22 @@ function UploadModal({
     if (!event.target.files || event.target.files.length === 0) return;
     
     const newFiles = Array.from(event.target.files);
-    const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
-    
-    // Verificar arquivos acima de 2MB
-    const oversizedFiles = newFiles.filter(file => file.size > MAX_FILE_SIZE);
-    const validFiles = newFiles.filter(file => file.size <= MAX_FILE_SIZE);
-    
-    if (oversizedFiles.length > 0) {
-      const fileNames = oversizedFiles.map(f => f.name).join(', ');
+
+    // Aceitar apenas imagens — sem limite de tamanho (a compressão cuida do resize)
+    const validFiles = newFiles.filter(file => file.type.startsWith('image/'));
+    const rejectedFiles = newFiles.filter(file => !file.type.startsWith('image/'));
+
+    if (rejectedFiles.length > 0) {
       toast({
-        title: "Arquivos muito grandes",
-        description: `Envie apenas fotos abaixo de 2MB. Arquivos rejeitados: ${fileNames}`,
+        title: "Arquivos não suportados",
+        description: `Apenas imagens (JPG, PNG, WEBP) são aceitas. ${rejectedFiles.length} arquivo(s) ignorado(s).`,
         variant: "destructive",
       });
-      
-      if (validFiles.length === 0) {
-        return;
-      }
     }
+
+    if (validFiles.length === 0) return;
     
     setSelectedFiles((prev) => [...prev, ...validFiles]);
-    
-    // Não geramos mais thumbnails, apenas registramos a quantidade de arquivos
-    // para manter a contagem correta e permitir a remoção de arquivos
     setThumbnails(prev => [...prev, ...Array(validFiles.length).fill("placeholder")]);
   };
   
@@ -1009,7 +1002,11 @@ function UploadModal({
         description: `O projeto "${data.projectName}" foi criado com ${totalUploaded} fotos redimensionadas.`,
       });
 
-      onUpload(formattedProject);
+      try {
+        onUpload(formattedProject);
+      } catch (callbackError) {
+        console.warn("[UploadModal] Erro no callback de upload (não crítico):", callbackError);
+      }
 
       setSelectedFiles([]);
       setThumbnails([]);
@@ -1046,7 +1043,7 @@ function UploadModal({
             Criar Novo Projeto
           </DialogTitle>
           <DialogDescription className="text-slate-500 dark:text-slate-400 text-base leading-relaxed mt-2">
-            Preencha os detalhes do projeto e faça upload das suas fotos. Máximo 2MB por foto.
+            Preencha os detalhes do projeto e faça upload das suas fotos. As imagens são comprimidas automaticamente.
           </DialogDescription>
         </DialogHeader>
         
@@ -1193,7 +1190,7 @@ function UploadModal({
                     Clique ou arraste fotos
                   </p>
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                    JPG, PNG, WEBP - até 2MB cada
+                    JPG, PNG, WEBP — comprimidas automaticamente
                   </p>
                 </div>
               </div>
