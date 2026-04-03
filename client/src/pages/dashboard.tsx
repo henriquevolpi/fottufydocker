@@ -82,7 +82,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
-import fottufinhopng from "@assets/fottufinhopng.webp";
+const fottufinhopng = "/fottufinhopascoapng_result.webp";
 
 // Dados fictícios para projetos
 const PROJETOS_EXEMPLO = [

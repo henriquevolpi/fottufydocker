@@ -202,7 +202,7 @@ export default function AuthPage() {
                     transition={{ duration: 0.4 }}
                   >
                     <img 
-                      src="/fottufinhopng.webp" 
+                      src="/fottufinhopascoapng_result.webp" 
                       alt="Fottufy" 
                       className="w-20 h-20 object-contain"
                     />
