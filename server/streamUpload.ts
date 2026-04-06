@@ -1,59 +1,47 @@
 /**
  * Sistema de streaming para uploads eficientes
- * 
- * Este módulo substitui o upload baseado em buffer por uma solução de streaming
- * que consome menos memória ao processar grandes arquivos.
+ *
+ * Uploads sem buffer no navegador: arquivo vai direto do disco do usuário
+ * para o servidor via XHR FormData → busboy salva em tmp → stream para R2.
  */
 
 import * as fs from 'fs-extra';
 import { createWriteStream, createReadStream, ReadStream } from 'fs';
-import { stat, unlink } from 'fs/promises';
+import { stat, unlink, readdir } from 'fs/promises';
 import * as path from 'path';
-import { randomUUID } from 'crypto';
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import busboy from 'busboy';
 import { Request, Response, NextFunction } from 'express';
-import { processImage } from './imageProcessor';
-import { r2Client, BUCKET_NAME, isValidFileType, isValidFileSize, generateUniqueFileName } from './r2';
+import { r2Client, BUCKET_NAME, generateUniqueFileName } from './r2';
 import { pipeline } from 'stream/promises';
-
-/**
- * Função para logar informações de uso de memória
- * @param label Identificador do ponto de monitoramento
- * @param details Detalhes adicionais opcional como tamanho de arquivo
- */
-function logMemory(label: string, details: string = ''): void {
-  if (process.env.DEBUG_MEMORY !== 'true') return;
-  
-  const memoryUsage = process.memoryUsage();
-  console.log(`
-=== MEMORY USAGE [${label}] ===
-${details ? `Details: ${details}\n` : ''}Heap Total: ${(memoryUsage.heapTotal / 1024 / 1024).toFixed(2)} MB
-Heap Used: ${(memoryUsage.heapUsed / 1024 / 1024).toFixed(2)} MB
-External: ${(memoryUsage.external / 1024 / 1024).toFixed(2)} MB
-RSS: ${(memoryUsage.rss / 1024 / 1024).toFixed(2)} MB
-Heap Used/Total: ${(memoryUsage.heapUsed / memoryUsage.heapTotal * 100).toFixed(2)}%
-================================
-  `);
-}
 
 // Pasta temporária para arquivos durante o streaming
 const TMP_DIR = path.join(process.cwd(), 'tmp');
 
-// Inicializar diretório temporário
+// Garantir que o diretório existe
 fs.ensureDirSync(TMP_DIR);
 
-// Limpeza periódica dos arquivos temporários (a cada 15 minutos)
-setInterval(() => {
+// Limpeza periódica de arquivos ANTIGOS no tmp (>30 min) — nunca apaga o dir todo
+// para não derrubar uploads em andamento.
+setInterval(async () => {
   try {
-    fs.emptyDirSync(TMP_DIR);
-    if (process.env.DEBUG_MEMORY === 'true') {
-      console.log(`Diretório temporário ${TMP_DIR} limpo com sucesso`);
+    const now = Date.now();
+    const files = await readdir(TMP_DIR);
+    for (const file of files) {
+      const filePath = path.join(TMP_DIR, file);
+      try {
+        const { mtimeMs } = await stat(filePath);
+        if (now - mtimeMs > 30 * 60 * 1000) {
+          await unlink(filePath);
+        }
+      } catch {
+        // arquivo já foi removido por outro processo — ok
+      }
     }
-  } catch (error) {
-    console.error('Erro ao limpar diretório temporário:', error);
+  } catch (err) {
+    console.error('[tmp-cleanup] Erro na limpeza periódica:', err);
   }
-}, 900000);
+}, 15 * 60 * 1000); // a cada 15 min, mas só remove arquivos >30 min
 
 interface UploadedFile {
   fieldname: string;
@@ -65,391 +53,190 @@ interface UploadedFile {
 }
 
 interface StreamUploadOptions {
-  applyWatermark?: boolean;
   maxFileSize?: number;
-  fileTypes?: string[];
 }
 
 /**
- * Faz streaming direto de um arquivo para o R2 sem processamento
- * Versão otimizada com melhor gerenciamento de memória
- */
-export async function streamDirectToR2(
-  filePath: string, 
-  fileName: string, 
-  contentType: string
-): Promise<{ url: string, key: string }> {
-  // Variável para armazenar o stream para que possamos fechá-lo em caso de erro
-  let fileStream: ReadStream | null = null;
-  
-  try {
-    // Log de memória no início do upload
-    logMemory('streamDirectToR2-start', `File: ${fileName}, Type: ${contentType}`);
-    
-    // Obter o tamanho do arquivo para o log
-    let fileSize = 0;
-    try {
-      const stats = await stat(filePath);
-      fileSize = stats.size;
-    } catch (statError) {
-      console.error(`Erro ao obter tamanho do arquivo ${filePath}:`, statError);
-    }
-    
-    // Criar stream do arquivo com melhor tratamento de erros
-    fileStream = createReadStream(filePath);
-    
-    // Adicionar tratamento de erros ao stream
-    fileStream.on('error', (err) => {
-      console.error(`Erro no stream de leitura para ${fileName}:`, err);
-      if (fileStream && !fileStream.destroyed) {
-        fileStream.destroy();
-      }
-    });
-    
-    // Log antes de iniciar o upload
-    logMemory('streamDirectToR2-before-upload', `File: ${fileName}, Size: ${(fileSize / 1024 / 1024).toFixed(2)} MB`);
-    
-    // Preparar comando de upload
-    const uploadCommand = new PutObjectCommand({
-      Bucket: BUCKET_NAME,
-      Key: fileName,
-      Body: fileStream,
-      ContentType: contentType
-    });
-    
-    // Fazer upload usando streaming
-    await r2Client.send(uploadCommand);
-    
-    // Log após o upload
-    logMemory('streamDirectToR2-after-upload', `File: ${fileName} uploaded successfully`);
-    
-    // Sempre usar o CDN público (cdn.fottufy.com)
-    const cdnBase = process.env.R2_PUBLIC_URL || 'https://cdn.fottufy.com';
-    const url = `${cdnBase}/${fileName}`;
-    
-    return { url, key: fileName };
-  } catch (error) {
-    // Log em caso de erro
-    logMemory('streamDirectToR2-error', `Error uploading ${fileName}: ${error instanceof Error ? error.message : String(error)}`);
-    console.error(`Erro ao fazer streaming para R2: ${error instanceof Error ? error.message : String(error)}`);
-    
-    // Garantir que o stream seja fechado em caso de erro
-    if (fileStream && !fileStream.destroyed) {
-      fileStream.destroy();
-    }
-    
-    throw error;
-  } finally {
-    // Garantir limpeza do stream no bloco finally para assegurar que sempre será executado
-    if (fileStream && !fileStream.destroyed) {
-      fileStream.destroy();
-      fileStream = null; // Permitir coleta de lixo
-    }
-    
-    // Sugerir garbage collection se DEBUG_MEMORY estiver ativado
-    if (process.env.DEBUG_MEMORY === 'true' && global.gc) {
-      try {
-        setTimeout(() => {
-          global.gc && global.gc();
-          logMemory('streamDirectToR2-gc', `Garbage collection sugerida após upload de ${fileName}`);
-        }, 100);
-      } catch (gcError) {
-        console.error('Erro ao sugerir garbage collection:', gcError);
-      }
-    }
-  }
-}
-
-/**
- * Upload direto para R2 sem processamento
- * Substitui o processamento anterior - agora apenas faz streaming direto
+ * Faz streaming direto de um arquivo temporário para o R2.
+ * Nunca carrega o arquivo inteiro em memória.
  */
 export async function processAndStreamToR2(
   filePath: string,
   fileName: string,
   contentType: string,
-  applyWatermark: boolean = false // Ignorado - processamento desativado
-): Promise<{ url: string, key: string }> {
+  _applyWatermark: boolean = false
+): Promise<{ url: string; key: string }> {
+  let fileStream: ReadStream | null = null;
+
   try {
-    // Log de memória no início do upload
-    logMemory('processAndStreamToR2-start', `File: ${fileName}, Type: ${contentType}`);
-    
-    // Obter o tamanho do arquivo para o log
-    let fileSize = 0;
-    try {
-      const stats = await stat(filePath);
-      fileSize = stats.size;
-      logMemory('processAndStreamToR2-file-size', `File: ${fileName}, Size: ${(fileSize / 1024 / 1024).toFixed(2)} MB`);
-    } catch (statError) {
-      console.error(`Erro ao obter tamanho do arquivo ${filePath}:`, statError);
-    }
-    
-    // PROCESSAMENTO DESATIVADO: Enviar arquivo direto para R2 sem processamento
-    console.log(`Enviando arquivo direto para R2: ${fileName} (${(fileSize / 1024 / 1024).toFixed(2)} MB) - sem processamento backend`);
-    
-    // Usar streaming direto para todos os tipos de arquivo
-    const result = await streamDirectToR2(filePath, fileName, contentType);
-    
-    if (process.env.DEBUG_MEMORY === 'true') {
-      console.log(`Arquivo enviado com sucesso: ${fileName}`);
-    }
-    
-    // Log do final do upload bem-sucedido
-    logMemory('processAndStreamToR2-complete', `Successfully uploaded: ${fileName}`);
-    
-    return result;
-    
-  } catch (uploadError) {
-    // Log em caso de erro
-    logMemory('processAndStreamToR2-error', `Error uploading ${fileName}: ${uploadError instanceof Error ? uploadError.message : String(uploadError)}`);
-    console.error(`Erro ao fazer upload do arquivo ${fileName}:`, uploadError);
-    throw uploadError;
+    fileStream = createReadStream(filePath);
+
+    fileStream.on('error', (err) => {
+      console.error(`[R2 stream] Erro ao ler ${fileName}:`, err.message);
+      if (fileStream && !fileStream.destroyed) fileStream.destroy();
+    });
+
+    await r2Client.send(
+      new PutObjectCommand({
+        Bucket: BUCKET_NAME,
+        Key: fileName,
+        Body: fileStream,
+        ContentType: contentType,
+      })
+    );
+
+    const cdnBase = process.env.R2_PUBLIC_URL || 'https://cdn.fottufy.com';
+    return { url: `${cdnBase}/${fileName}`, key: fileName };
+  } catch (err) {
+    console.error(`[R2 stream] Falha no upload de ${fileName}:`, err instanceof Error ? err.message : err);
+    throw err;
   } finally {
-    // Sugerir coleta de lixo em ambiente de DEBUG
-    if (process.env.DEBUG_MEMORY === 'true' && global.gc) {
-      try {
-        setTimeout(() => {
-          global.gc && global.gc();
-          logMemory('processAndStreamToR2-gc', `Garbage collection sugerida após upload de ${fileName}`);
-        }, 100);
-      } catch (gcError) {
-        console.error('Erro ao sugerir garbage collection:', gcError);
-      }
+    if (fileStream && !fileStream.destroyed) {
+      fileStream.destroy();
+      fileStream = null;
     }
   }
 }
 
 /**
- * Middleware para lidar com uploads via streaming
- * Versão otimizada com melhor gerenciamento de memória
+ * Middleware de upload multipart via busboy.
+ *
+ * FIX (race condition): o evento `file` do busboy é síncrono, mas o corpo
+ * do handler é async. O evento `finish` dispara quando todos os bytes de
+ * rede foram consumidos — mas as promises de escrita em disco podem ainda
+ * estar pendentes. Solução: acumular as promises e aguardar todas antes
+ * de chamar `next()`.
  */
 export function streamUploadMiddleware(options: StreamUploadOptions = {}) {
-  const { applyWatermark = true, maxFileSize = 1000 * 1024 * 1024, fileTypes } = options;
-  
-  return async (req: Request & { files?: UploadedFile[] }, res: Response, next: NextFunction) => {
-    // Log de memória no início do middleware
-    logMemory('streamUploadMiddleware-start', `Request URL: ${req.url}`);
-    
-    // Verificar se é uma requisição multipart
+  const { maxFileSize = 500 * 1024 * 1024 } = options; // 500 MB por arquivo
+
+  return (req: Request & { files?: UploadedFile[] }, res: Response, next: NextFunction) => {
     if (!req.is('multipart/form-data')) {
       return next();
     }
-    
-    // Inicializar array de arquivos
+
     req.files = [];
-    
+
+    let bbError: Error | null = null;
+    // Acumular todas as promises de processamento de arquivo
+    const filePromises: Promise<void>[] = [];
+
+    let bb: ReturnType<typeof busboy>;
     try {
-      const bb = busboy({ 
+      bb = busboy({
         headers: req.headers,
-        limits: {
-          fileSize: maxFileSize
-        }
+        limits: { fileSize: maxFileSize },
       });
-      
-      // Counter para estatísticas
-      let fileCount = 0;
-      let totalSize = 0;
-      
-      // Processar campos do formulário
-      bb.on('field', (fieldname, val) => {
-        if (!req.body) {
-          req.body = {};
-        }
-        
-        // Adicionar campo ao body
-        req.body[fieldname] = val;
+    } catch (err) {
+      return next(err);
+    }
+
+    // Campos de formulário
+    bb.on('field', (fieldname, val) => {
+      if (!req.body) req.body = {};
+      req.body[fieldname] = val;
+    });
+
+    // Cada arquivo recebido: iniciar promise de processamento imediatamente
+    bb.on('file', (fieldname, fileStream, fileInfo) => {
+      const { filename, mimeType } = fileInfo;
+
+      // Se o arquivo exceder o limite, busboy já trunca — apenas logar
+      fileStream.on('limit', () => {
+        console.warn(`[busboy] Arquivo ${filename} excedeu o limite de tamanho e foi truncado`);
+        fileStream.resume();
       });
-      
-      // Processar arquivos
-      bb.on('file', async (fieldname, fileStream, fileInfo) => {
-        const { filename, encoding, mimeType } = fileInfo;
-        fileCount++;
-        
-        // Log de início do processamento do arquivo
-        logMemory('streamUploadMiddleware-file-start', `Processing file ${fileCount}: ${filename} (${mimeType})`);
-        
-        // Adicionar tratamento de erro ao stream
-        fileStream.on('error', (err) => {
-          console.error(`Erro no stream de leitura para ${filename}:`, err);
-          if (!fileStream.destroyed) {
-            fileStream.destroy();
-          }
-        });
-        
-        // Verificar tipo de arquivo se houver restrição
-        if (fileTypes && !fileTypes.includes(mimeType)) {
-          logMemory('streamUploadMiddleware-file-skip', `Skipping file ${filename}: invalid type ${mimeType}`);
-          fileStream.resume(); // Ignorar arquivo
-          return;
-        }
-        
-        // Gerar nome único para o arquivo
-        const uniqueFilename = generateUniqueFileName(filename);
-        const tmpFilePath = path.join(TMP_DIR, uniqueFilename);
-        
+
+      fileStream.on('error', (err) => {
+        console.error(`[busboy] Erro no fileStream de ${filename}:`, err.message);
+        if (!fileStream.destroyed) fileStream.destroy();
+      });
+
+      const uniqueFilename = generateUniqueFileName(filename);
+      const tmpFilePath = path.join(TMP_DIR, uniqueFilename);
+
+      // Acumular a promise — NÃO await aqui para não bloquear busboy
+      const p = (async () => {
         try {
-          // Log antes de criar o stream
-          logMemory('streamUploadMiddleware-before-write', `Creating write stream for: ${tmpFilePath}`);
-          
-          // Criar um write stream para salvar o arquivo temporariamente
           const writeStream = createWriteStream(tmpFilePath);
-          
-          // Adicionar tratamento de erro também ao writeStream
+
           writeStream.on('error', (err) => {
-            console.error(`Erro no stream de escrita para ${tmpFilePath}:`, err);
-            if (!writeStream.destroyed) {
-              writeStream.destroy();
-            }
+            console.error(`[busboy] Erro ao gravar ${tmpFilePath}:`, err.message);
           });
-          
-          // Usar pipeline para garantir que os streams sejam limpos corretamente
+
           await pipeline(fileStream, writeStream);
-          
-          // Log após salvar o arquivo
-          logMemory('streamUploadMiddleware-after-write', `File written to disk: ${tmpFilePath}`);
-          
-          // Obter o tamanho do arquivo
-          const stats = await stat(tmpFilePath);
-          totalSize += stats.size;
-          
-          // Log do tamanho do arquivo
-          logMemory('streamUploadMiddleware-file-stats', 
-            `File ${fileCount}: ${filename}, Size: ${(stats.size / 1024 / 1024).toFixed(2)} MB, Total so far: ${(totalSize / 1024 / 1024).toFixed(2)} MB`);
-          
-          // Adicionar informações do arquivo ao req.files - garantir que req.files existe
-          if (!req.files) {
-            req.files = [];
-          }
-          
-          req.files.push({
+
+          const { size } = await stat(tmpFilePath);
+
+          req.files!.push({
             fieldname,
             originalname: filename,
             filename: uniqueFilename,
             mimetype: mimeType,
             path: tmpFilePath,
-            size: stats.size
+            size,
           });
-        } catch (error) {
-          logMemory('streamUploadMiddleware-file-error', `Error processing file ${filename}: ${error instanceof Error ? error.message : String(error)}`);
-          console.error(`Erro ao processar arquivo ${filename}:`, error);
-          // Continuar com o próximo arquivo
+        } catch (err) {
+          console.error(`[busboy] Falha ao processar arquivo ${filename}:`, err instanceof Error ? err.message : err);
+          // Limpar arquivo incompleto se existir
+          try { await unlink(tmpFilePath); } catch { /* já removido */ }
         }
-      });
-      
-      // Quando todos os campos e arquivos forem processados
-      bb.on('finish', () => {
-        // Log de conclusão do upload
-        logMemory('streamUploadMiddleware-finish', 
-          `Upload complete: ${fileCount} files, Total size: ${(totalSize / 1024 / 1024).toFixed(2)} MB`);
-        
-        // Sugerir garbage collection após completar o upload
-        if (process.env.DEBUG_MEMORY === 'true' && global.gc) {
-          try {
-            setTimeout(() => {
-              global.gc && global.gc();
-              logMemory('streamUploadMiddleware-gc', `Garbage collection sugerida após upload completo`);
-            }, 100);
-          } catch (gcError) {
-            console.error('Erro ao sugerir garbage collection:', gcError);
-          }
-        }
-        
-        next();
-      });
-      
-      // Adicionar tratamento de erro global ao busboy
-      bb.on('error', (err) => {
-        console.error(`Erro no processador busboy:`, err);
-        logMemory('streamUploadMiddleware-busboy-error', `Busboy error: ${err instanceof Error ? err.message : String(err)}`);
-        next(err);
-      });
-      
-      // Iniciar o processamento
-      req.pipe(bb);
-    } catch (error) {
-      logMemory('streamUploadMiddleware-error', `Middleware error: ${error instanceof Error ? error.message : String(error)}`);
-      next(error);
-    }
+      })();
+
+      filePromises.push(p);
+    });
+
+    // finish = todos os bytes de rede consumidos; ainda precisamos esperar
+    // as promises de escrita em disco antes de passar para a rota.
+    bb.on('finish', () => {
+      Promise.allSettled(filePromises)
+        .then(() => {
+          if (bbError) return next(bbError);
+          next();
+        })
+        .catch((err) => next(err));
+    });
+
+    bb.on('error', (err) => {
+      bbError = err instanceof Error ? err : new Error(String(err));
+      console.error('[busboy] Erro global:', bbError.message);
+      // finish ainda pode disparar após error — deixar o flag cuidar disso
+    });
+
+    req.pipe(bb);
   };
 }
 
 /**
- * Limpar arquivos temporários após o processamento da requisição
- * Versão otimizada com melhor gerenciamento de memória
+ * Middleware de limpeza: remove arquivos temporários após o response ser enviado.
+ * Executa a limpeza em background (não bloqueia a resposta).
  */
-export function cleanupTempFiles(req: Request & { files?: UploadedFile[] }, res: Response, next: NextFunction) {
-  // Log no início da função
-  logMemory('cleanupTempFiles-start', `Request URL: ${req.url}`);
-  
-  if (req.files && req.files.length > 0) {
-    logMemory('cleanupTempFiles-files', `Number of files to track for cleanup: ${req.files.length}`);
-  }
-  
-  // Armazenar o método original end
-  const originalEnd = res.end;
-  
-  // Substituir por uma implementação simplificada para evitar problemas de tipagem
-  res.end = function(this: any) {
-    // Log antes da limpeza
-    logMemory('cleanupTempFiles-before-cleanup', `Response ended, cleaning up temporary files`);
-    
-    // Executar a limpeza assíncrona
-    if (req.files && req.files.length > 0) {
-      const totalSize = req.files.reduce((total, file) => total + file.size, 0);
-      
-      logMemory('cleanupTempFiles-details', 
-        `Cleaning up ${req.files.length} files, Total size: ${(totalSize / 1024 / 1024).toFixed(2)} MB`);
-      
-      // Criar cópia dos caminhos para evitar problemas se req.files for modificado
-      const filesToClean = [...req.files];
-      
-      // Iniciar a limpeza de arquivos em background
-      setTimeout(() => {
-        Promise.all(filesToClean.map(file => {
-          return unlink(file.path)
-            .then(() => {
-              if (process.env.DEBUG_MEMORY === 'true') {
-                console.log(`Arquivo temporário removido: ${file.path}`);
-              }
-            })
-            .catch(err => {
-              logMemory('cleanupTempFiles-error', `Error removing file ${file.path}: ${err instanceof Error ? err.message : String(err)}`);
-              console.error(`Erro ao remover arquivo temporário ${file.path}:`, err);
-            });
-        }))
-        .then(() => {
-          logMemory('cleanupTempFiles-complete', `All temporary files cleaned up successfully`);
-          
-          // Sugerir garbage collection após limpeza
-          if (process.env.DEBUG_MEMORY === 'true' && global.gc) {
-            try {
-              setTimeout(() => {
-                global.gc && global.gc();
-                logMemory('cleanupTempFiles-gc', `Garbage collection sugerida após limpeza de arquivos`);
-              }, 100);
-            } catch (gcError) {
-              console.error('Erro ao sugerir garbage collection:', gcError);
+export function cleanupTempFiles(
+  req: Request & { files?: UploadedFile[] },
+  res: Response,
+  next: NextFunction
+) {
+  const originalEnd = res.end.bind(res);
+
+  res.end = function (this: any, ...args: any[]) {
+    const filesToClean = [...(req.files ?? [])];
+    req.files = []; // liberar referência imediatamente
+
+    // Limpeza em background — não atrasa a resposta
+    setImmediate(() => {
+      Promise.allSettled(
+        filesToClean.map((f) =>
+          unlink(f.path).catch((err) => {
+            if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+              console.error(`[cleanup] Erro ao remover ${f.path}:`, err.message);
             }
-          }
-        })
-        .catch(err => {
-          logMemory('cleanupTempFiles-global-error', `Error during cleanup: ${err instanceof Error ? err.message : String(err)}`);
-          console.error('Erro ao limpar arquivos temporários:', err);
-        });
-      }, 0);
-      
-      // Limpar a referência aos arquivos no request para ajudar o GC
-      req.files = [];
-    } else {
-      logMemory('cleanupTempFiles-no-files', `No files to clean up`);
-    }
-    
-    // Log final após a limpeza
-    logMemory('cleanupTempFiles-end', `Response ended, temporary files cleanup initiated`);
-    
-    // Chamar o método original preservando o contexto e argumentos
-    return originalEnd.apply(this, arguments as any);
+          })
+        )
+      );
+    });
+
+    return originalEnd(...args);
   };
-  
+
   next();
 }

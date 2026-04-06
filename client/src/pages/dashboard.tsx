@@ -744,6 +744,17 @@ function UploadModal({
 
   const { toast } = useToast();
 
+  // Impede o usuário de fechar a aba/navegador enquanto um upload está em andamento
+  useEffect(() => {
+    if (!isUploading) return;
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isUploading]);
+
   const uploadSchema = z.object({
     projectName: z.string().min(3, "Nome do projeto é obrigatório (mín. 3 caracteres)"),
     clientName: z.string().min(3, "Nome do cliente é obrigatório (mín. 3 caracteres)"),
