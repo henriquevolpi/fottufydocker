@@ -485,18 +485,48 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
     loadProject();
   }, [loadProject]);
 
-  // Polling: recarrega projeto enquanto há fotos sendo processadas (V2 thumbnails)
+  // Polling cirúrgico: atualiza apenas os cards cujo thumbnail mudou, sem recarregar o projeto todo
   useEffect(() => {
     if (!project) return;
-    const hasProcessing = project.photos.some(
+    const hasPending = project.photos.some(
       p => p.processingStatus === 'pending' || p.processingStatus === 'processing'
     );
-    if (!hasProcessing) return;
-    const timer = setInterval(() => {
-      loadProject();
+    if (!hasPending) return;
+
+    const timer = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/projects/${projectId}/photos/status`, {
+          credentials: 'include',
+          headers: { 'Cache-Control': 'no-cache' },
+        });
+        if (!res.ok) return;
+
+        const statuses: Array<{ id: string; thumbnailUrl: string | null; processingStatus: string | null }> = await res.json();
+        const statusMap = new Map(statuses.map(s => [s.id, s]));
+
+        setProject(prev => {
+          if (!prev) return prev;
+          let changed = false;
+          const updatedPhotos = prev.photos.map(photo => {
+            const upd = statusMap.get(photo.id);
+            if (!upd) return photo;
+            if (
+              upd.thumbnailUrl === photo.thumbnailUrl &&
+              upd.processingStatus === photo.processingStatus
+            ) return photo;
+            changed = true;
+            return { ...photo, thumbnailUrl: upd.thumbnailUrl, processingStatus: upd.processingStatus };
+          });
+          if (!changed) return prev;
+          return { ...prev, photos: updatedPhotos };
+        });
+      } catch {
+        // silencioso — não interrompe a experiência do usuário
+      }
     }, 3000);
+
     return () => clearInterval(timer);
-  }, [project, loadProject]);
+  }, [project, projectId]);
   
   // Cleanup completo: cancelar requisições e limpar memória apenas no unmount
   // IMPORTANTE: deps = [] para não cancelar auto-save a cada troca de foto no modal

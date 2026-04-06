@@ -334,6 +334,8 @@ export const PhotoCard = memo(function PhotoCard({
 }, (prevProps, nextProps) => {
   return (
     prevProps.photo.id === nextProps.photo.id &&
+    prevProps.photo.thumbnailUrl === nextProps.photo.thumbnailUrl &&
+    prevProps.photo.processingStatus === nextProps.photo.processingStatus &&
     prevProps.isSelected === nextProps.isSelected &&
     prevProps.isFinalized === nextProps.isFinalized &&
     prevProps.showWatermark === nextProps.showWatermark &&

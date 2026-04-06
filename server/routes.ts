@@ -453,6 +453,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Upload uma ou mais imagens diretamente para o Cloudflare R2 Storage e associa a um projeto específico
   // Usando streaming para maior eficiência de memória
+  // Endpoint leve: retorna apenas id + thumbnailUrl + processingStatus de todas as fotos do projeto
+  // Usado para polling cirúrgico — payload mínimo (~150 bytes/foto vs o projeto inteiro)
+  app.get("/api/projects/:id/photos/status", async (req: Request, res: Response) => {
+    try {
+      const projectId = req.params.id;
+      const rows = await db
+        .select({
+          id: photos.id,
+          thumbnailUrl: photos.thumbnailUrl,
+          processingStatus: photos.processingStatus,
+        })
+        .from(photos)
+        .where(eq(photos.projectId, projectId));
+      return res.json(rows);
+    } catch (err) {
+      console.error('[photos/status]', err);
+      return res.status(500).json({ message: 'Erro ao buscar status das fotos' });
+    }
+  });
+
   app.post("/api/projects/:id/photos/upload", authenticate, streamUploadMiddleware(), cleanupTempFiles, async (req: Request & { files?: any[] }, res: Response) => {
     try {
       if (!req.user) {
