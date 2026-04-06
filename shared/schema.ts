@@ -246,8 +246,9 @@ export const newProjects = pgTable("new_projects", {
   description: text("description"),
   showWatermark: boolean("show_watermark").default(true),
   status: text("status").default("pendente"),
-  eventDate: text("event_date"),           // Data do evento (YYYY-MM-DD)
-  contractedPhotos: integer("contracted_photos").default(0), // Fotos contratadas pelo cliente
+  eventDate: text("event_date"),                              // Data do evento (YYYY-MM-DD)
+  contractedPhotos: integer("contracted_photos").default(0),  // Fotos contratadas/inclusas no pacote
+  additionalPhotoPrice: integer("additional_photo_price").default(0), // Valor em centavos por foto extra
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

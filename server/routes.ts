@@ -695,7 +695,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Authentication required" });
       }
       
-      const { title, description, eventDate, contractedPhotos } = req.body;
+      const { title, description, eventDate, contractedPhotos, additionalPhotoPrice } = req.body;
       
       if (!title) {
         return res.status(400).json({ message: "Project title is required" });
@@ -707,6 +707,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         description: description || null,
         eventDate: eventDate || null,
         contractedPhotos: contractedPhotos ? parseInt(contractedPhotos) || 0 : 0,
+        additionalPhotoPrice: additionalPhotoPrice ? parseInt(additionalPhotoPrice) || 0 : 0,
       }).returning();
       
       res.status(201).json(newProject[0]);

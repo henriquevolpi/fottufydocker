@@ -760,6 +760,7 @@ function UploadModal({
     clientName: z.string().min(3, "Nome do cliente é obrigatório (mín. 3 caracteres)"),
     eventDate: z.string().min(1, "Data do evento é obrigatória"),
     contractedPhotos: z.number().min(0).optional(),
+    additionalPhotoPrice: z.number().min(0).optional(),
   });
 
   const form = useForm<z.infer<typeof uploadSchema>>({
@@ -769,6 +770,7 @@ function UploadModal({
       clientName: "",
       eventDate: new Date().toISOString().substring(0, 10),
       contractedPhotos: 0,
+      additionalPhotoPrice: 0,
     },
   });
 
@@ -862,6 +864,7 @@ function UploadModal({
           description: data.clientName.trim(),
           eventDate: data.eventDate || null,
           contractedPhotos: data.contractedPhotos || 0,
+          additionalPhotoPrice: Math.round((data.additionalPhotoPrice || 0) * 100), // Converte R$ → centavos
         }),
       });
       if (!createRes.ok) {
@@ -1030,7 +1033,7 @@ function UploadModal({
                 render={({ field }) => (
                   <FormItem className="space-y-2">
                     <FormLabel className="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                      📷 Fotos Contratadas
+                      📷 Fotos Incluídas
                     </FormLabel>
                     <FormControl>
                       <Input
@@ -1044,12 +1047,39 @@ function UploadModal({
                         value={field.value || ''}
                       />
                     </FormControl>
-                    <p className="text-xs text-slate-400">0 = sem limite definido</p>
+                    <p className="text-xs text-slate-400">0 = sem limite</p>
                     <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
+
+            <FormField
+              control={form.control}
+              name="additionalPhotoPrice"
+              render={({ field }) => (
+                <FormItem className="space-y-2">
+                  <FormLabel className="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                    💰 Valor por Foto Extra (R$)
+                  </FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder="Ex: 5.00"
+                      className="h-14 border-slate-200 dark:border-slate-700 focus:border-purple-500 focus:ring-purple-500/20 bg-slate-50 dark:bg-slate-800 rounded-2xl text-base font-medium transition-all"
+                      disabled={isUploading}
+                      {...field}
+                      onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                      value={field.value || ''}
+                    />
+                  </FormControl>
+                  <p className="text-xs text-slate-400">Cobrado quando o cliente seleciona além das fotos incluídas. 0 = sem cobrança</p>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <div className="mt-8">
               <label className="block text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">

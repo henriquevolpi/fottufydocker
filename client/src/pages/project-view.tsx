@@ -310,10 +310,11 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
       })) : [],
       finalizado: project.status === "Completed" || project.status === "finalizado" || project.finalizado,
       showWatermark: project.showWatermark,
-      includedPhotos: project.includedPhotos || 0,
+      // V1 usa includedPhotos/additionalPhotoPrice; V2 usa contractedPhotos/additionalPhotoPrice
+      includedPhotos: project.includedPhotos || project.contractedPhotos || 0,
       additionalPhotoPrice: project.additionalPhotoPrice || 0,
       eventDate: project.eventDate || null,
-      contractedPhotos: project.contractedPhotos || 0,
+      contractedPhotos: project.contractedPhotos || project.includedPhotos || 0,
     };
     
     console.log('🔍 WATERMARK DEBUG - Projeto adaptado:', {
