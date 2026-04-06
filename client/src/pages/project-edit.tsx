@@ -52,7 +52,11 @@ export default function ProjectEdit() {
   const [photoPreviewUrls, setPhotoPreviewUrls] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadStatusMsg, setUploadStatusMsg] = useState("");
   const [activeTab, setActiveTab] = useState("details");
+
+  const isV2Project = (pid: any) =>
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(pid));
 
   // Query to fetch project comments
   const { data: comments = [], isLoading: commentsLoading } = useQuery<PhotoComment[]>({
@@ -129,61 +133,101 @@ export default function ProjectEdit() {
     setPhotoPreviewUrls(prev => prev.filter((_, i) => i !== index));
   };
   
+  // Upload em lote via streaming (V2 — sem compressão, vai direto pro R2)
+  const uploadBatchV2 = (
+    projectId: string,
+    batch: File[],
+    onProgress: (pct: number) => void
+  ): Promise<any> =>
+    new Promise((resolve, reject) => {
+      const formData = new FormData();
+      batch.forEach(f => formData.append("photos", f));
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", `/api/projects/${projectId}/photos/upload`);
+      xhr.withCredentials = true;
+      xhr.timeout = 300_000;
+      xhr.upload.onprogress = (ev) => {
+        if (ev.lengthComputable) onProgress(Math.round((ev.loaded / ev.total) * 100));
+      };
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try { resolve(JSON.parse(xhr.responseText)); } catch { resolve({}); }
+        } else {
+          try { reject(new Error(JSON.parse(xhr.responseText).message || `HTTP ${xhr.status}`)); }
+          catch { reject(new Error(`HTTP ${xhr.status}`)); }
+        }
+      };
+      xhr.onerror = () => reject(new Error("Erro de rede"));
+      xhr.ontimeout = () => reject(new Error("Tempo esgotado"));
+      xhr.send(formData);
+    });
+
   // Função para fazer upload das novas fotos para o projeto
   const uploadPhotos = async () => {
     if (!project || newPhotos.length === 0) return;
     
+    const projectId = String(project.id);
+    const v2 = isV2Project(projectId);
+
     try {
       setIsUploading(true);
       setUploadProgress(0);
-      
-      // ETAPA 1: Redimensionar imagens no front-end antes do upload com proteção contra tela branca
-      console.log(`[Frontend] Iniciando redimensionamento de ${newPhotos.length} imagens para o projeto ${project.id}`);
-      
-      setUploadProgress(5); // 5% - iniciando processamento
-      
-      // Redimensionar todas as imagens com callback de progresso e sistema de proteção embutido
+
+      // ── V2: streaming em lotes direto pro R2, sem compressão no front ──
+      if (v2) {
+        const BATCH_SIZE = 10;
+        const batches: File[][] = [];
+        for (let i = 0; i < newPhotos.length; i += BATCH_SIZE)
+          batches.push(newPhotos.slice(i, i + BATCH_SIZE));
+        const totalBatches = batches.length;
+
+        for (let b = 0; b < totalBatches; b++) {
+          setUploadStatusMsg(`Enviando lote ${b + 1} de ${totalBatches}...`);
+          const batchBase = Math.round((b / totalBatches) * 95);
+          const batchEnd  = Math.round(((b + 1) / totalBatches) * 95);
+
+          await uploadBatchV2(projectId, batches[b], (pct) => {
+            setUploadProgress(batchBase + Math.round((pct / 100) * (batchEnd - batchBase)));
+          });
+        }
+
+        setUploadProgress(100);
+        setUploadStatusMsg("Concluído!");
+        clearPhotos();
+        toast({
+          title: "Fotos adicionadas com sucesso",
+          description: `${newPhotos.length} foto(s) adicionada(s) ao projeto.`,
+        });
+        setTimeout(() => setLocation(`/project/${projectId}`), 1000);
+        return;
+      }
+
+      // ── V1: compressão no front + upload único ──
+      setUploadStatusMsg("Comprimindo imagens...");
+      setUploadProgress(5);
+
       const compressedFiles = await compressMultipleImages(
         newPhotos,
-        {
-          maxWidthOrHeight: 970, // Largura máxima padronizada
-          quality: 0.9, // Qualidade padronizada
-          useWebWorker: true,
-        },
+        { maxWidthOrHeight: 970, quality: 0.9, useWebWorker: true },
         (processed, total) => {
-          // Atualizar progresso da compressão (5% a 25%)
-          const compressionProgress = 5 + (processed / total) * 20;
-          setUploadProgress(Math.round(compressionProgress));
+          setUploadProgress(Math.round(5 + (processed / total) * 20));
         }
       );
 
-      console.log(`[Frontend] Redimensionamento concluído: ${compressedFiles.length} imagens processadas`);
-      setUploadProgress(25); // 25% - compressão concluída
-      
-      // Primeiro tentar usar a API com monitoramento de progresso
+      setUploadProgress(25);
+      setUploadStatusMsg("Enviando fotos...");
+
       try {
-        console.log(`[Frontend] Enviando ${compressedFiles.length} fotos redimensionadas para o projeto ${project.id}`);
-        
-        // Criar FormData para upload de arquivos
         const formData = new FormData();
+        compressedFiles.forEach(file => formData.append('photos', file));
         
-        // Adicionar os arquivos comprimidos ao FormData
-        compressedFiles.forEach((file, index) => {
-          formData.append('photos', file);
-        });
-        
-        // Usar XMLHttpRequest para monitorar progresso do upload
         const response = await new Promise<Response>((resolve, reject) => {
           const xhr = new XMLHttpRequest();
-          
-          // Monitorar progresso do upload (25% a 95%)
           xhr.upload.onprogress = (event) => {
             if (event.lengthComputable) {
-              const uploadPercent = 25 + ((event.loaded / event.total) * 70);
-              setUploadProgress(Math.min(Math.round(uploadPercent), 95));
+              setUploadProgress(Math.min(Math.round(25 + (event.loaded / event.total) * 70), 95));
             }
           };
-          
           xhr.onload = () => {
             if (xhr.status >= 200 && xhr.status < 300) {
               resolve(new Response(xhr.responseText, { status: xhr.status }));
@@ -191,31 +235,20 @@ export default function ProjectEdit() {
               reject(new Error(`Upload failed with status: ${xhr.status}`));
             }
           };
-          
-          xhr.onerror = () => {
-            reject(new Error('Network error during upload'));
-          };
-          
-          xhr.open('POST', `/api/projects/${project.id}/photos`);
+          xhr.onerror = () => reject(new Error('Network error during upload'));
+          xhr.open('POST', `/api/projects/${projectId}/photos`);
           xhr.setRequestHeader('credentials', 'include');
           xhr.send(formData);
         });
         
         if (response.ok) {
           setUploadProgress(100);
-          
-          // Sucesso! Limpar as fotos carregadas
           clearPhotos();
-          
           toast({
             title: "Fotos adicionadas com sucesso",
             description: `${compressedFiles.length} nova(s) foto(s) adicionada(s) ao projeto.`,
           });
-          
-          // Recarregar o projeto para mostrar as novas fotos
-          setTimeout(() => {
-            setLocation(`/project/${project.id}`);
-          }, 1000);
+          setTimeout(() => setLocation(`/project/${projectId}`), 1000);
           
           return;
         } else {
@@ -323,6 +356,7 @@ export default function ProjectEdit() {
     } finally {
       setIsUploading(false);
       setUploadProgress(0);
+      setUploadStatusMsg("");
     }
   };
   
@@ -357,16 +391,11 @@ export default function ProjectEdit() {
           throw new Error('ID do projeto não fornecido');
         }
         
-        const projectId = parseInt(id);
-        if (isNaN(projectId)) {
-          throw new Error('ID do projeto inválido');
-        }
-        
-        console.log('Carregando projeto para edição, ID:', projectId);
+        console.log('Carregando projeto para edição, ID:', id);
         
         // Tentar carregar do backend primeiro
         try {
-          const response = await fetch(`/api/projects/${projectId}`);
+          const response = await fetch(`/api/projects/${id}`);
           if (response.ok) {
             const projectData = await response.json();
             setProject(projectData);
@@ -395,7 +424,7 @@ export default function ProjectEdit() {
         }
         
         const projects = JSON.parse(storedProjects);
-        const foundProject = projects.find((p: any) => p.id === projectId);
+        const foundProject = projects.find((p: any) => String(p.id) === String(id));
         
         if (!foundProject) {
           throw new Error('Projeto não encontrado');
@@ -796,13 +825,7 @@ export default function ProjectEdit() {
                     <span className="font-medium text-blue-600">{uploadProgress}%</span>
                   </div>
                   <div className="text-xs text-gray-500 mt-1 text-center">
-                    {uploadProgress < 25 ? (
-                      "Comprimindo imagens..."
-                    ) : uploadProgress < 95 ? (
-                      "Enviando fotos para o servidor..."
-                    ) : (
-                      "Finalizando o processamento..."
-                    )}
+                    {uploadStatusMsg || (uploadProgress < 25 ? "Comprimindo imagens..." : uploadProgress < 95 ? "Enviando fotos para o servidor..." : "Finalizando o processamento...")}
                   </div>
                 </div>
               )}
