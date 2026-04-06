@@ -806,8 +806,9 @@ function UploadModal({
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (!event.target.files || event.target.files.length === 0) return;
-    const newFiles = Array.from(event.target.files).filter(f => f.type.startsWith('image/'));
-    const nonImages = Array.from(event.target.files).length - newFiles.length;
+    const allFiles = Array.from(event.target.files);
+    const imageFiles = allFiles.filter(f => f.type.startsWith('image/'));
+    const nonImages = allFiles.length - imageFiles.length;
     if (nonImages > 0) {
       toast({
         title: "Arquivos não suportados",
@@ -815,8 +816,23 @@ function UploadModal({
         variant: "destructive",
       });
     }
-    if (newFiles.length === 0) return;
-    setSelectedFiles(prev => [...prev, ...newFiles]);
+    if (imageFiles.length === 0) return;
+
+    const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
+    const oversizedFiles = imageFiles.filter(f => f.size > MAX_FILE_SIZE);
+    const validFiles = imageFiles.filter(f => f.size <= MAX_FILE_SIZE);
+
+    if (oversizedFiles.length > 0) {
+      const fileNames = oversizedFiles.map(f => f.name).join(', ');
+      toast({
+        title: "Arquivos muito grandes",
+        description: `Envie apenas fotos abaixo de 2MB. Arquivos rejeitados: ${fileNames}`,
+        variant: "destructive",
+      });
+      if (validFiles.length === 0) return;
+    }
+
+    setSelectedFiles(prev => [...prev, ...validFiles]);
   };
 
   const removeFile = (index: number) => {
