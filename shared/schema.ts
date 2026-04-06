@@ -265,11 +265,13 @@ export const insertNewProjectSchema = createInsertSchema(newProjects).omit({
 // Photos table - NORMALIZED AND OPTIMIZED
 export const photos = pgTable("photos", {
   id: uuid("id").defaultRandom().primaryKey(),
-  projectId: text("project_id").notNull(), // References projects.public_id
-  url: text("url").notNull(),
+  projectId: text("project_id").notNull(), // References projects.public_id OR newProjects.id
+  url: text("url").notNull(), // URL original (full res) no R2/CDN
   filename: text("filename"), // Nome único usado pelo R2
   originalName: text("original_name"), // Nome original do arquivo enviado pelo usuário
   selected: boolean("selected").default(false),
+  thumbnailUrl: text("thumbnail_url"), // URL do thumb gerado pelo Sharp (400px)
+  processingStatus: text("processing_status").default('pending'), // 'pending' | 'processing' | 'ready' | 'error'
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

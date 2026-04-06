@@ -79,6 +79,8 @@ interface Photo {
   filename: string;
   originalName?: string; // Nome original do arquivo
   selected: boolean;
+  thumbnailUrl?: string | null;
+  processingStatus?: string | null;
 }
 
 // Interface para o projeto
@@ -300,7 +302,9 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
         url: ensureValidImageUrl(p.url),
         filename: p.filename || 'photo.jpg',
         originalName: p.originalName || p.filename || 'photo.jpg',
-        selected: p.selected !== undefined ? p.selected : (project.selectedPhotos ? project.selectedPhotos.includes(p.id) : false)
+        selected: p.selected !== undefined ? p.selected : (project.selectedPhotos ? project.selectedPhotos.includes(p.id) : false),
+        thumbnailUrl: p.thumbnailUrl || null,
+        processingStatus: p.processingStatus || null,
       })) : [],
       finalizado: project.status === "Completed" || project.status === "finalizado" || project.finalizado,
       showWatermark: project.showWatermark,
@@ -480,6 +484,19 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
   useEffect(() => {
     loadProject();
   }, [loadProject]);
+
+  // Polling: recarrega projeto enquanto há fotos sendo processadas (V2 thumbnails)
+  useEffect(() => {
+    if (!project) return;
+    const hasProcessing = project.photos.some(
+      p => p.processingStatus === 'pending' || p.processingStatus === 'processing'
+    );
+    if (!hasProcessing) return;
+    const timer = setInterval(() => {
+      loadProject();
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [project, loadProject]);
   
   // Cleanup completo: cancelar requisições e limpar memória apenas no unmount
   // IMPORTANTE: deps = [] para não cancelar auto-save a cada troca de foto no modal

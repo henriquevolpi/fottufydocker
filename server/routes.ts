@@ -69,6 +69,11 @@ import {
   downloadAndUploadToR2
 } from "./r2";
 import { streamUploadMiddleware, cleanupTempFiles, processAndStreamToR2 } from "./streamUpload";
+import { enqueueThumbnail, getQueueLength } from "./thumbnailQueue";
+
+function isUUID(str: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+}
 import { processHotmartWebhook, validateHotmartSignature } from "./integrations/hotmart";
 import multer from "multer";
 
@@ -519,12 +524,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
               projectId,
               url: result.url,
               filename,
-              selected: false
+              originalName,
+              selected: false,
+              processingStatus: 'pending',
             }).returning();
             
-            // Armazenar apenas o ID se precisar recuperar depois
+            // Enfileirar geração de thumbnail em background
             if (newPhoto && newPhoto[0]) {
-              newPhotos.push(newPhoto[0].id);
+              newPhotos.push(newPhoto[0]);
+              enqueueThumbnail({ photoId: newPhoto[0].id, filename });
             }
           } catch (dbError) {
             console.error(`Error adding photo to database: ${filename}`);
@@ -883,6 +891,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`Salvando seleção para projeto ${projectId} com ${photoIds.length} fotos`);
       }
       
+      // V2 UUID project: update photos.selected directly
+      if (isUUID(projectId)) {
+        const newProject = await db.query.newProjects.findFirst({
+          where: eq(newProjects.id, projectId)
+        });
+        if (!newProject) {
+          return res.status(404).json({ message: "Project not found" });
+        }
+        if (newProject.userId !== req.user.id && req.user.role !== 'admin') {
+          return res.status(403).json({ message: "You don't have permission to access this project" });
+        }
+        // Bulk update: set selected = true for photoIds, false for rest
+        const allPhotos = await db.select({ id: photos.id }).from(photos).where(eq(photos.projectId, projectId));
+        const selectedSet = new Set(photoIds);
+        for (const p of allPhotos) {
+          await db.update(photos)
+            .set({ selected: selectedSet.has(p.id) })
+            .where(eq(photos.id, p.id));
+        }
+        return res.status(200).json({ message: "Selections saved successfully", selectedCount: photoIds.length });
+      }
+
       // Verificar se o projeto existe e se o usuário tem permissão
       const project = await storage.getProject(projectId);
       
@@ -1932,6 +1962,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Adicionando logs para debug
       console.log(`Buscando projeto com ID ou publicId: ${idParam}`);
+
+      // --- V2: UUID format → query newProjects table ---
+      if (isUUID(idParam)) {
+        const newProject = await db.query.newProjects.findFirst({
+          where: eq(newProjects.id, idParam)
+        });
+
+        if (!newProject) {
+          return res.status(404).json({ message: "Project not found" });
+        }
+
+        // Security: logged in users can only view their own projects
+        if (req.user && req.user.role !== 'admin' && newProject.userId !== req.user.id) {
+          return res.status(403).json({ message: "You don't have permission to access this project" });
+        }
+
+        const projectPhotos = await db.select()
+          .from(photos)
+          .where(eq(photos.projectId, idParam))
+          .orderBy(photos.createdAt);
+
+        const cdnBase = process.env.R2_PUBLIC_URL
+          || `https://${process.env.R2_BUCKET_NAME}.${process.env.R2_ACCOUNT_ID}.r2.dev`;
+
+        return res.json({
+          id: newProject.id,
+          publicId: newProject.id,
+          name: newProject.title,
+          clientName: newProject.description || 'Cliente',
+          clientEmail: '',
+          photographerId: newProject.userId,
+          status: 'active',
+          showWatermark: newProject.showWatermark ?? true,
+          photos: projectPhotos.map(p => ({
+            id: p.id,
+            url: p.url || (p.filename ? `${cdnBase}/${p.filename}` : ''),
+            filename: p.filename || '',
+            originalName: p.originalName || p.filename || '',
+            selected: p.selected ?? false,
+            thumbnailUrl: p.thumbnailUrl || null,
+            processingStatus: p.processingStatus || 'pending',
+          })),
+          selectedPhotos: projectPhotos.filter(p => p.selected).map(p => p.id),
+          isV2: true,
+        });
+      }
+      // --- end V2 ---
       
       // Pass the ID directly to storage, which now handles both numeric IDs and string publicIds
       const project = await storage.getProject(idParam);

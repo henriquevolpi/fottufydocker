@@ -17,6 +17,8 @@ interface Photo {
   filename: string;
   originalName?: string;
   selected: boolean;
+  thumbnailUrl?: string | null;
+  processingStatus?: string | null;
 }
 
 interface PhotoCardProps {
@@ -138,9 +140,14 @@ export const PhotoCard = memo(function PhotoCard({
     e.currentTarget.src = '/placeholder.jpg';
   }, []);
 
-  const imageUrl = photo.url && !photo.url.includes('project-photos') 
-    ? photo.url 
-    : `https://cdn.fottufy.com/${photo.filename}`;
+  const isProcessing = photo.processingStatus === 'pending' || photo.processingStatus === 'processing';
+  const hasThumbnail = photo.processingStatus === 'ready' && !!photo.thumbnailUrl;
+
+  const imageUrl = hasThumbnail
+    ? photo.thumbnailUrl!
+    : (photo.url && !photo.url.includes('project-photos')
+      ? photo.url
+      : `https://cdn.fottufy.com/${photo.filename}`);
 
   return (
     <Card
@@ -168,7 +175,14 @@ export const PhotoCard = memo(function PhotoCard({
                 <Maximize className="h-6 w-6 text-white drop-shadow-lg" />
               </div>
               
-              {!imageLoaded && !imageError && (
+              {isProcessing && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-100 z-10">
+                  <Loader2 className="h-8 w-8 text-purple-400 animate-spin" />
+                  <span className="text-xs text-slate-400 mt-2">Processando...</span>
+                </div>
+              )}
+
+              {!isProcessing && !imageLoaded && !imageError && (
                 <div className="absolute inset-0 flex items-center justify-center bg-slate-100">
                   <div className="animate-pulse">
                     <ImageIcon className="h-10 w-10 text-slate-300" />
@@ -176,19 +190,21 @@ export const PhotoCard = memo(function PhotoCard({
                 </div>
               )}
               
-              <img
-                src={imageUrl}
-                alt="Photo"
-                className={`w-full h-full object-cover transition-opacity duration-300 ${
-                  imageLoaded ? 'opacity-100' : 'opacity-0'
-                }`}
-                loading="lazy"
-                decoding="async"
-                onLoad={handleImageLoad}
-                onError={handleImageError}
-                onContextMenu={e => e.preventDefault()}
-                title="Clique para ampliar"
-              />
+              {!isProcessing && (
+                <img
+                  src={imageUrl}
+                  alt="Photo"
+                  className={`w-full h-full object-cover transition-opacity duration-300 ${
+                    imageLoaded ? 'opacity-100' : 'opacity-0'
+                  }`}
+                  loading="lazy"
+                  decoding="async"
+                  onLoad={handleImageLoad}
+                  onError={handleImageError}
+                  onContextMenu={e => e.preventDefault()}
+                  title="Clique para ampliar"
+                />
+              )}
             </div>
           </WatermarkOverlay>
         ) : (

@@ -8,6 +8,8 @@ interface Photo {
   filename: string;
   originalName?: string;
   selected: boolean;
+  thumbnailUrl?: string | null;
+  processingStatus?: string | null;
 }
 
 interface VirtualizedPhotoGridProps {

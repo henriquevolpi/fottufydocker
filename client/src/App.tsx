@@ -35,6 +35,7 @@ import SimpleResetPage from "@/pages/simple-reset";
 import PortfolioPage from "@/pages/portfolio";
 import PortfolioPublicPage from "@/pages/portfolio-public";
 import WhatsNew from "@/pages/whats-new";
+import UploadTest from "@/pages/upload-test";
 
 function RootRedirect() {
   const { user } = useAuth();
@@ -123,6 +124,7 @@ function Router() {
       <ProtectedRoute path="/admin" component={Admin} adminOnly={true} />
       <ProtectedRoute path="/admin/projects" component={AdminProjects} adminOnly={true} />
       <ProtectedRoute path="/whats-new" component={WhatsNew} />
+      <ProtectedRoute path="/upload-test" component={UploadTest} />
       <ProtectedRoute path="/meu-portfolio" component={PortfolioPage} />
       <Route path="/portfolio/:slug">
         {(params) => <PortfolioPublicPage />}

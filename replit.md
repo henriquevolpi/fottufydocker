@@ -31,7 +31,11 @@ Preferred communication style: Simple, everyday language.
 
 ### Feature Specifications
 - **Authentication**: Secure registration, login, and password reset workflows, with webhook integration to BotConversa for CRM.
-- **Photo Upload**: Supports streaming uploads, batch processing, memory optimization, and a comprehensive multi-layer protection system against UI freezes and data loss during large uploads (Prevention → Protection → Recovery → Analytics → Learning). Includes device detection, memory management, Web Worker fallbacks, and white-screen protection.
+- **Photo Upload**: Two upload systems:
+  - **V1 (original)**: Browser compresses → 30-photo batches → XHR → busboy streaming → R2 → photos stored as JSONB in `projects` table.
+  - **V2 (new)**: No browser compression → XHR multipart in batches of 10 → server busboy streams to R2 → photos stored in normalized `photos` table → `processingStatus='pending'` → Sharp thumbnail queue (concurrency=1, 400px JPEG) → `processingStatus='ready'`. Test page at `/upload-test`.
+- **Thumbnail Queue** (`server/thumbnailQueue.ts`): Background Sharp processing with concurrency=1. Downloads original from R2, generates 400px JPEG thumb, uploads back to R2, updates `photos.thumbnailUrl` and `processingStatus`.
+- **Project View (V2)**: `GET /api/projects/:id` detects UUID format and queries `newProjects`+`photos` tables. Project-view polls every 3s while photos have `processingStatus=pending/processing`, shows spinner per card. Lightbox always uses original URL.
 - **Admin Panel**: Comprehensive dashboard for managing projects, users, and Hotmart offers, including real-time photo counts and filtering options.
 - **Portfolio System**: Allows users to create and manage public portfolio pages (`/portfolio/[slug]`) using real R2-hosted photos from their projects.
 - **Security**: Centralized security middleware with Helmet for HTTP headers, conservative rate limiting, enhanced session and cookie security, and stricter CORS policies.
