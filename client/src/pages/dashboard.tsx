@@ -560,6 +560,32 @@ function ProjectCard({ project, onDelete, onViewComments }: { project: any, onDe
               O cliente selecionou {modalProject?.selectedPhotos?.length || modalProject?.selecionadas || 0} de {modalProject?.photos?.length || modalProject?.fotos || 0} fotos.
             </DialogDescription>
           </DialogHeader>
+
+          {/* Resumo financeiro para o fotógrafo — visível apenas quando há pacote com limite definido */}
+          {(() => {
+            const included = Number(modalProject?.includedPhotos || 0);
+            const selected = Number(modalProject?.selectedPhotos?.length || modalProject?.selecionadas || 0);
+            const pricePerExtra = Number(modalProject?.additionalPhotoPrice || 0);
+            if (included <= 0) return null;
+            const extras = Math.max(0, selected - included);
+            const totalExtra = extras * pricePerExtra;
+            return (
+              <div className={`rounded-xl px-4 py-3 text-sm flex flex-wrap gap-x-6 gap-y-1 items-center border ${extras > 0 ? 'bg-amber-50 border-amber-200 text-amber-900' : 'bg-green-50 border-green-200 text-green-900'}`}>
+                <span>📷 <strong>{selected}</strong> de <strong>{included}</strong> fotos incluídas no pacote</span>
+                {extras > 0 && (
+                  <>
+                    <span>➕ <strong>{extras}</strong> foto{extras !== 1 ? 's' : ''} adicionai{extras !== 1 ? 's' : 'onal'}</span>
+                    {pricePerExtra > 0 && (
+                      <span className="font-bold">
+                        💰 Valor adicional: R$ {(totalExtra / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </span>
+                    )}
+                  </>
+                )}
+                {extras === 0 && <span>✅ Dentro do pacote contratado</span>}
+              </div>
+            );
+          })()}
           
           {(() => {
               if (!modalProject?.photos || modalProject.photos.length === 0) {
