@@ -123,15 +123,9 @@ export async function streamDirectToR2(
     // Log após o upload
     logMemory('streamDirectToR2-after-upload', `File: ${fileName} uploaded successfully`);
     
-    // Gerar URL pública de acordo com a configuração do R2
-    let url;
-    if (process.env.R2_PUBLIC_URL) {
-      // Se houver uma URL pública configurada (como um domínio personalizado)
-      url = `${process.env.R2_PUBLIC_URL}/${fileName}`;
-    } else {
-      // Use a URL padrão do R2
-      url = `https://${BUCKET_NAME}.${process.env.R2_ACCOUNT_ID}.r2.dev/${fileName}`;
-    }
+    // Sempre usar o CDN público (cdn.fottufy.com)
+    const cdnBase = process.env.R2_PUBLIC_URL || 'https://cdn.fottufy.com';
+    const url = `${cdnBase}/${fileName}`;
     
     return { url, key: fileName };
   } catch (error) {

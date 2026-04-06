@@ -11,6 +11,8 @@ import { storage as dbStorage } from "./storage";
 import { initializeBackupScheduler } from "./backup/backup-scheduler";
 // Import R2 cleanup scheduler
 import { startCleanupScheduler } from "./cleanup-scheduler";
+// Import thumbnail queue initializer
+import { initThumbnailQueue } from "./thumbnailQueue";
 // Import security middleware
 import { 
   securityHeaders, 
@@ -266,6 +268,9 @@ app.use((req, res, next) => {
 
   // Register API routes after authentication is set up
   const server = await registerRoutes(app);
+
+  // Re-enqueue any photos left pending/processing from previous runs
+  setTimeout(() => initThumbnailQueue().catch(console.error), 5000);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
