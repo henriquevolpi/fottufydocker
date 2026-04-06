@@ -1995,7 +1995,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             clientName: p.description || 'Cliente',
             clientEmail: '',
             data: p.createdAt.toISOString(),
-            status: p.status || 'active',
+            status: p.status || 'pendente',
             finalizado: p.status === 'finalizado',
             showWatermark: p.showWatermark ?? true,
             photos: [],
@@ -2054,7 +2054,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           clientName: newProject.description || 'Cliente',
           clientEmail: '',
           photographerId: newProject.userId,
-          status: newProject.status || 'active',
+          status: newProject.status || 'pendente',
           finalizado: newProject.status === 'finalizado',
           showWatermark: newProject.showWatermark ?? true,
           photos: projectPhotos.map(p => ({

@@ -245,7 +245,7 @@ export const newProjects = pgTable("new_projects", {
   title: text("title").notNull(),
   description: text("description"),
   showWatermark: boolean("show_watermark").default(true),
-  status: text("status").default("active"),
+  status: text("status").default("pendente"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
