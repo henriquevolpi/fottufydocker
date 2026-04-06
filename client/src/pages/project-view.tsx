@@ -1276,10 +1276,9 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
               {(project.photos || []).map((photo) => (
                 <div
                   key={photo.id}
-                  className={`rounded-2xl overflow-hidden shadow-md cursor-pointer border-2 transition-all ${
+                  className={`rounded-2xl overflow-hidden shadow-md border-2 transition-all ${
                     selectedPhotos.has(photo.id) ? 'border-purple-500' : 'border-transparent'
                   }`}
-                  onClick={() => !isFinalized && togglePhotoSelection(photo.id)}
                 >
                   <img
                     src={photo.url && !photo.url.includes('project-photos') ? photo.url : `https://cdn.fottufy.com/${photo.filename}`}

@@ -105,7 +105,8 @@ export const PhotoCard = memo(function PhotoCard({
     }
   }, []);
   
-  const handleCardClick = useCallback(() => {
+  const handleSelectClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
     if (!isFinalized) {
       onToggleSelection(photo.id);
     }
@@ -144,10 +145,9 @@ export const PhotoCard = memo(function PhotoCard({
   return (
     <Card
       ref={cardRef}
-      className={`overflow-hidden group cursor-pointer transition-shadow duration-300 rounded-2xl border-0 shadow-md ${
+      className={`overflow-hidden group transition-shadow duration-300 rounded-2xl border-0 shadow-md ${
         isFinalized ? 'opacity-80' : 'hover:shadow-xl'
       } ${isSelected ? 'ring-2 ring-purple-500 shadow-lg shadow-purple-500/20' : ''}`}
-      onClick={handleCardClick}
       style={{ 
         contain: 'layout style paint',
         contentVisibility: 'auto',
@@ -220,6 +220,7 @@ export const PhotoCard = memo(function PhotoCard({
                 : " border-slate-200 hover:bg-slate-50 text-slate-700")
             }
             disabled={isFinalized}
+            onClick={handleSelectClick}
           >
             {isSelected ? (
               <>
