@@ -2540,6 +2540,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/projects/:id", authenticate, requireActiveUser, async (req: Request, res: Response) => {
     try {
       const idParam = req.params.id;
+
+      // ── V2: UUID-based project (newProjects table) ──
+      if (isUUID(idParam)) {
+        const v2Project = await db.query.newProjects.findFirst({
+          where: eq(newProjects.id, idParam),
+        });
+        if (!v2Project) {
+          return res.status(404).json({ message: "Project not found" });
+        }
+        if (v2Project.userId !== req.user?.id && req.user?.role !== "admin") {
+          return res.status(403).json({ message: "Cannot update projects of other photographers" });
+        }
+        const setData: Record<string, any> = {};
+        if (req.body.name !== undefined)       setData.title       = req.body.name;
+        if (req.body.clientName !== undefined)  setData.description = req.body.clientName;
+        if (req.body.status !== undefined)      setData.status      = req.body.status;
+        const [updated] = await db.update(newProjects).set(setData).where(eq(newProjects.id, idParam)).returning();
+        return res.json({
+          id: updated.id,
+          publicId: updated.id,
+          name: updated.title,
+          clientName: updated.description || '',
+          clientEmail: '',
+          photographerId: updated.userId,
+          status: updated.status || 'pendente',
+          finalizado: updated.status === 'finalizado',
+          showWatermark: updated.showWatermark ?? true,
+          eventDate: updated.eventDate || null,
+          contractedPhotos: updated.contractedPhotos ?? 0,
+          isV2: true,
+        });
+      }
+
+      // ── V1 legacy ──
       const project = await storage.getProject(idParam);
       
       if (!project) {
@@ -2575,6 +2609,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/projects/:id/reopen", authenticate, requireActiveUser, async (req: Request, res: Response) => {
     try {
       const idParam = req.params.id;
+
+      // ── V2: UUID-based project (newProjects table) ──
+      if (isUUID(idParam)) {
+        const v2Project = await db.query.newProjects.findFirst({
+          where: eq(newProjects.id, idParam),
+        });
+        if (!v2Project) {
+          return res.status(404).json({ message: "Project not found" });
+        }
+        if (v2Project.userId !== req.user?.id && req.user?.role !== "admin") {
+          return res.status(403).json({ message: "Cannot reopen projects of other photographers" });
+        }
+        // Reabrir: voltar status para pendente e desmarcar fotos selecionadas
+        const [updated] = await db
+          .update(newProjects)
+          .set({ status: 'pendente' })
+          .where(eq(newProjects.id, idParam))
+          .returning();
+        // Desmarcar todas as fotos selecionadas do projeto
+        await db.update(photos).set({ selected: false }).where(eq(photos.projectId, idParam));
+        console.log(`[REOPEN V2] Projeto ${idParam} reaberto para seleção`);
+        return res.json({
+          id: updated.id,
+          publicId: updated.id,
+          name: updated.title,
+          clientName: updated.description || '',
+          clientEmail: '',
+          photographerId: updated.userId,
+          status: updated.status || 'pendente',
+          finalizado: false,
+          showWatermark: updated.showWatermark ?? true,
+          isV2: true,
+        });
+      }
+
+      // ── V1 legacy ──
       const project = await storage.getProject(idParam);
       
       if (!project) {
