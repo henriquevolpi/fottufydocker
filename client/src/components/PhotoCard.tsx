@@ -278,7 +278,7 @@ export const PhotoCard = memo(function PhotoCard({
                     <div key={idx} className="bg-slate-50 rounded-xl p-3 text-[12px]">
                       <div className="flex justify-end mb-1">
                         <span className="text-slate-400 text-xs">
-                          {new Date(comment.createdAt).toLocaleDateString()}
+                          {(() => { try { const d = new Date(comment.createdAt); return isNaN(d.getTime()) ? '' : d.toLocaleDateString(); } catch { return ''; } })()}
                         </span>
                       </div>
                       <p className="text-slate-600 text-xs leading-relaxed">

@@ -1,4 +1,5 @@
-import { useEffect, useState, useCallback, useRef, useMemo } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo, Component } from "react";
+import type { ReactNode, ErrorInfo } from "react";
 import { useParams, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -43,6 +44,33 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+
+// ErrorBoundary local para isolar crashes de subcomponentes sem derrubar a página
+class LocalErrorBoundary extends Component<
+  { children: ReactNode; fallback: ReactNode; onReset?: () => void },
+  { hasError: boolean }
+> {
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError(): { hasError: boolean } {
+    return { hasError: true };
+  }
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error("[ProjectView] Erro isolado:", error.message, info.componentStack?.slice(0, 300));
+  }
+  reset = () => {
+    this.setState({ hasError: false });
+    this.props.onReset?.();
+  };
+  render() {
+    if (this.state.hasError) {
+      return <>{this.props.fallback}</>;
+    }
+    return this.props.children;
+  }
+}
 
 // Interface para fotos
 interface Photo {
@@ -107,6 +135,8 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
   const abortControllerRef = useRef<AbortController | null>(null);
   // Referência para o timer de debounce do auto-save (declarada aqui para uso no cleanup abaixo)
   const autoSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Evita auto-save disparando no mount (antes do usuário fazer qualquer seleção)
+  const isFirstRender = useRef(true);
   
   // Otimização: Memoizar mapa de índices para evitar findIndex repetitivo
   const photoIndexMap = useMemo(() => {
@@ -451,34 +481,18 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
     loadProject();
   }, [loadProject]);
   
-  // Cleanup completo: cancelar requisições e limpar memória ao desmontar
+  // Cleanup completo: cancelar requisições e limpar memória apenas no unmount
+  // IMPORTANTE: deps = [] para não cancelar auto-save a cada troca de foto no modal
   useEffect(() => {
     return () => {
-      // Cancelar requisições pendentes
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
-      
-      // Cancelar auto-save pendente
       if (autoSaveTimeoutRef.current) {
         clearTimeout(autoSaveTimeoutRef.current);
       }
-      
-      // Limpar URLs de objetos e blobs para evitar memory leaks
-      if (currentImageUrl && currentImageUrl.startsWith('blob:')) {
-        URL.revokeObjectURL(currentImageUrl);
-      }
-      
-      // Sugerir garbage collection em dispositivos móveis
-      if (typeof window !== 'undefined' && 'gc' in window && typeof window.gc === 'function') {
-        try {
-          window.gc();
-        } catch (e) {
-          // Silently ignore if gc is not available
-        }
-      }
     };
-  }, [currentImageUrl]);
+  }, []);
   
   // Função para salvar automaticamente as seleções com debounce
   const autoSaveSelections = useCallback(async (newSelectedPhotos: Set<string>) => {
@@ -535,7 +549,12 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
   }, [isFinalized, project?.status, project?.finalizado]);
 
   // Auto-save debounced: reage à mudança de selectedPhotos sem side effects no state updater
+  // Pula o primeiro render (seleções carregadas do servidor não precisam ser salvas)
   useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
     if (!project || isFinalized) return;
     if (autoSaveTimeoutRef.current) {
       clearTimeout(autoSaveTimeoutRef.current);
@@ -809,13 +828,27 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
   // Controlar visibilidade do botão de scroll to top
   useEffect(() => {
     const handleScroll = () => {
-      // Mostrar o botão quando o usuário rolar mais de 300px para baixo
       setShowScrollToTop(window.scrollY > 300);
     };
-
-    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Navegação por teclado no modal (Esc fecha, setas navegam)
+  useEffect(() => {
+    if (!imageModalOpen) return;
+    const handleKey = (e: KeyboardEvent) => {
+      try {
+        if (e.key === 'Escape') setImageModalOpen(false);
+        else if (e.key === 'ArrowRight') goToNextPhoto();
+        else if (e.key === 'ArrowLeft') goToPrevPhoto();
+      } catch {
+        // silently ignore keyboard errors
+      }
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [imageModalOpen, goToNextPhoto, goToPrevPhoto]);
   
   const isSelectionLimitReached = useMemo(() => {
     const limit = Number(project?.includedPhotos);
@@ -1236,24 +1269,57 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
           </div>
         ) : null}
         
-        {/* Grid otimizado com virtualização */}
-        <VirtualizedPhotoGrid
-          photos={project.photos}
-          selectedPhotos={selectedPhotos}
-          isFinalized={isFinalized}
-          showWatermark={project.showWatermark === true}
-          showOnlySelected={showOnlySelected}
-          commentTexts={commentTexts}
-          photoComments={photoComments}
-          expandedCommentPhoto={expandedCommentPhoto}
-          isCommentMutationPending={createCommentMutation.isPending}
-          onToggleSelection={togglePhotoSelection}
-          onOpenModal={openImageModal}
-          onToggleCommentSection={toggleCommentSection}
-          onCommentTextChange={handleCommentTextChange}
-          onSubmitComment={handleSubmitComment}
-          photoIndexMap={photoIndexMap}
-        />
+        {/* Grid otimizado com virtualização — isolado por ErrorBoundary */}
+        <LocalErrorBoundary
+          fallback={
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 px-2 py-4">
+              {(project.photos || []).map((photo) => (
+                <div
+                  key={photo.id}
+                  className={`rounded-2xl overflow-hidden shadow-md cursor-pointer border-2 transition-all ${
+                    selectedPhotos.has(photo.id) ? 'border-purple-500' : 'border-transparent'
+                  }`}
+                  onClick={() => !isFinalized && togglePhotoSelection(photo.id)}
+                >
+                  <img
+                    src={photo.url && !photo.url.includes('project-photos') ? photo.url : `https://cdn.fottufy.com/${photo.filename}`}
+                    alt={photo.originalName || photo.filename}
+                    className="w-full h-48 object-cover"
+                    loading="lazy"
+                    onError={(e) => { e.currentTarget.src = '/placeholder.jpg'; }}
+                  />
+                  <div className="p-2 bg-white text-center">
+                    <button
+                      className={`w-full text-xs font-bold py-1.5 rounded-xl ${selectedPhotos.has(photo.id) ? 'bg-purple-600 text-white' : 'bg-slate-100 text-slate-700'}`}
+                      onClick={(e) => { e.stopPropagation(); if (!isFinalized) togglePhotoSelection(photo.id); }}
+                      disabled={isFinalized}
+                    >
+                      {selectedPhotos.has(photo.id) ? '✓ Selecionado' : 'Selecionar'}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          }
+        >
+          <VirtualizedPhotoGrid
+            photos={project.photos}
+            selectedPhotos={selectedPhotos}
+            isFinalized={isFinalized}
+            showWatermark={project.showWatermark === true}
+            showOnlySelected={showOnlySelected}
+            commentTexts={commentTexts}
+            photoComments={photoComments}
+            expandedCommentPhoto={expandedCommentPhoto}
+            isCommentMutationPending={createCommentMutation.isPending}
+            onToggleSelection={togglePhotoSelection}
+            onOpenModal={openImageModal}
+            onToggleCommentSection={toggleCommentSection}
+            onCommentTextChange={handleCommentTextChange}
+            onSubmitComment={handleSubmitComment}
+            photoIndexMap={photoIndexMap}
+          />
+        </LocalErrorBoundary>
       </main>
       {/* Confirmation Dialog - Youze Style */}
       <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
@@ -1329,6 +1395,17 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
       </Dialog>
       {/* Lightbox Modal - Estilo personalizado igual ao portfolio público */}
       {imageModalOpen && project.photos[currentPhotoIndex] && (
+        <LocalErrorBoundary
+          fallback={
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90" onClick={() => setImageModalOpen(false)}>
+              <div className="bg-white rounded-2xl p-8 text-center max-w-sm mx-4">
+                <p className="text-slate-700 font-bold mb-4">Não foi possível exibir esta foto</p>
+                <button onClick={() => setImageModalOpen(false)} className="px-6 py-2 bg-purple-600 text-white rounded-xl font-bold">Fechar</button>
+              </div>
+            </div>
+          }
+          onReset={() => setImageModalOpen(false)}
+        >
         <div 
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/90"
           onClick={() => setImageModalOpen(false)}
@@ -1439,6 +1516,7 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
             )}
           </div>
         </div>
+        </LocalErrorBoundary>
       )}
 
       {/* Botão scroll to top - Youze Style */}
