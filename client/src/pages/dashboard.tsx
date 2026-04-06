@@ -640,21 +640,6 @@ function ProjectCard({ project, onDelete, onViewComments }: { project: any, onDe
 
               return (
                 <div className="my-4 space-y-4">
-                  {/* Grade visual das fotos selecionadas */}
-                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
-                    {selectedPhotos.map((photo: any) => (
-                      <div key={photo.id} className="aspect-square rounded-lg overflow-hidden border border-slate-200 bg-slate-100">
-                        <img
-                          src={photo.thumbnailUrl || photo.url}
-                          alt={photo.originalName || photo.filename || ''}
-                          className="w-full h-full object-cover"
-                          loading="lazy"
-                        />
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Formatos de cópia para editores */}
                   <div className="border rounded-lg p-3 sm:p-4 bg-gray-50">
                     <div className="flex items-center justify-between mb-2">
                       <p className="text-sm font-bold text-gray-900">Adobe Lightroom <span className="font-normal text-gray-500 text-xs">(Filtro de biblioteca &gt; Texto &gt; Nome do arquivo &gt; Contém)</span></p>
