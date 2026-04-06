@@ -28,6 +28,16 @@ interface VirtualizedPhotoGridProps {
   photoIndexMap?: Map<string, number>;
 }
 
+const GRID_BASE = "grid gap-4 sm:gap-5 px-2 sm:px-4 lg:px-6";
+const GRID_CLASSES: Record<number, string> = {
+  1: `${GRID_BASE} grid-cols-2 sm:grid-cols-1`,
+  2: `${GRID_BASE} grid-cols-2`,
+  3: `${GRID_BASE} grid-cols-2 sm:grid-cols-2 lg:grid-cols-3`,
+  4: `${GRID_BASE} grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`,
+  5: `${GRID_BASE} grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5`,
+  6: `${GRID_BASE} grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6`,
+};
+
 export const VirtualizedPhotoGrid = memo(function VirtualizedPhotoGrid({
   photos,
   selectedPhotos,
@@ -57,88 +67,74 @@ export const VirtualizedPhotoGrid = memo(function VirtualizedPhotoGrid({
   const localPhotoIndexMap = useMemo(() => {
     if (photoIndexMap && photoIndexMap.size > 0) return photoIndexMap;
     const map = new Map<string, number>();
-    photos.forEach((photo, index) => {
-      map.set(photo.id, index);
-    });
+    photos.forEach((photo, index) => map.set(photo.id, index));
     return map;
   }, [photos, photoIndexMap]);
   
+  // Enable virtualization on desktop for any meaningful photo count
+  // Mobile is excluded because fixed-height scroll conflicts with native mobile scroll
   const shouldEnableVirtualization = useMemo(() => {
     if (deviceCapabilities.isMobile) return false;
-    return deviceCapabilities.shouldUseVirtualization && filteredPhotos.length > 100;
+    return deviceCapabilities.shouldUseVirtualization && filteredPhotos.length > 50;
   }, [deviceCapabilities.isMobile, deviceCapabilities.shouldUseVirtualization, filteredPhotos.length]);
+
+  const containerHeight = useMemo(() => {
+    if (typeof window === 'undefined') return 800;
+    return Math.max(600, window.innerHeight - 250);
+  }, []);
   
   const virtualization = useVirtualization(filteredPhotos, {
-    itemHeight: 420,
-    containerHeight: 800,
-    buffer: 2,
+    itemHeight: 430,
+    containerHeight,
+    buffer: 3,
     enabled: shouldEnableVirtualization
   });
   
-  const {
-    visibleItems,
-    totalHeight,
-    offsetY,
-    containerRef,
-    itemsPerRow,
-    isVirtualizationActive
-  } = virtualization;
+  const { visibleItems, totalHeight, offsetY, containerRef, itemsPerRow, isVirtualizationActive } = virtualization;
   
-  const gridClasses = useMemo(() => {
-    const baseClasses = "grid gap-4 sm:gap-5 px-2 sm:px-4 lg:px-6";
-    switch (itemsPerRow) {
-      case 1: return `${baseClasses} grid-cols-2 sm:grid-cols-1`;
-      case 2: return `${baseClasses} grid-cols-2`;
-      case 3: return `${baseClasses} grid-cols-2 sm:grid-cols-2 lg:grid-cols-3`;
-      case 4: return `${baseClasses} grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`;
-      case 5: return `${baseClasses} grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5`;
-      case 6: return `${baseClasses} grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 max-w-[1800px]:grid-cols-6`;
-      default: return `${baseClasses} grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`;
-    }
-  }, [itemsPerRow]);
+  const gridClass = GRID_CLASSES[itemsPerRow] ?? GRID_CLASSES[4];
   
+  const renderCard = (photo: Photo) => {
+    const originalIndex = localPhotoIndexMap.get(photo.id) ?? 0;
+    return (
+      <PhotoCard
+        key={photo.id}
+        photo={photo}
+        isSelected={selectedPhotos.has(photo.id)}
+        isFinalized={isFinalized}
+        showWatermark={showWatermark}
+        originalIndex={originalIndex}
+        commentText={commentTexts[photo.id] || ""}
+        photoComments={photoComments[photo.id] || []}
+        isCommentExpanded={expandedCommentPhoto === photo.id}
+        isCommentMutationPending={isCommentMutationPending}
+        onToggleSelection={onToggleSelection}
+        onOpenModal={onOpenModal}
+        onToggleCommentSection={onToggleCommentSection}
+        onCommentTextChange={onCommentTextChange}
+        onSubmitComment={onSubmitComment}
+      />
+    );
+  };
+
   if (!isVirtualizationActive) {
     return (
-      <div className={gridClasses}>
-        {filteredPhotos.map((photo) => {
-          const originalIndex = localPhotoIndexMap.get(photo.id) ?? 0;
-          return (
-            <PhotoCard
-              key={photo.id}
-              photo={photo}
-              isSelected={selectedPhotos.has(photo.id)}
-              isFinalized={isFinalized}
-              showWatermark={showWatermark}
-              originalIndex={originalIndex}
-              commentText={commentTexts[photo.id] || ""}
-              photoComments={photoComments[photo.id] || []}
-              isCommentExpanded={expandedCommentPhoto === photo.id}
-              isCommentMutationPending={isCommentMutationPending}
-              onToggleSelection={onToggleSelection}
-              onOpenModal={onOpenModal}
-              onToggleCommentSection={onToggleCommentSection}
-              onCommentTextChange={onCommentTextChange}
-              onSubmitComment={onSubmitComment}
-            />
-          );
-        })}
+      <div className={gridClass}>
+        {filteredPhotos.map(renderCard)}
       </div>
     );
   }
-  
+
   return (
-    <div 
+    <div
       ref={containerRef}
       className="w-full overflow-auto"
-      style={{ 
-        height: '80vh',
-        maxHeight: '80vh'
-      }}
+      style={{ height: containerHeight, maxHeight: containerHeight }}
     >
       <div style={{ height: totalHeight, position: 'relative' }}>
-        <div 
-          className={gridClasses}
-          style={{ 
+        <div
+          className={gridClass}
+          style={{
             transform: `translateY(${offsetY}px)`,
             position: 'absolute',
             top: 0,
@@ -146,28 +142,7 @@ export const VirtualizedPhotoGrid = memo(function VirtualizedPhotoGrid({
             right: 0
           }}
         >
-          {visibleItems.map((photo) => {
-            const originalIndex = localPhotoIndexMap.get(photo.id) ?? 0;
-            return (
-              <PhotoCard
-                key={photo.id}
-                photo={photo}
-                isSelected={selectedPhotos.has(photo.id)}
-                isFinalized={isFinalized}
-                showWatermark={showWatermark}
-                originalIndex={originalIndex}
-                commentText={commentTexts[photo.id] || ""}
-                photoComments={photoComments[photo.id] || []}
-                isCommentExpanded={expandedCommentPhoto === photo.id}
-                isCommentMutationPending={isCommentMutationPending}
-                onToggleSelection={onToggleSelection}
-                onOpenModal={onOpenModal}
-                onToggleCommentSection={onToggleCommentSection}
-                onCommentTextChange={onCommentTextChange}
-                onSubmitComment={onSubmitComment}
-              />
-            );
-          })}
+          {visibleItems.map(renderCard)}
         </div>
       </div>
     </div>

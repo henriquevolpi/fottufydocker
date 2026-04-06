@@ -26,91 +26,57 @@ export function useVirtualization<T>(
   const [containerWidth, setContainerWidth] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   
-  // Detectar número de colunas baseado na largura da tela
   const itemsPerRow = useMemo(() => {
-    if (containerWidth === 0) return 4; // Default
-    
-    // Largura base de cada item (incluindo gap)
-    const itemWidth = 320; // ~280px card + 40px gap
-    const possibleColumns = Math.floor(containerWidth / itemWidth);
-    
-    // Limitar entre 1 e 6 colunas baseado no tamanho da tela
-    if (containerWidth < 640) return 1;      // sm
-    if (containerWidth < 768) return 2;      // md  
-    if (containerWidth < 1024) return 3;     // lg
-    if (containerWidth < 1280) return 4;     // xl
-    if (containerWidth < 1536) return 5;     // 2xl
-    return Math.min(possibleColumns, 6);     // Máximo 6 colunas
+    if (containerWidth === 0) return 4;
+    if (containerWidth < 640) return 2;
+    if (containerWidth < 768) return 2;
+    if (containerWidth < 1024) return 3;
+    if (containerWidth < 1280) return 4;
+    if (containerWidth < 1536) return 5;
+    return Math.min(Math.floor(containerWidth / 320), 6);
   }, [containerWidth]);
   
-  // Calcular quantas linhas temos
   const totalRows = Math.ceil(items.length / itemsPerRow);
   const totalHeight = totalRows * itemHeight;
   
-  // Calcular quais linhas estão visíveis
-  const visibleRowStart = enabled ? Math.floor(scrollTop / itemHeight) : 0;
+  const visibleRowStart = enabled ? Math.max(0, Math.floor(scrollTop / itemHeight) - buffer) : 0;
   const visibleRowEnd = enabled ? 
-    Math.min(
-      totalRows,
-      Math.ceil((scrollTop + containerHeight) / itemHeight) + buffer
-    ) : totalRows;
+    Math.min(totalRows, Math.ceil((scrollTop + containerHeight) / itemHeight) + buffer)
+    : totalRows;
   
-  // Calcular offset
   const offsetY = enabled ? visibleRowStart * itemHeight : 0;
   
-  // Obter itens visíveis
   const visibleItems = useMemo(() => {
     if (!enabled) return items;
-    
-    const startIndex = Math.max(0, (visibleRowStart - buffer) * itemsPerRow);
-    const endIndex = Math.min(items.length, (visibleRowEnd + buffer) * itemsPerRow);
-    
+    const startIndex = visibleRowStart * itemsPerRow;
+    const endIndex = Math.min(items.length, visibleRowEnd * itemsPerRow);
     return items.slice(startIndex, endIndex);
-  }, [items, visibleRowStart, visibleRowEnd, itemsPerRow, buffer, enabled]);
+  }, [items, visibleRowStart, visibleRowEnd, itemsPerRow, enabled]);
   
-  // Monitorar scroll
   useEffect(() => {
     const container = containerRef.current;
     if (!container || !enabled) return;
-    
-    const handleScroll = () => {
-      setScrollTop(container.scrollTop);
-    };
-    
+    const handleScroll = () => setScrollTop(container.scrollTop);
     container.addEventListener('scroll', handleScroll, { passive: true });
     return () => container.removeEventListener('scroll', handleScroll);
   }, [enabled]);
   
-  // Monitorar resize
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-    
-    const resizeObserver = new ResizeObserver((entries) => {
+    const ro = new ResizeObserver((entries) => {
       const entry = entries[0];
-      if (entry) {
-        setContainerWidth(entry.contentRect.width);
-      }
+      if (entry) setContainerWidth(entry.contentRect.width);
     });
-    
-    resizeObserver.observe(container);
-    return () => resizeObserver.disconnect();
+    ro.observe(container);
+    return () => ro.disconnect();
   }, []);
   
-  // Determinar se virtualização está ativa
-  const isVirtualizationActive = enabled && items.length > 50;
+  const isVirtualizationActive = enabled && items.length > 0;
   
-  return {
-    visibleItems,
-    totalHeight,
-    offsetY,
-    containerRef,
-    itemsPerRow,
-    isVirtualizationActive
-  };
+  return { visibleItems, totalHeight, offsetY, containerRef, itemsPerRow, isVirtualizationActive };
 }
 
-// Hook para detectar capacidades do dispositivo
 export function useDeviceCapabilities() {
   const [capabilities, setCapabilities] = useState({
     isMobile: false,
@@ -121,36 +87,23 @@ export function useDeviceCapabilities() {
   });
   
   useEffect(() => {
-    // Detectar mobile - incluir tablets
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
       navigator.userAgent
-    ) || window.innerWidth <= 768; // Considerar telas pequenas como mobile
+    ) || window.innerWidth <= 768;
     
-    // Detectar dispositivo com baixa performance
     const hardwareConcurrency = navigator.hardwareConcurrency || 4;
     const memory = (navigator as any).deviceMemory || 4;
-    
     const isLowEnd = hardwareConcurrency <= 2 || memory <= 2;
     const hasGoodPerformance = hardwareConcurrency >= 4 && memory >= 4;
-    
-    // Configurações mais conservadoras para mobile
-    let maxPhotosPerPage = 144;
-    let shouldUseVirtualization = false;
-    
-    if (isLowEnd) {
-      maxPhotosPerPage = 50;
-      shouldUseVirtualization = true;
-    } else if (isMobile) {
-      // No mobile, NUNCA usar virtualização - causa problemas de scroll
-      maxPhotosPerPage = 144;
-      shouldUseVirtualization = false;
-    }
+
+    // Virtualização habilitada para desktop (não mobile, que tem conflito de scroll)
+    const shouldUseVirtualization = !isMobile;
     
     setCapabilities({
       isMobile,
       isLowEnd,
       hasGoodPerformance,
-      maxPhotosPerPage,
+      maxPhotosPerPage: isLowEnd ? 50 : 500,
       shouldUseVirtualization
     });
   }, []);

@@ -36,6 +36,32 @@ interface PhotoCardProps {
   onSubmitComment: (photoId: string) => void;
 }
 
+// Shared singleton IntersectionObserver — 1 instance for ALL PhotoCards
+// instead of 1 per card, which causes crashes with many photos
+const _visibilityCallbacks = new Map<Element, () => void>();
+let _sharedObserver: IntersectionObserver | null = null;
+
+function getSharedObserver(): IntersectionObserver {
+  if (!_sharedObserver && typeof IntersectionObserver !== 'undefined') {
+    _sharedObserver = new IntersectionObserver(
+      (entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            const cb = _visibilityCallbacks.get(entry.target);
+            if (cb) {
+              cb();
+              _visibilityCallbacks.delete(entry.target);
+              _sharedObserver!.unobserve(entry.target);
+            }
+          }
+        });
+      },
+      { rootMargin: '300px', threshold: 0.01 }
+    );
+  }
+  return _sharedObserver!;
+}
+
 export const PhotoCard = memo(function PhotoCard({
   photo,
   isSelected,
@@ -61,27 +87,22 @@ export const PhotoCard = memo(function PhotoCard({
   useEffect(() => {
     const card = cardRef.current;
     if (!card) return;
-    
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            setIsVisible(true);
-            observer.unobserve(card);
-          }
-        });
-      },
-      {
-        rootMargin: '200px',
-        threshold: 0.01
+
+    try {
+      const observer = getSharedObserver();
+      if (!observer) {
+        setIsVisible(true);
+        return;
       }
-    );
-    
-    observer.observe(card);
-    
-    return () => {
-      observer.disconnect();
-    };
+      _visibilityCallbacks.set(card, () => setIsVisible(true));
+      observer.observe(card);
+      return () => {
+        _visibilityCallbacks.delete(card);
+        observer.unobserve(card);
+      };
+    } catch {
+      setIsVisible(true);
+    }
   }, []);
   
   const handleCardClick = useCallback(() => {
@@ -138,7 +159,6 @@ export const PhotoCard = memo(function PhotoCard({
           <WatermarkOverlay 
             enabled={showWatermark} 
             className="absolute inset-0 w-full h-full cursor-zoom-in group"
-            reuseCanvas={true}
           >
             <div 
               className="w-full h-full"
