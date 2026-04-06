@@ -37,7 +37,7 @@ import https from "https";
 import bodyParser from "body-parser";
 import passport from "passport";
 import { db } from "./db";
-import { eq, and, or, not, desc, count, sql } from "drizzle-orm";
+import { eq, and, or, not, desc, count, sql, inArray } from "drizzle-orm";
 import { processImage } from "./imageProcessor";
 import { sendEmail } from "./utils/sendEmail";
 import { sendWelcomeEmail } from "./utils/welcomeEmail";
@@ -1954,23 +1954,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get all projects (filtered by photographer if not admin)
   app.get("/api/projects", authenticate, async (req: Request, res: Response) => {
     try {
-      let projects;
-      
-      if (req.user?.role === "admin") {
-        // Admins can see all projects
-        projects = await storage.getProjects();
-      } else if (req.user) {
-        // Photographers can only see their own projects
-        console.log(`Filtrando projetos para o fotógrafo ID=${req.user.id}`);
-        projects = await storage.getProjects(req.user.id);
-      } else {
-        // Usuário não autenticado
+      if (!req.user) {
         return res.status(401).json({ message: "Não autorizado" });
       }
-      
-      console.log(`Retornando ${projects.length} projetos para o usuário ID=${req.user?.id}`);
-      res.json(projects);
+
+      // V1 projects (existing logic)
+      const v1Projects = req.user.role === "admin"
+        ? await storage.getProjects()
+        : await storage.getProjects(req.user.id);
+
+      // V2 projects from new_projects table
+      const v2Raw = await db.query.newProjects.findMany({
+        where: req.user.role === "admin"
+          ? undefined
+          : eq(newProjects.userId, req.user.id),
+        orderBy: (np, { desc: d }) => [d(np.createdAt)],
+      });
+
+      // Bulk-fetch photo counts for V2 projects in one query
+      let v2Projects: any[] = [];
+      if (v2Raw.length > 0) {
+        const v2Ids = v2Raw.map(p => p.id);
+        const countRows = await db
+          .select({
+            projectId: photos.projectId,
+            total: count(),
+            selected: sql<number>`count(case when ${photos.selected} = true then 1 end)`,
+          })
+          .from(photos)
+          .where(inArray(photos.projectId, v2Ids))
+          .groupBy(photos.projectId);
+
+        const countMap = new Map(countRows.map(r => [r.projectId, r]));
+
+        v2Projects = v2Raw.map(p => {
+          const counts = countMap.get(p.id);
+          return {
+            id: p.id,
+            name: p.title,
+            clientName: p.description || 'Cliente',
+            clientEmail: '',
+            data: p.createdAt.toISOString(),
+            status: 'pendente',
+            showWatermark: p.showWatermark ?? true,
+            photos: [],
+            fotos: Number(counts?.total ?? 0),
+            selectedPhotos: [],
+            selecionadas: Number(counts?.selected ?? 0),
+            isV2: true,
+          };
+        });
+      }
+
+      const merged = [...v2Projects, ...v1Projects];
+      console.log(`Retornando ${merged.length} projetos (${v1Projects.length} V1 + ${v2Projects.length} V2) para o usuário ID=${req.user.id}`);
+      res.json(merged);
     } catch (error) {
+      console.error("Error fetching projects:", error);
       res.status(500).json({ message: "Failed to retrieve projects" });
     }
   });
@@ -2510,7 +2550,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (typeof showWatermark !== 'boolean') {
         return res.status(400).json({ message: "showWatermark must be a boolean" });
       }
-      
+
+      // V2: UUID-based project
+      if (isUUID(idParam)) {
+        const v2Project = await db.query.newProjects.findFirst({
+          where: eq(newProjects.id, idParam),
+        });
+        if (!v2Project) {
+          return res.status(404).json({ message: "Project not found" });
+        }
+        if (v2Project.userId !== req.user?.id && req.user?.role !== 'admin') {
+          return res.status(403).json({ message: "Cannot modify projects of other photographers" });
+        }
+        const [updated] = await db.update(newProjects)
+          .set({ showWatermark })
+          .where(eq(newProjects.id, idParam))
+          .returning();
+        return res.json({ ...updated, showWatermark: updated.showWatermark });
+      }
+
+      // V1 legacy path
       const project = await storage.getProject(idParam);
       
       if (!project) {
@@ -2519,7 +2578,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`[WATERMARK] Projeto encontrado: ${project.name}, atual showWatermark: ${project.showWatermark}`);
       
-      // Check if photographer ID matches authenticated user
       if (project.photographerId !== req.user?.id && req.user?.role !== "admin") {
         return res.status(403).json({ message: "Cannot modify projects of other photographers" });
       }
@@ -2700,22 +2758,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/projects/:id", authenticate, requireActiveUser, async (req: Request, res: Response) => {
     try {
       const idParam = req.params.id;
+
+      // V2: UUID-based project
+      if (isUUID(idParam)) {
+        const v2Project = await db.query.newProjects.findFirst({
+          where: eq(newProjects.id, idParam),
+        });
+        if (!v2Project) {
+          return res.status(404).json({ message: "Projeto não encontrado" });
+        }
+        if (v2Project.userId !== req.user?.id && req.user?.role !== 'admin') {
+          return res.status(403).json({ message: "Você não tem permissão para excluir este projeto" });
+        }
+        // Fetch photos to delete from R2
+        const projectPhotos = await db.select().from(photos).where(eq(photos.projectId, idParam));
+        for (const photo of projectPhotos) {
+          try {
+            if (photo.filename) await deleteFileFromR2(photo.filename);
+          } catch (e) {
+            console.error(`[DELETE V2] Erro ao deletar ${photo.filename} do R2:`, e);
+          }
+        }
+        await db.delete(photos).where(eq(photos.projectId, idParam));
+        await db.delete(newProjects).where(eq(newProjects.id, idParam));
+        console.log(`[DELETE V2] Projeto ${idParam} excluído com ${projectPhotos.length} fotos`);
+        return res.json({ success: true, message: "Projeto excluído com sucesso", photosRemoved: projectPhotos.length });
+      }
+
+      // V1 legacy path
       const project = await storage.getProject(idParam);
       
       if (!project) {
         return res.status(404).json({ message: "Projeto não encontrado" });
       }
       
-      // Verificar se o fotógrafo é o dono do projeto ou se é admin
       if (project.photographerId !== req.user?.id && req.user?.role !== "admin") {
         return res.status(403).json({ message: "Você não tem permissão para excluir este projeto" });
       }
       
-      // Log the photo count that will be removed from upload usage
       const photoCount = project.photos ? project.photos.length : 0;
       console.log(`Deletando projeto ID=${project.id} com ${photoCount} fotos - removendo do contador de uploads`);
       
-      // Delete all related files from R2 before removing the project
       if (project.photos && Array.isArray(project.photos)) {
         for (const photo of project.photos) {
           try {
@@ -2726,20 +2809,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Modified deleteProject will handle the usage count reduction
       const deleted = await storage.deleteProject(project.id);
       
       if (!deleted) {
         return res.status(500).json({ message: "Falha ao excluir projeto" });
       }
       
-      // Invalidate user stats after successful deletion
       console.log(`Projeto ID=${project.id} excluído com sucesso - contador de uploads atualizado`);
       
       res.json({ 
         success: true, 
         message: "Projeto excluído com sucesso",
-        photosRemoved: photoCount // Include count in response for client-side feedback
+        photosRemoved: photoCount
       });
     } catch (error) {
       console.error("Erro ao excluir projeto:", error);

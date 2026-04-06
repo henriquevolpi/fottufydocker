@@ -62,7 +62,6 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { getQueryFn, apiRequest, queryClient } from "@/lib/queryClient";
 import { ChangePasswordModal } from "@/components/ChangePasswordModal";
 import { CopyNamesButton } from "@/components/copy-names-button";
-import { compressMultipleImages } from "@/lib/imageCompression";
 import { PhotoComment } from "@shared/schema";
 import {
   Form,
@@ -739,73 +738,83 @@ function UploadModal({
   onUpload: (data: any) => void;
 }) {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [thumbnails, setThumbnails] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStatusMsg, setUploadStatusMsg] = useState("");
 
   const { toast } = useToast();
-  const { user } = useAuth();
-  
+
   const uploadSchema = z.object({
-    projectName: z.string().min(3, "Project name is required"),
-    clientName: z.string().min(3, "Client name is required"),
-    clientEmail: z.string().email("Invalid email").optional().or(z.literal("")),
-    data: z.string().min(1, "Date is required"),
-    includedPhotos: z.coerce.number().min(0).default(0),
-    additionalPhotoPrice: z.coerce.number().min(0).default(0),
+    projectName: z.string().min(3, "Nome do projeto é obrigatório (mín. 3 caracteres)"),
+    clientName: z.string().min(3, "Nome do cliente é obrigatório (mín. 3 caracteres)"),
   });
-  
+
   const form = useForm<z.infer<typeof uploadSchema>>({
     resolver: zodResolver(uploadSchema),
     defaultValues: {
       projectName: "",
       clientName: "",
-      clientEmail: "",
-      data: new Date().toISOString().split('T')[0],
-      includedPhotos: 0,
-      additionalPhotoPrice: 0,
     },
   });
-  
+
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (!event.target.files || event.target.files.length === 0) return;
-    
-    const newFiles = Array.from(event.target.files);
-    const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
-
-    const validFiles = newFiles.filter(file => file.type.startsWith('image/') && file.size <= MAX_FILE_SIZE);
-    const oversizedFiles = newFiles.filter(file => file.type.startsWith('image/') && file.size > MAX_FILE_SIZE);
-    const nonImageFiles = newFiles.filter(file => !file.type.startsWith('image/'));
-
-    if (oversizedFiles.length > 0) {
-      const total = newFiles.filter(f => f.type.startsWith('image/')).length;
-      toast({
-        title: `${oversizedFiles.length} foto(s) acima de 2MB`,
-        description: `${oversizedFiles.length} de ${total} foto(s) foram ignoradas por ultrapassar 2MB. Exporte as fotos do seu editor com tamanho menor antes de enviar.`,
-        variant: "destructive",
-      });
-    }
-
-    if (nonImageFiles.length > 0) {
+    const newFiles = Array.from(event.target.files).filter(f => f.type.startsWith('image/'));
+    const nonImages = Array.from(event.target.files).length - newFiles.length;
+    if (nonImages > 0) {
       toast({
         title: "Arquivos não suportados",
-        description: `${nonImageFiles.length} arquivo(s) ignorado(s). Apenas imagens são aceitas.`,
+        description: `${nonImages} arquivo(s) ignorado(s). Apenas imagens são aceitas.`,
         variant: "destructive",
       });
     }
+    if (newFiles.length === 0) return;
+    setSelectedFiles(prev => [...prev, ...newFiles]);
+  };
 
-    if (validFiles.length === 0) return;
-    
-    setSelectedFiles((prev) => [...prev, ...validFiles]);
-    setThumbnails(prev => [...prev, ...Array(validFiles.length).fill("placeholder")]);
-  };
-  
   const removeFile = (index: number) => {
-    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
-    setThumbnails((prev) => prev.filter((_, i) => i !== index));
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
   };
-  
+
+  // XHR upload de um lote — resolve com dados da resposta, rejeita com erro
+  const uploadBatch = (
+    projectId: string,
+    batch: File[],
+    onProgress: (pct: number) => void
+  ): Promise<any> =>
+    new Promise((resolve, reject) => {
+      const formData = new FormData();
+      batch.forEach(f => formData.append("photos", f));
+
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", `/api/projects/${projectId}/photos/upload`);
+      xhr.withCredentials = true;
+      xhr.timeout = 300_000;
+
+      let lastPct = -1;
+      xhr.upload.onprogress = (ev) => {
+        if (!ev.lengthComputable) return;
+        const pct = Math.round((ev.loaded / ev.total) * 100);
+        if (pct !== lastPct) { lastPct = pct; onProgress(pct); }
+      };
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try { resolve(JSON.parse(xhr.responseText)); } catch { resolve({}); }
+        } else {
+          try {
+            const err = JSON.parse(xhr.responseText);
+            reject(new Error(err.message || `HTTP ${xhr.status}`));
+          } catch {
+            reject(new Error(`HTTP ${xhr.status}`));
+          }
+        }
+      };
+      xhr.onerror = () => reject(new Error("Erro de rede"));
+      xhr.ontimeout = () => reject(new Error("Tempo esgotado"));
+      xhr.send(formData);
+    });
+
   const onSubmit = async (data: z.infer<typeof uploadSchema>) => {
     if (selectedFiles.length === 0) {
       toast({
@@ -816,245 +825,107 @@ function UploadModal({
       return;
     }
 
-    // ── Utilitários internos ─────────────────────────────────────────────
-
-    // Pausa sem bloquear a UI (permite GC e re-renders)
-    const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
-    // Comprime com fallback total — nunca lança exceção
-    const safeCompress = async (
-      files: File[],
-      onProgress?: (p: number, t: number) => void
-    ): Promise<File[]> => {
-      try {
-        return await compressMultipleImages(
-          files,
-          { maxWidthOrHeight: 970, quality: 0.9, useWebWorker: true },
-          onProgress
-        );
-      } catch (compressErr) {
-        console.warn("[Upload] Compressão falhou, usando originais:", compressErr);
-        return files; // nunca bloqueia — envia as fotos originais
-      }
-    };
-
-    // XHR encapsulado como Promise com suporte a progresso
-    const xhrSend = (
-      method: string,
-      url: string,
-      body: FormData,
-      onProgress?: (pct: number) => void
-    ): Promise<any> =>
-      new Promise((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        let lastT = 0;
-        let lastV = -1;
-
-        xhr.upload.onprogress = (ev) => {
-          if (!ev.lengthComputable || !onProgress) return;
-          const now = Date.now();
-          const pct = Math.round((ev.loaded / ev.total) * 100);
-          if (now - lastT > 150 && pct !== lastV) {
-            lastT = now; lastV = pct;
-            onProgress(pct);
-          }
-        };
-
-        xhr.onload = () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            try { resolve(JSON.parse(xhr.responseText)); }
-            catch { resolve({}); }
-          } else {
-            try {
-              const err = JSON.parse(xhr.responseText);
-              if (err.error === "UPLOAD_LIMIT_REACHED") {
-                reject({ isLimitError: true, details: err.details });
-              } else {
-                reject(new Error(err.message || `HTTP ${xhr.status}`));
-              }
-            } catch {
-              reject(new Error(`HTTP ${xhr.status}`));
-            }
-          }
-        };
-
-        xhr.onerror = () => reject(new Error("Erro de rede"));
-        xhr.ontimeout = () => reject(new Error("Tempo esgotado"));
-        xhr.timeout = 300_000; // 5 min por lote (seguro para conexões 3G/lentas)
-
-        xhr.open(method, url);
-        xhr.withCredentials = true;
-        xhr.send(body);
-      });
-
-    // Retry automático com backoff — propaga apenas erros de limite
-    const xhrWithRetry = async (
-      method: string,
-      url: string,
-      body: FormData,
-      onProgress?: (pct: number) => void,
-      maxRetries = 3
-    ): Promise<{ ok: boolean; data?: any }> => {
-      for (let attempt = 1; attempt <= maxRetries; attempt++) {
-        try {
-          const responseData = await xhrSend(method, url, body, onProgress);
-          return { ok: true, data: responseData };
-        } catch (err: any) {
-          if (err?.isLimitError) throw err; // limite → para tudo
-          if (attempt < maxRetries) {
-            const waitSec = attempt * 2;
-            setUploadStatusMsg(`Conexão instável — tentando novamente em ${waitSec}s... (${attempt}/${maxRetries})`);
-            await sleep(waitSec * 1000);
-          } else {
-            console.warn(`[Upload] Lote falhou após ${maxRetries} tentativas:`, err?.message);
-          }
-        }
-      }
-      return { ok: false };
-    };
-
-    // ── Constantes ───────────────────────────────────────────────────────
-    const BATCH_SIZE = 30;
+    const BATCH_SIZE = 10;
     const totalFiles = selectedFiles.length;
-    const totalBatches = Math.ceil(totalFiles / BATCH_SIZE);
-    const batchWeight = 75 / totalBatches; // fatia da barra por lote
+    const batches: File[][] = [];
+    for (let i = 0; i < totalFiles; i += BATCH_SIZE) batches.push(selectedFiles.slice(i, i + BATCH_SIZE));
+    const totalBatches = batches.length;
+    const batchWeight = 95 / totalBatches;
 
     try {
       setIsUploading(true);
       setUploadProgress(0);
-      setUploadStatusMsg("Preparando arquivos...");
+      setUploadStatusMsg("Criando projeto...");
 
-      // Pausa preventiva se memória estiver alta
-      const mem = (window.performance as any)?.memory;
-      if (mem && mem.usedJSHeapSize > mem.totalJSHeapSize * 0.80) {
-        setUploadStatusMsg("Liberando memória...");
-        await sleep(2000);
+      // Passo 1: criar projeto via V2
+      const createRes = await fetch("/api/v2/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          title: data.projectName.trim(),
+          description: data.clientName.trim(),
+        }),
+      });
+      if (!createRes.ok) {
+        const err = await createRes.json().catch(() => ({}));
+        throw new Error(err.message || "Erro ao criar projeto");
       }
-
-      // ── Lote 1: comprimir ─────────────────────────────────────────────
-      const firstBatchFiles = selectedFiles.slice(0, BATCH_SIZE);
-      setUploadStatusMsg(`Comprimindo lote 1/${totalBatches}...`);
+      const project = await createRes.json();
+      const projectId: string = project.id;
       setUploadProgress(5);
 
-      const firstBatchCompressed = await safeCompress(firstBatchFiles, (done) => {
-        setUploadProgress(Math.round(5 + (done / totalFiles) * 15));
-      });
+      // Passo 2: enviar fotos em lotes
+      let totalUploaded = 0;
+      const errors: string[] = [];
 
-      setUploadProgress(20);
+      for (let i = 0; i < batches.length; i++) {
+        const batch = batches[i];
+        const bBase = 5 + i * batchWeight;
+        setUploadStatusMsg(`Enviando lote ${i + 1} de ${totalBatches}...`);
 
-      // ── Lote 1: criar projeto ─────────────────────────────────────────
-      setUploadStatusMsg(`Enviando lote 1/${totalBatches}...`);
-      const formData = new FormData();
-      formData.append('projectName', data.projectName);
-      formData.append('clientName', data.clientName);
-      formData.append('clientEmail', data.clientEmail || '');
-      formData.append('data', data.data);
-      formData.append('includedPhotos', data.includedPhotos?.toString() || '0');
-      formData.append('additionalPhotoPrice', Math.round(Number(data.additionalPhotoPrice || 0) * 100).toString());
-      if (user?.id) formData.append('photographerId', user.id.toString());
-      firstBatchCompressed.forEach(f => formData.append('photos', f));
-
-      // Primeiro lote DEVE ter sucesso — retenta e lança se falhar tudo
-      const firstResult = await xhrWithRetry('POST', '/api/projects', formData, (pct) => {
-        setUploadProgress(Math.min(Math.round(20 + pct * batchWeight / 100), 94));
-      });
-
-      if (!firstResult.ok || !firstResult.data?.id) {
-        throw new Error("Não foi possível criar o projeto. Verifique sua conexão e tente novamente.");
-      }
-
-      const projectId = firstResult.data.id;
-      let totalUploaded = firstBatchCompressed.length;
-      let skippedPhotosCount = 0;
-
-      console.log(`[Upload] Projeto ${projectId} criado com ${firstBatchCompressed.length} fotos`);
-
-      // ── Lotes restantes: comprimir → enviar → continuar ──────────────
-      for (let bIdx = 1; bIdx < totalBatches; bIdx++) {
-        const bStart = bIdx * BATCH_SIZE;
-        const bEnd = Math.min(bStart + BATCH_SIZE, totalFiles);
-        const bFiles = selectedFiles.slice(bStart, bEnd);
-        const bBase = 20 + bIdx * batchWeight;
-
-        setUploadStatusMsg(`Comprimindo lote ${bIdx + 1}/${totalBatches}...`);
-
-        const bCompressed = await safeCompress(bFiles, (done) => {
-          const share = (done / bFiles.length) * batchWeight * 0.4;
-          setUploadProgress(Math.min(Math.round(bBase + share), 94));
-        });
-
-        setUploadStatusMsg(`Enviando lote ${bIdx + 1}/${totalBatches}...`);
-
-        const bFormData = new FormData();
-        bCompressed.forEach(f => bFormData.append('photos', f));
-
-        const bResult = await xhrWithRetry(
-          'POST',
-          `/api/projects/${projectId}/photos`,
-          bFormData,
-          (pct) => {
-            const share = batchWeight * 0.4 + pct * batchWeight * 0.6 / 100;
-            setUploadProgress(Math.min(Math.round(bBase + share), 94));
-          }
-        );
-
-        if (bResult.ok) {
-          totalUploaded += bFiles.length;
-          console.log(`[Upload] ✅ Lote ${bIdx + 1}/${totalBatches} enviado: ${bFiles.length} fotos`);
-        } else {
-          skippedPhotosCount += bFiles.length; // contagem exata (último lote pode ter menos de 30)
-          console.warn(`[Upload] ⚠️ Lote ${bIdx + 1}/${totalBatches} ignorado após falhas (${bFiles.length} fotos)`);
-          // Continua normalmente com o próximo lote
+        try {
+          await uploadBatch(projectId, batch, (pct) => {
+            setUploadProgress(Math.min(Math.round(bBase + pct * batchWeight / 100), 99));
+          });
+          totalUploaded += batch.length;
+          setUploadProgress(Math.min(Math.round(5 + (i + 1) * batchWeight), 99));
+        } catch (err: any) {
+          errors.push(`Lote ${i + 1}: ${err.message}`);
+          console.warn(`[Upload V2] Lote ${i + 1} falhou:`, err.message);
         }
 
-        // Pequena pausa entre lotes para não sobrecarregar o servidor
-        await sleep(200);
+        // Pequena pausa entre lotes
+        await new Promise(r => setTimeout(r, 100));
       }
 
       setUploadProgress(100);
       setUploadStatusMsg("Upload concluído!");
 
-      // ── Finalização ───────────────────────────────────────────────────
-      const successMsg = skippedPhotosCount === 0
-        ? `O projeto "${data.projectName}" foi criado com ${totalUploaded} fotos.`
-        : `${totalUploaded} fotos enviadas. ${skippedPhotosCount} foto(s) não foram enviadas por instabilidade de rede — você pode adicioná-las depois.`;
+      const successMsg = errors.length === 0
+        ? `O projeto "${data.projectName}" foi criado com ${totalUploaded} foto(s).`
+        : `${totalUploaded} foto(s) enviadas. ${errors.length} lote(s) com falha — você pode adicionar as restantes depois.`;
 
-      toast({
-        title: "Projeto criado com sucesso",
-        description: successMsg,
-      });
+      toast({ title: "Projeto criado com sucesso!", description: successMsg });
 
-      try { onUpload({ ...firstResult.data, nome: firstResult.data.name, cliente: firstResult.data.clientName, emailCliente: firstResult.data.clientEmail, fotos: totalUploaded, selecionadas: firstResult.data.selectedPhotos?.length ?? 0 }); }
-      catch (e) { console.warn("[Upload] Erro no callback (não crítico):", e); }
+      // Callback normalizado — handleProjectCreated busca o projeto completo em seguida
+      try {
+        onUpload({
+          id: projectId,
+          name: data.projectName.trim(),
+          clientName: data.clientName.trim(),
+          clientEmail: '',
+          fotos: totalUploaded,
+          selecionadas: 0,
+          status: 'pendente',
+          data: new Date().toISOString(),
+          showWatermark: true,
+          photos: [],
+          selectedPhotos: [],
+          isV2: true,
+        });
+      } catch (e) {
+        console.warn("[Upload V2] Erro no callback (não crítico):", e);
+      }
 
       setSelectedFiles([]);
-      setThumbnails([]);
       setUploadStatusMsg("");
       form.reset();
       onClose();
 
     } catch (error: any) {
-      console.error("[Upload] Erro fatal:", error);
+      console.error("[Upload V2] Erro fatal:", error);
       setUploadStatusMsg("");
-
-      if (error?.isLimitError) {
-        toast({
-          title: "Limite de uploads atingido",
-          description: error.details || "Você atingiu o limite do seu plano. Verifique sua assinatura ou entre em contato com o suporte.",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Erro ao criar projeto",
-          description: error?.message || "Ocorreu um erro inesperado. Por favor, tente novamente.",
-          variant: "destructive",
-        });
-      }
+      toast({
+        title: "Erro ao criar projeto",
+        description: error?.message || "Ocorreu um erro inesperado. Por favor, tente novamente.",
+        variant: "destructive",
+      });
     } finally {
       setIsUploading(false);
     }
   };
-  
+
   return (
     <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen && isUploading) return; onClose(); }}>
       <DialogContent className="w-[calc(100%-2rem)] sm:max-w-[700px] max-h-[90vh] overflow-y-auto mx-auto bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-2xl rounded-3xl">
@@ -1066,10 +937,10 @@ function UploadModal({
             Criar Novo Projeto
           </DialogTitle>
           <DialogDescription className="text-slate-500 dark:text-slate-400 text-base leading-relaxed mt-2">
-            Preencha os detalhes do projeto e faça upload das suas fotos. Máximo 2MB por foto.
+            Preencha os detalhes e envie suas fotos. Originais sem compressão, direto para o servidor.
           </DialogDescription>
         </DialogHeader>
-        
+
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 p-1">
             <FormField
@@ -1081,17 +952,18 @@ function UploadModal({
                     📋 Nome da Galeria
                   </FormLabel>
                   <FormControl>
-                    <Input 
-                      placeholder="Ex: Casamento de João e Maria" 
-                      className="h-14 border-slate-200 dark:border-slate-700 focus:border-purple-500 focus:ring-purple-500/20 bg-slate-50 dark:bg-slate-800 rounded-2xl text-base font-medium transition-all" 
-                      {...field} 
+                    <Input
+                      placeholder="Ex: Casamento de João e Maria"
+                      className="h-14 border-slate-200 dark:border-slate-700 focus:border-purple-500 focus:ring-purple-500/20 bg-slate-50 dark:bg-slate-800 rounded-2xl text-base font-medium transition-all"
+                      disabled={isUploading}
+                      {...field}
                     />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            
+
             <FormField
               control={form.control}
               name="clientName"
@@ -1101,96 +973,17 @@ function UploadModal({
                     👤 Nome do Cliente
                   </FormLabel>
                   <FormControl>
-                    <Input 
-                      placeholder="Ex: João da Silva" 
-                      className="h-14 border-slate-200 dark:border-slate-700 focus:border-purple-500 focus:ring-purple-500/20 bg-slate-50 dark:bg-slate-800 rounded-2xl text-base font-medium transition-all" 
-                      {...field} 
+                    <Input
+                      placeholder="Ex: João da Silva"
+                      className="h-14 border-slate-200 dark:border-slate-700 focus:border-purple-500 focus:ring-purple-500/20 bg-slate-50 dark:bg-slate-800 rounded-2xl text-base font-medium transition-all"
+                      disabled={isUploading}
+                      {...field}
                     />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            
-            {/* FormField
-              control={form.control}
-              name="clientEmail"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email do Cliente (opcional)</FormLabel>
-                  <FormControl>
-                    <Input placeholder="cliente@exemplo.com (opcional)" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            /> */}
-            
-            <FormField
-              control={form.control}
-              name="data"
-              render={({ field }) => (
-                <FormItem className="space-y-2">
-                  <FormLabel className="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                    📅 Data do Evento
-                  </FormLabel>
-                  <FormControl>
-                    <Input 
-                      type="date" 
-                      className="h-14 border-slate-200 dark:border-slate-700 focus:border-purple-500 focus:ring-purple-500/20 bg-slate-50 dark:bg-slate-800 rounded-2xl text-base font-medium transition-all" 
-                      {...field} 
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="includedPhotos"
-                render={({ field }) => (
-                  <FormItem className="space-y-2">
-                    <FormLabel className="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                      🖼️ Fotos Inclusas
-                    </FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="number" 
-                        placeholder="Ex: 20"
-                        className="h-14 border-slate-200 dark:border-slate-700 focus:border-purple-500 focus:ring-purple-500/20 bg-slate-50 dark:bg-slate-800 rounded-2xl text-base font-medium transition-all" 
-                        {...field} 
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="additionalPhotoPrice"
-                render={({ field }) => (
-                  <FormItem className="space-y-2">
-                    <FormLabel className="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                      💰 Valor Foto Extra (R$)
-                    </FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="number" 
-                        step="0.01"
-                        placeholder="Ex: 25.00"
-                        className="h-14 border-slate-200 dark:border-slate-700 focus:border-purple-500 focus:ring-purple-500/20 bg-slate-50 dark:bg-slate-800 rounded-2xl text-base font-medium transition-all" 
-                        {...field} 
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-            
 
             <div className="mt-8">
               <label className="block text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
@@ -1213,19 +1006,19 @@ function UploadModal({
                     Clique ou arraste fotos
                   </p>
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                    JPG, PNG, WEBP — até 2MB cada
+                    JPG, PNG, WEBP — sem limite de tamanho
                   </p>
                 </div>
               </div>
             </div>
-            
-            {thumbnails.length > 0 && (
+
+            {selectedFiles.length > 0 && (
               <div className="mt-6">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
                     <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
                     <h4 className="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">
-                      {thumbnails.length} foto(s) selecionada(s)
+                      {selectedFiles.length} foto(s) selecionada(s)
                     </h4>
                   </div>
                   <span className="px-3 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-full text-[10px] font-black uppercase tracking-widest">
@@ -1234,25 +1027,30 @@ function UploadModal({
                 </div>
                 <div className="border border-slate-100 dark:border-slate-800 rounded-2xl max-h-[240px] overflow-y-auto bg-slate-50 dark:bg-slate-800/50">
                   {selectedFiles.slice(0, 30).map((file, index) => (
-                    <div 
-                      key={index} 
+                    <div
+                      key={index}
                       className="flex items-center justify-between py-3 px-4 border-b border-slate-100 dark:border-slate-700/50 last:border-b-0 hover:bg-purple-50/50 dark:hover:bg-purple-900/10 transition-all group"
                     >
                       <div className="flex items-center space-x-3 overflow-hidden">
                         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-purple-500/10">
                           <Camera className="h-5 w-5 text-white" />
                         </div>
-                        <p className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate">{file.name}</p>
+                        <div className="overflow-hidden">
+                          <p className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate">{file.name}</p>
+                          <p className="text-xs text-slate-400">{(file.size / 1024 / 1024).toFixed(1)} MB</p>
+                        </div>
                       </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 p-0 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all opacity-0 group-hover:opacity-100"
-                        onClick={() => removeFile(index)}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
+                      {!isUploading && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 p-0 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all opacity-0 group-hover:opacity-100"
+                          onClick={() => removeFile(index)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   ))}
                   {selectedFiles.length > 30 && (
@@ -1263,8 +1061,8 @@ function UploadModal({
                 </div>
               </div>
             )}
-            
-            {/* Barra de progresso de upload - Youze Style */}
+
+            {/* Barra de progresso */}
             {isUploading && (
               <div className="w-full flex flex-col gap-4 mt-6 p-6 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700">
                 <div className="flex items-center justify-between">
@@ -1273,9 +1071,9 @@ function UploadModal({
                       <Loader2 className="h-5 w-5 text-white animate-spin" />
                     </div>
                     <div>
-                      <p className="text-sm font-black text-slate-700 dark:text-slate-200">Processando {thumbnails.length} fotos</p>
+                      <p className="text-sm font-black text-slate-700 dark:text-slate-200">Enviando {selectedFiles.length} fotos</p>
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                        {uploadStatusMsg || (uploadProgress < 30 ? "Preparando arquivos..." : uploadProgress < 70 ? "Enviando para servidor..." : uploadProgress < 90 ? "Processando imagens..." : "Finalizando...")}
+                        {uploadStatusMsg || "Processando..."}
                       </p>
                     </div>
                   </div>
@@ -1292,20 +1090,20 @@ function UploadModal({
                 </p>
               </div>
             )}
-            
+
             <DialogFooter className="pt-8 mt-8 border-t border-slate-100 dark:border-slate-800">
               <div className="flex gap-4 w-full">
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={onClose} 
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={onClose}
                   disabled={isUploading}
                   className="flex-1 h-14 border-2 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-black text-xs tracking-widest uppercase rounded-2xl transition-all"
                 >
                   Cancelar
                 </Button>
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   disabled={isUploading}
                   className="flex-1 h-14 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-black text-xs tracking-widest uppercase rounded-2xl shadow-xl shadow-purple-500/20 transition-all hover:scale-105 border-0"
                 >
