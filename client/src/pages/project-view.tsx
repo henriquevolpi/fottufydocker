@@ -105,6 +105,8 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
   
   const queryClient = useQueryClient();
   const abortControllerRef = useRef<AbortController | null>(null);
+  // Referência para o timer de debounce do auto-save (declarada aqui para uso no cleanup abaixo)
+  const autoSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
   // Otimização: Memoizar mapa de índices para evitar findIndex repetitivo
   const photoIndexMap = useMemo(() => {
@@ -478,9 +480,6 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
     };
   }, [currentImageUrl]);
   
-  // Referência para o timer de debounce do auto-save
-  const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
   // Função para salvar automaticamente as seleções com debounce
   const autoSaveSelections = useCallback(async (newSelectedPhotos: Set<string>) => {
     if (!project) return;
@@ -511,7 +510,7 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
     }
   }, [project, projectId]);
 
-  // Alternar seleção de foto com auto-save automático
+  // Alternar seleção de foto (state updater puro, sem side effects)
   const togglePhotoSelection = useCallback((photoId: string) => {
     // Verificação dupla para garantir que projetos finalizados não possam ser editados
     const isProjectFinalized = isFinalized || 
@@ -523,6 +522,7 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
       return; // Impedir seleção se o projeto estiver finalizado
     }
     
+    // State updater puro: sem side effects (setTimeout/clearTimeout) dentro
     setSelectedPhotos(prevSelected => {
       const newSelected = new Set(prevSelected);
       if (newSelected.has(photoId)) {
@@ -530,20 +530,26 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
       } else {
         newSelected.add(photoId);
       }
-      
-      // Cancelar auto-save anterior se houver
+      return newSelected;
+    });
+  }, [isFinalized, project?.status, project?.finalizado]);
+
+  // Auto-save debounced: reage à mudança de selectedPhotos sem side effects no state updater
+  useEffect(() => {
+    if (!project || isFinalized) return;
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current);
+    }
+    autoSaveTimeoutRef.current = setTimeout(() => {
+      autoSaveSelections(selectedPhotos);
+    }, 1000);
+    return () => {
       if (autoSaveTimeoutRef.current) {
         clearTimeout(autoSaveTimeoutRef.current);
       }
-      
-      // Agendar auto-save com delay de 1 segundo
-      autoSaveTimeoutRef.current = setTimeout(() => {
-        autoSaveSelections(newSelected);
-      }, 1000);
-      
-      return newSelected;
-    });
-  }, [isFinalized, autoSaveSelections]);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedPhotos]);
   
   // Abrir modal com a imagem em tamanho completo (com otimização de memória)
   const openImageModal = useCallback((url: string, photoIndex: number, event: React.MouseEvent) => {
@@ -833,6 +839,17 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cents / 100);
   };
 
+  const safeFormatDate = (dateValue: any, options?: Intl.DateTimeFormatOptions): string => {
+    try {
+      if (!dateValue) return '';
+      const d = new Date(dateValue);
+      if (isNaN(d.getTime())) return '';
+      return d.toLocaleDateString('pt-BR', options);
+    } catch {
+      return '';
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
@@ -980,7 +997,7 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
                 <span className="text-white text-sm font-medium">
-                  {new Date(project.data).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  {safeFormatDate(project.data, { day: 'numeric', month: 'long', year: 'numeric' })}
                 </span>
               </div>
               <div className="flex items-center gap-2 px-4 py-2.5 bg-white/10 backdrop-blur-xl rounded-2xl border border-white/10 shadow-lg">
