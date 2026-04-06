@@ -2,6 +2,7 @@ import {
   users, type User, type InsertUser, 
   projects, type Project, type InsertProject,
   photos, photoComments, portfolios, portfolioPhotos,
+  newProjects,
   hotmartOffers, type HotmartOffer, type InsertHotmartOffer,
   siteSettings, type SiteSetting,
   referrals, type Referral,
@@ -1517,27 +1518,43 @@ export class DatabaseStorage implements IStorage {
   }
   
   // Métodos de gerenciamento de uploads
-  async checkUploadLimit(userId: number, count: number): Promise<boolean> {
+  async checkUploadLimit(userId: number, newCount: number): Promise<boolean> {
     try {
-      // Buscar usuário
       const [user] = await db.select().from(users).where(eq(users.id, userId));
       if (!user) return false;
       
-      // Check if subscription is active
       if (user.subscriptionStatus !== "active" && user.planType !== "free") {
         return false;
       }
       
-      // If user has unlimited plan (uploadLimit < 0), always return true
       if (user.uploadLimit !== null && user.uploadLimit < 0) {
         return true;
       }
       
-      // Check if user has available upload quota
       const uploadLimit = user.uploadLimit || 0;
-      const usedUploads = user.usedUploads || 0;
-      const availableUploads = uploadLimit - usedUploads;
-      return availableUploads >= count;
+
+      // Contar fotos reais V1 (projects.photos[]) + V2 (photos table) diretamente
+      // para evitar usar user.usedUploads que pode estar defasado
+      const [v1Row] = await db
+        .select({ total: sql<number>`COALESCE(SUM(jsonb_array_length(photos)), 0)` })
+        .from(projects)
+        .where(and(
+          eq(projects.photographerId, userId),
+          sql`${projects.status} != 'arquivado'`
+        ));
+
+      const [v2Row] = await db
+        .select({ total: sql<number>`COUNT(*)` })
+        .from(photos)
+        .innerJoin(newProjects, sql`${newProjects.id}::text = ${photos.projectId}`)
+        .where(eq(newProjects.userId, userId));
+
+      const realUsed = Number(v1Row?.total ?? 0) + Number(v2Row?.total ?? 0);
+      const available = uploadLimit - realUsed;
+
+      console.log(`[LIMIT CHECK] user=${userId} limit=${uploadLimit} realUsed=${realUsed} (v1=${Number(v1Row?.total ?? 0)} v2=${Number(v2Row?.total ?? 0)}) requesting=${newCount} → ${available >= newCount ? 'ALLOWED' : 'BLOCKED'}`);
+
+      return available >= newCount;
     } catch (error) {
       console.error("Erro ao verificar limite de uploads:", error);
       return false;
