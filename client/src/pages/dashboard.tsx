@@ -258,8 +258,13 @@ function ProjectCard({ project, onDelete, onViewComments }: { project: any, onDe
   };
   
   const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US');
+    if (!dateStr) return '';
+    // Se for YYYY-MM-DD puro, interpreta como local (evita shift de UTC)
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      const [y, m, d] = dateStr.split('-').map(Number);
+      return new Date(y, m - 1, d).toLocaleDateString('pt-BR');
+    }
+    return new Date(dateStr).toLocaleDateString('pt-BR');
   };
   
 

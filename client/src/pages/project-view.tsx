@@ -927,7 +927,14 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
   const safeFormatDate = (dateValue: any, options?: Intl.DateTimeFormatOptions): string => {
     try {
       if (!dateValue) return '';
-      const d = new Date(dateValue);
+      let d: Date;
+      // YYYY-MM-DD puro → interpreta como data local (evita shift de UTC para o dia anterior)
+      if (typeof dateValue === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
+        const [y, m, day] = dateValue.split('-').map(Number);
+        d = new Date(y, m - 1, day);
+      } else {
+        d = new Date(dateValue);
+      }
       if (isNaN(d.getTime())) return '';
       return d.toLocaleDateString('pt-BR', options);
     } catch {
