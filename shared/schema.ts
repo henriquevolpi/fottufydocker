@@ -244,7 +244,8 @@ export const newProjects = pgTable("new_projects", {
   userId: integer("user_id").notNull().references(() => users.id),
   title: text("title").notNull(),
   description: text("description"),
-  showWatermark: boolean("show_watermark").default(true), // Frontend watermark control
+  showWatermark: boolean("show_watermark").default(true),
+  status: text("status").default("active"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

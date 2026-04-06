@@ -1995,7 +1995,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             clientName: p.description || 'Cliente',
             clientEmail: '',
             data: p.createdAt.toISOString(),
-            status: 'pendente',
+            status: p.status || 'active',
+            finalizado: p.status === 'finalizado',
             showWatermark: p.showWatermark ?? true,
             photos: [],
             fotos: Number(counts?.total ?? 0),
@@ -2053,7 +2054,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           clientName: newProject.description || 'Cliente',
           clientEmail: '',
           photographerId: newProject.userId,
-          status: 'active',
+          status: newProject.status || 'active',
+          finalizado: newProject.status === 'finalizado',
           showWatermark: newProject.showWatermark ?? true,
           photos: projectPhotos.map(p => ({
             id: p.id,
@@ -2408,8 +2410,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       console.log(`Finalizando seleção de fotos para projeto ${idParam}. Fotos selecionadas: ${selectedPhotos.length}`);
-      
-      // Find the project by ID or publicId
+
+      // V2: UUID-based project
+      if (isUUID(idParam)) {
+        const v2Project = await db.query.newProjects.findFirst({
+          where: eq(newProjects.id, idParam),
+        });
+        if (!v2Project) {
+          return res.status(404).json({ message: "Projeto não encontrado" });
+        }
+        // Buscar todas as fotos do projeto
+        const projectPhotos = await db.select({ id: photos.id }).from(photos).where(eq(photos.projectId, idParam));
+        const validIds = new Set(projectPhotos.map(p => p.id));
+        const invalidIds = selectedPhotos.filter((id: string) => !validIds.has(id));
+        if (invalidIds.length > 0) {
+          return res.status(400).json({ message: "Algumas fotos selecionadas não existem neste projeto", invalidIds });
+        }
+        // Atualizar seleção em lote
+        const selectedSet = new Set(selectedPhotos);
+        for (const p of projectPhotos) {
+          await db.update(photos).set({ selected: selectedSet.has(p.id) }).where(eq(photos.id, p.id));
+        }
+        // Marcar projeto como finalizado
+        await db.update(newProjects)
+          .set({ status: 'finalizado' })
+          .where(eq(newProjects.id, idParam));
+        console.log(`[FINALIZE V2] Projeto ${idParam} finalizado com ${selectedPhotos.length} fotos`);
+        return res.json({ success: true, status: 'finalizado', selectedCount: selectedPhotos.length });
+      }
+
+      // V1 legacy path
       const project = await storage.getProject(idParam);
       let projectId = 0;
       
@@ -2428,7 +2458,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const validPhotoIds = project.photos.map(photo => photo.id);
-      const invalidPhotoIds = selectedPhotos.filter(id => !validPhotoIds.includes(id));
+      const invalidPhotoIds = selectedPhotos.filter((id: any) => !validPhotoIds.includes(id));
       
       if (invalidPhotoIds.length > 0) {
         return res.status(400).json({ 
@@ -2445,6 +2475,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(updatedProject);
     } catch (error) {
+      console.error("[FINALIZE] Erro:", error);
       res.status(500).json({ message: "Failed to finalize project selections" });
     }
   });
