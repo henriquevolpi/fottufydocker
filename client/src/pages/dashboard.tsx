@@ -574,7 +574,7 @@ function ProjectCard({ project, onDelete, onViewComments }: { project: any, onDe
                 <span>📷 <strong>{selected}</strong> de <strong>{included}</strong> fotos incluídas no pacote</span>
                 {extras > 0 && (
                   <>
-                    <span>➕ <strong>{extras}</strong> foto{extras !== 1 ? 's' : ''} adicionai{extras !== 1 ? 's' : 'onal'}</span>
+                    <span>➕ <strong>{extras}</strong> foto{extras !== 1 ? 's' : ''} {extras !== 1 ? 'adicionais' : 'adicional'}</span>
                     {pricePerExtra > 0 && (
                       <span className="font-bold">
                         💰 Valor adicional: R$ {(totalExtra / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
