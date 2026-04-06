@@ -758,6 +758,8 @@ function UploadModal({
   const uploadSchema = z.object({
     projectName: z.string().min(3, "Nome do projeto é obrigatório (mín. 3 caracteres)"),
     clientName: z.string().min(3, "Nome do cliente é obrigatório (mín. 3 caracteres)"),
+    eventDate: z.string().min(1, "Data do evento é obrigatória"),
+    contractedPhotos: z.number().min(0).optional(),
   });
 
   const form = useForm<z.infer<typeof uploadSchema>>({
@@ -765,6 +767,8 @@ function UploadModal({
     defaultValues: {
       projectName: "",
       clientName: "",
+      eventDate: new Date().toISOString().substring(0, 10),
+      contractedPhotos: 0,
     },
   });
 
@@ -856,6 +860,8 @@ function UploadModal({
         body: JSON.stringify({
           title: data.projectName.trim(),
           description: data.clientName.trim(),
+          eventDate: data.eventDate || null,
+          contractedPhotos: data.contractedPhotos || 0,
         }),
       });
       if (!createRes.ok) {
@@ -995,6 +1001,55 @@ function UploadModal({
                 </FormItem>
               )}
             />
+
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="eventDate"
+                render={({ field }) => (
+                  <FormItem className="space-y-2">
+                    <FormLabel className="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                      📅 Data do Evento
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        type="date"
+                        className="h-14 border-slate-200 dark:border-slate-700 focus:border-purple-500 focus:ring-purple-500/20 bg-slate-50 dark:bg-slate-800 rounded-2xl text-base font-medium transition-all"
+                        disabled={isUploading}
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="contractedPhotos"
+                render={({ field }) => (
+                  <FormItem className="space-y-2">
+                    <FormLabel className="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                      📷 Fotos Contratadas
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min="0"
+                        placeholder="Ex: 50"
+                        className="h-14 border-slate-200 dark:border-slate-700 focus:border-purple-500 focus:ring-purple-500/20 bg-slate-50 dark:bg-slate-800 rounded-2xl text-base font-medium transition-all"
+                        disabled={isUploading}
+                        {...field}
+                        onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                        value={field.value || ''}
+                      />
+                    </FormControl>
+                    <p className="text-xs text-slate-400">0 = sem limite definido</p>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
             <div className="mt-8">
               <label className="block text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">

@@ -246,6 +246,8 @@ export const newProjects = pgTable("new_projects", {
   description: text("description"),
   showWatermark: boolean("show_watermark").default(true),
   status: text("status").default("pendente"),
+  eventDate: text("event_date"),           // Data do evento (YYYY-MM-DD)
+  contractedPhotos: integer("contracted_photos").default(0), // Fotos contratadas pelo cliente
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

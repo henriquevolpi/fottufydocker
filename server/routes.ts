@@ -695,7 +695,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Authentication required" });
       }
       
-      const { title, description } = req.body;
+      const { title, description, eventDate, contractedPhotos } = req.body;
       
       if (!title) {
         return res.status(400).json({ message: "Project title is required" });
@@ -704,7 +704,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const newProject = await db.insert(newProjects).values({
         userId: req.user.id,
         title,
-        description: description || null
+        description: description || null,
+        eventDate: eventDate || null,
+        contractedPhotos: contractedPhotos ? parseInt(contractedPhotos) || 0 : 0,
       }).returning();
       
       res.status(201).json(newProject[0]);

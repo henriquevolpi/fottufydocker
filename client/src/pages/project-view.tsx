@@ -96,9 +96,11 @@ interface Project {
   fotografoId: number;
   photos: Photo[];
   finalizado?: boolean;
-  showWatermark?: boolean; // Controle da marca d'água frontend
-  includedPhotos?: number; // Fotos incluídas no pacote (0 = ilimitado)
-  additionalPhotoPrice?: number; // Preço por foto adicional (em centavos)
+  showWatermark?: boolean;
+  includedPhotos?: number;
+  additionalPhotoPrice?: number;
+  eventDate?: string | null;      // Data do evento (YYYY-MM-DD), apenas V2
+  contractedPhotos?: number;      // Fotos contratadas pelo cliente, apenas V2
 }
 
 export default function ProjectView({ params }: { params?: { id: string } }) {
@@ -309,7 +311,9 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
       finalizado: project.status === "Completed" || project.status === "finalizado" || project.finalizado,
       showWatermark: project.showWatermark,
       includedPhotos: project.includedPhotos || 0,
-      additionalPhotoPrice: project.additionalPhotoPrice || 0
+      additionalPhotoPrice: project.additionalPhotoPrice || 0,
+      eventDate: project.eventDate || null,
+      contractedPhotos: project.contractedPhotos || 0,
     };
     
     console.log('🔍 WATERMARK DEBUG - Projeto adaptado:', {
@@ -1077,7 +1081,9 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
                 <span className="text-white text-sm font-medium">
-                  {safeFormatDate(project.data, { day: 'numeric', month: 'long', year: 'numeric' })}
+                  {project.eventDate
+                    ? safeFormatDate(project.eventDate, { day: 'numeric', month: 'long', year: 'numeric' })
+                    : safeFormatDate(project.data, { day: 'numeric', month: 'long', year: 'numeric' })}
                 </span>
               </div>
               <div className="flex items-center gap-2 px-4 py-2.5 bg-white/10 backdrop-blur-xl rounded-2xl border border-white/10 shadow-lg">
@@ -1086,6 +1092,14 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
                 </svg>
                 <span className="text-white text-sm font-medium">{project.fotos} fotos</span>
               </div>
+              {project.contractedPhotos > 0 && (
+                <div className="flex items-center gap-2 px-4 py-2.5 bg-white/10 backdrop-blur-xl rounded-2xl border border-white/10 shadow-lg">
+                  <svg className="w-4 h-4 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span className="text-white text-sm font-medium">{project.contractedPhotos} contratadas</span>
+                </div>
+              )}
             </div>
           </div>
           
