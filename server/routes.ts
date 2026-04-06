@@ -1779,11 +1779,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Calculate REAL current photo count from all active projects (não arquivados)
+      // V1: conta pelo array photos[] armazenado no projeto
       const activeUserProjects = userProjects.filter(project => project.status !== "arquivado");
-      const realCurrentPhotoCount = activeUserProjects.reduce((total, project) => {
-        const photoCount = project.photos ? project.photos.length : 0;
-        return total + photoCount;
+      const v1PhotoCount = activeUserProjects.reduce((total, project) => {
+        return total + (project.photos ? project.photos.length : 0);
       }, 0);
+
+      // V2: conta fotos na tabela photos vinculadas aos new_projects deste usuário
+      // O join precisa de cast: newProjects.id (uuid) → text = photos.projectId (text)
+      let v2PhotoCount = 0;
+      try {
+        const v2CountResult = await db
+          .select({ total: count() })
+          .from(photos)
+          .innerJoin(newProjects, sql`${newProjects.id}::text = ${photos.projectId}`)
+          .where(eq(newProjects.userId, userId));
+        v2PhotoCount = Number(v2CountResult[0]?.total ?? 0);
+      } catch (v2Err) {
+        console.error("[stats] Erro ao contar fotos V2:", v2Err);
+      }
+
+      const realCurrentPhotoCount = v1PhotoCount + v2PhotoCount;
       
       // Prepare response
       const stats = {
