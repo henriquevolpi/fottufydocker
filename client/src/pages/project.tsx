@@ -61,14 +61,13 @@ export default function ProjectView() {
 
   // Initialize selected photos from project data if available
   useEffect(() => {
-    if (project?.selectedPhotos && project.selectedPhotos.length > 0) {
+    if (!project) return;
+    if (project.selectedPhotos && project.selectedPhotos.length > 0) {
       setSelectedPhotos(project.selectedPhotos);
-      
-      // If the project has status 'Completed', it's already finalized
-      if (project.status === 'Completed') {
-        setIsFinalized(true);
-      }
     }
+    // Determine finalization status regardless of selected photos count
+    const finalized = project.status === 'Completed' || project.status === 'finalizado' || (project as any).finalizado === true;
+    setIsFinalized(finalized);
   }, [project]);
 
   // Função para fazer scroll suave para o topo

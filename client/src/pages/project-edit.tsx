@@ -488,14 +488,32 @@ export default function ProjectEdit() {
         if (response.ok) {
           // Se a opção de reabrir seleção estiver marcada, fazer uma requisição adicional
           if (data.reopenSelection) {
-            await fetch(`/api/projects/${project.id}/reopen`, {
+            const reopenResp = await fetch(`/api/projects/${project.id}/reopen`, {
               method: 'PATCH',
+              credentials: 'include',
             });
+            if (!reopenResp.ok) {
+              const errText = await reopenResp.text().catch(() => '');
+              console.error('Erro ao reabrir seleção:', reopenResp.status, errText);
+              toast({
+                title: "Erro ao reabrir seleção",
+                description: "As alterações foram salvas, mas não foi possível reabrir a seleção. Tente novamente.",
+                variant: "destructive",
+              });
+              setSaving(false);
+              return;
+            }
           }
+
+          // Invalida o cache do projeto e da lista para forçar re-fetch atualizado
+          await queryClient.invalidateQueries({ queryKey: [`/api/projects/${project.id}`] });
+          await queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
           
           toast({
             title: "Projeto atualizado",
-            description: "As alterações foram salvas com sucesso.",
+            description: data.reopenSelection
+              ? "Projeto reaberto com sucesso! O cliente pode selecionar fotos novamente."
+              : "As alterações foram salvas com sucesso.",
           });
           
           // Voltar para a visualização do projeto
