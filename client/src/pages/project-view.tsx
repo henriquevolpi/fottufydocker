@@ -141,6 +141,9 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
   const autoSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Evita auto-save disparando no mount (antes do usuário fazer qualquer seleção)
   const isFirstRender = useRef(true);
+  // Só permite auto-save depois que loadProject() terminou e setSelectedPhotos foi chamado
+  // Isso evita que race conditions de inicialização apaguem seleções existentes no banco
+  const isProjectLoaded = useRef(false);
   
   // Otimização: Memoizar mapa de índices para evitar findIndex repetitivo
   const photoIndexMap = useMemo(() => {
@@ -329,6 +332,8 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
   const loadProject = useCallback(async () => {
     try {
       setLoading(true);
+      // Reseta flag de dados carregados — bloqueia auto-save até que os dados estejam prontos
+      isProjectLoaded.current = false;
       
       // Verificar se o ID é válido
       if (!projectId) {
@@ -419,6 +424,8 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
             } else {
               // Processamento concluído, atualizar state
               setSelectedPhotos(new Set(preSelectedPhotos));
+              // Marca que os dados foram carregados — libera auto-save
+              isProjectLoaded.current = true;
             }
           };
           
@@ -431,9 +438,13 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
             }
           });
           setSelectedPhotos(preSelectedPhotos);
+          // Marca que os dados foram carregados — libera auto-save
+          isProjectLoaded.current = true;
         }
       } else {
         setSelectedPhotos(preSelectedPhotos);
+        // Mesmo sem fotos, dados foram carregados
+        isProjectLoaded.current = true;
       }
       
       // selectedPhotos já foi definido acima baseado no tamanho do projeto
@@ -601,12 +612,16 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
   }, [isFinalized, project?.status, project?.finalizado]);
 
   // Auto-save debounced: reage à mudança de selectedPhotos sem side effects no state updater
-  // Pula o primeiro render (seleções carregadas do servidor não precisam ser salvas)
+  // Só dispara depois que loadProject() concluiu e isProjectLoaded.current = true.
+  // Isso garante que alterações de estado durante a inicialização nunca apaguem seleções do banco.
   useEffect(() => {
+    // Marca a primeira execução do efeito, mas não dispara auto-save — dados ainda não carregaram
     if (isFirstRender.current) {
       isFirstRender.current = false;
       return;
     }
+    // Bloqueia auto-save até que os dados do projeto estejam completamente carregados
+    if (!isProjectLoaded.current) return;
     if (!project || isFinalized) return;
     if (autoSaveTimeoutRef.current) {
       clearTimeout(autoSaveTimeoutRef.current);
