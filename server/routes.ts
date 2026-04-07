@@ -925,18 +925,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (newProject.userId !== req.user.id && req.user.role !== 'admin') {
           return res.status(403).json({ message: "You don't have permission to access this project" });
         }
-        // Auto-save: APENAS marca fotos como selecionadas — NUNCA desmarca automaticamente.
-        // Somente o endpoint /finalize pode desmarcar fotos (operação explícita do cliente).
-        // Isso evita que race conditions de renderização apaguem seleções existentes.
-        if (photoIds.length > 0) {
-          for (const id of photoIds as string[]) {
-            await db.update(photos)
-              .set({ selected: true })
-              .where(and(eq(photos.id, id), eq(photos.projectId, projectId)));
-          }
+        // Auto-save: salva o estado completo de seleção enviado pelo cliente.
+        // Guard: se photoIds vier vazio, ignora para evitar apagar seleções por race condition.
+        // O race condition de inicialização é prevenido pelo isProjectLoaded no cliente.
+        if (photoIds.length === 0) {
+          return res.status(200).json({ message: "No selections to update", selectedCount: 0 });
         }
-        // Também garante que fotos que estavam selected=false e agora não estão no array
-        // permaneçam como estão (não tocamos nelas)
+        // Atualiza: selected=true para fotos no array, selected=false para as demais
+        const allPhotos = await db.select({ id: photos.id }).from(photos).where(eq(photos.projectId, projectId));
+        const selectedSet = new Set(photoIds as string[]);
+        for (const p of allPhotos) {
+          await db.update(photos)
+            .set({ selected: selectedSet.has(p.id) })
+            .where(eq(photos.id, p.id));
+        }
         return res.status(200).json({ message: "Selections saved successfully", selectedCount: photoIds.length });
       }
 
