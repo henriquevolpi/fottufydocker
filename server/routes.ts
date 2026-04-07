@@ -2621,15 +2621,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (v2Project.userId !== req.user?.id && req.user?.role !== "admin") {
           return res.status(403).json({ message: "Cannot reopen projects of other photographers" });
         }
-        // Reabrir: voltar status para pendente e desmarcar fotos selecionadas
+        // Reabrir: voltar status para pendente, mantendo as fotos já selecionadas
         const [updated] = await db
           .update(newProjects)
           .set({ status: 'pendente' })
           .where(eq(newProjects.id, idParam))
           .returning();
-        // Desmarcar todas as fotos selecionadas do projeto
-        await db.update(photos).set({ selected: false }).where(eq(photos.projectId, idParam));
-        console.log(`[REOPEN V2] Projeto ${idParam} reaberto para seleção`);
+        console.log(`[REOPEN V2] Projeto ${idParam} reaberto para seleção (seleções mantidas)`);
         return res.json({
           id: updated.id,
           publicId: updated.id,
