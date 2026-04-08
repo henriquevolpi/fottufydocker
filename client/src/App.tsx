@@ -25,8 +25,6 @@ import CreatePassword from "@/pages/create-password";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { ProtectedRoute } from "@/lib/protected-route";
 import AdminLayout from "@/components/layout/admin-layout";
-import { UploadProtectionProvider } from "@/hooks/use-upload-protection";
-import { UploadProtectionSystem } from "@/components/upload-protection-system";
 import PricingPage from "@/pages/pricing";
 
 import ForgotPasswordPage from "@/pages/forgot-password";
@@ -35,8 +33,6 @@ import SimpleResetPage from "@/pages/simple-reset";
 import PortfolioPage from "@/pages/portfolio";
 import PortfolioPublicPage from "@/pages/portfolio-public";
 import WhatsNew from "@/pages/whats-new";
-import UploadTest from "@/pages/upload-test";
-
 function RootRedirect() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
@@ -124,7 +120,6 @@ function Router() {
       <ProtectedRoute path="/admin" component={Admin} adminOnly={true} />
       <ProtectedRoute path="/admin/projects" component={AdminProjects} adminOnly={true} />
       <ProtectedRoute path="/whats-new" component={WhatsNew} />
-      <ProtectedRoute path="/upload-test" component={UploadTest} />
       <ProtectedRoute path="/meu-portfolio" component={PortfolioPage} />
       <Route path="/portfolio/:slug">
         {(params) => <PortfolioPublicPage />}
@@ -165,13 +160,10 @@ function App() {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <UploadProtectionProvider>
-            <ErrorBoundary>
-              <Router />
-            </ErrorBoundary>
-            <Toaster />
-            <UploadProtectionSystem />
-          </UploadProtectionProvider>
+          <ErrorBoundary>
+            <Router />
+          </ErrorBoundary>
+          <Toaster />
         </AuthProvider>
       </QueryClientProvider>
     </ErrorBoundary>
