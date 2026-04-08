@@ -785,12 +785,17 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
     try {
       setIsSubmitting(true);
       
+      // Cancela qualquer auto-save pendente para evitar race condition com o finalize
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+        autoSaveTimeoutRef.current = null;
+      }
+      
       // Array para guardar IDs das fotos selecionadas
       const selectedIds = Array.from(selectedPhotos);
       
       // Tenta finalizar via API primeiro
       try {
-        // Usa o mesmo ID usado para buscar o projeto
         console.log(`Finalizando seleção para projeto ${projectId} com ${selectedIds.length} fotos`);
         
         const response = await fetch(`/api/projects/${projectId}/finalize`, {
@@ -803,11 +808,6 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
         
         if (response.ok) {
           console.log('Seleção finalizada com sucesso via API');
-          
-          // Simular uma pequena demora para melhorar UX
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-          // Atualizar a UI
           setIsFinalized(true);
           setFinalizationSuccess(true);
           return;
@@ -860,9 +860,6 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
       updatedProject.selecionadas = selectedPhotos.size;
       updatedProject.status = "finalizado";
       updatedProject.finalizado = true;
-      
-      // Simular uma pequena demora para melhorar UX
-      await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Salvar de volta no array de projetos
       projects[projectIndex] = updatedProject;

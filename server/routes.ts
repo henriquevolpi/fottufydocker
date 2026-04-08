@@ -2452,14 +2452,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!v2Project) {
           return res.status(404).json({ message: "Projeto não encontrado" });
         }
-        // Buscar todas as fotos do projeto
-        const projectPhotos = await db.select({ id: photos.id }).from(photos).where(eq(photos.projectId, idParam));
-        const validIds = new Set(projectPhotos.map(p => p.id));
-        const invalidIds = selectedPhotos.filter((id: string) => !validIds.has(id));
-        if (invalidIds.length > 0) {
-          return res.status(400).json({ message: "Algumas fotos selecionadas não existem neste projeto", invalidIds });
-        }
-        // Bulk update: 2 queries independente do número de fotos
+        // Bulk update: 2 queries — filtramos por projectId para garantir segurança sem query extra
         if (selectedPhotos.length > 0) {
           await db.update(photos).set({ selected: true })
             .where(and(eq(photos.projectId, idParam), inArray(photos.id, selectedPhotos)));
