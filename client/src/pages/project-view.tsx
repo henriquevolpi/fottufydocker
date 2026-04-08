@@ -167,8 +167,7 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
       // Carrega comentários quando expande a seção (lazy loading)
       loadPhotoComments(photoId);
     }
-  // loadPhotoComments incluído para evitar closure desatualizada do estado de comentários
-  }, [expandedCommentPhoto, loadPhotoComments]);
+  }, [expandedCommentPhoto]);
 
   // Mutation para criar comentário
   const createCommentMutation = useMutation({
