@@ -561,29 +561,31 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
   const autoSaveSelections = useCallback(async (newSelectedPhotos: Set<string>) => {
     if (!project) return;
     
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    
     try {
       const selectedIds = Array.from(newSelectedPhotos);
       
-      console.log(`Auto-salvando seleção para projeto ${projectId} com ${selectedIds.length} fotos`);
-      
       const response = await fetch(`/api/v2/photos/select`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          projectId: project.id,
-          photoIds: selectedIds 
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId: project.id, photoIds: selectedIds }),
+        signal: controller.signal,
       });
       
+      clearTimeout(timeout);
       if (!response.ok) {
         console.error('Erro ao auto-salvar seleção:', response.status);
-      } else {
-        console.log('Seleção auto-salva com sucesso');
       }
     } catch (error) {
-      console.error('Erro ao auto-salvar seleções:', error);
+      clearTimeout(timeout);
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.warn('Auto-save timeout — será tentado novamente na próxima alteração');
+      } else {
+        console.error('Erro ao auto-salvar seleções:', error);
+      }
+      // Nunca propagar: erros de auto-save são silenciosos para não derrubar a página
     }
   }, [project, projectId]);
 

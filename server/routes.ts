@@ -931,14 +931,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (photoIds.length === 0) {
           return res.status(200).json({ message: "No selections to update", selectedCount: 0 });
         }
-        // Atualiza: selected=true para fotos no array, selected=false para as demais
-        const allPhotos = await db.select({ id: photos.id }).from(photos).where(eq(photos.projectId, projectId));
-        const selectedSet = new Set(photoIds as string[]);
-        for (const p of allPhotos) {
-          await db.update(photos)
-            .set({ selected: selectedSet.has(p.id) })
-            .where(eq(photos.id, p.id));
-        }
+        // Bulk update: 2 queries independente do número de fotos (antes era 1 query por foto)
+        await db.update(photos)
+          .set({ selected: true })
+          .where(and(eq(photos.projectId, projectId), inArray(photos.id, photoIds as string[])));
+        await db.update(photos)
+          .set({ selected: false })
+          .where(and(eq(photos.projectId, projectId), not(inArray(photos.id, photoIds as string[]))));
         return res.status(200).json({ message: "Selections saved successfully", selectedCount: photoIds.length });
       }
 
@@ -2460,10 +2459,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (invalidIds.length > 0) {
           return res.status(400).json({ message: "Algumas fotos selecionadas não existem neste projeto", invalidIds });
         }
-        // Atualizar seleção em lote
-        const selectedSet = new Set(selectedPhotos);
-        for (const p of projectPhotos) {
-          await db.update(photos).set({ selected: selectedSet.has(p.id) }).where(eq(photos.id, p.id));
+        // Bulk update: 2 queries independente do número de fotos
+        if (selectedPhotos.length > 0) {
+          await db.update(photos).set({ selected: true })
+            .where(and(eq(photos.projectId, idParam), inArray(photos.id, selectedPhotos)));
+          await db.update(photos).set({ selected: false })
+            .where(and(eq(photos.projectId, idParam), not(inArray(photos.id, selectedPhotos))));
+        } else {
+          await db.update(photos).set({ selected: false }).where(eq(photos.projectId, idParam));
         }
         // Marcar projeto como finalizado
         await db.update(newProjects)
