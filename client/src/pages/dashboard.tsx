@@ -945,6 +945,16 @@ function UploadModal({
         await new Promise(r => setTimeout(r, 100));
       }
 
+      // Se nenhuma foto foi enviada, remover o projeto órfão do banco
+      if (totalUploaded === 0) {
+        try {
+          await fetch(`/api/projects/${projectId}`, { method: 'DELETE', credentials: 'include' });
+        } catch (deleteErr) {
+          console.warn('[Upload V2] Não foi possível remover projeto órfão:', deleteErr);
+        }
+        throw new Error(`Nenhuma foto foi enviada. ${errors.length} lote(s) falharam. Verifique sua conexão e tente novamente.`);
+      }
+
       setUploadProgress(100);
       setUploadStatusMsg("Upload concluído!");
 
@@ -1148,7 +1158,7 @@ function UploadModal({
                     Clique ou arraste fotos
                   </p>
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                    JPG, PNG, WEBP — sem limite de tamanho
+                    JPG, PNG, WEBP — Limite de 2mb por Foto
                   </p>
                 </div>
               </div>
@@ -1864,7 +1874,7 @@ export default function Dashboard() {
       
       // Fetch adicional do projeto completo - envolvido em try-catch para proteção
       try {
-        const response = await fetch(`/api/projects/${newProject.id}`);
+        const response = await fetch(`/api/projects/${newProject.id}`, { credentials: 'include' });
         
         if (!response.ok) {
           console.warn("Could not fetch complete project data, using initial data");
