@@ -260,34 +260,16 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
   
   // Função para adaptar o formato do projeto (servidor ou localStorage)
   const adaptProject = (project: any): Project => {
-    // Log para depuração
-    console.log('Adaptando projeto:', project.id, 'com', project.photos?.length || 0, 'fotos');
-    console.log('[PROJECT-VIEW] showWatermark do projeto:', project.showWatermark);
-    
     // Helpers para garantir URLs corretas
     const ensureValidImageUrl = (url: string): string => {
-      // Log de cada URL para depuração
-      console.log('Verificando URL:', url);
-      
       if (!url) return '/placeholder.jpg';
-      
-      // Se já for uma URL completa, retorne-a
       if (url.startsWith('http')) return url;
-      
-      // Se for um URL do R2 sem o protocolo
-      if (url.includes('.r2.cloudflarestorage.com')) {
-        return `https://${url}`;
-      }
-      
-      // Se for apenas um nome de arquivo, construa a URL completa
+      if (url.includes('.r2.cloudflarestorage.com')) return `https://${url}`;
       const accountId = import.meta.env.VITE_R2_ACCOUNT_ID;
       const bucketName = import.meta.env.VITE_R2_BUCKET_NAME;
-      
       if (accountId && bucketName) {
         return `https://${accountId}.r2.cloudflarestorage.com/${bucketName}/${url}`;
       }
-      
-      // Fallback para o que foi fornecido
       return url;
     };
     
@@ -319,11 +301,6 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
       eventDate: project.eventDate || null,
       contractedPhotos: project.contractedPhotos || project.includedPhotos || 0,
     };
-    
-    console.log('🔍 WATERMARK DEBUG - Projeto adaptado:', {
-      originalShowWatermark: project.showWatermark,
-      adaptedShowWatermark: result.showWatermark
-    });
     
     return result;
   };
@@ -377,77 +354,24 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
       }
       
       const projectData = await response.json();
-      console.log('Projeto carregado da API:', projectData);
-      console.log('🔍 WATERMARK DEBUG - Valor showWatermark da API:', projectData.showWatermark);
-      
-      // Log detalhado para debug
-      if (projectData.photos) {
-        console.log(`Projeto tem ${projectData.photos.length} fotos`);
-        if (projectData.photos.length > 0) {
-          console.log('Primeira foto:', JSON.stringify(projectData.photos[0]));
-        }
-      } else {
-        console.warn('Projeto sem fotos ou array de fotos é null/undefined');
-      }
       
       // Adapter para manter compatibilidade com o resto do código
       const adaptedProject = adaptProject(projectData);
-      console.log('Projeto adaptado:', adaptedProject);
-      
-      // Verificar acesso - apenas log, view é pública
-      if (user && user.id !== adaptedProject.fotografoId && user.role !== 'admin') {
-        console.log(`Usuário ${user.id} acessando projeto do fotógrafo ${adaptedProject.fotografoId} - permitido para visualização pública`);
-      }
       
       // Atualizar state com dados do projeto
       setProject(adaptedProject);
       
-      // Inicializar seleções de forma mais eficiente (evitar travamento em projetos grandes)
+      // Inicializar seleções de forma síncrona — iteração simples é <1ms mesmo com 1000 fotos
+      // (setTimeout/batch assíncrono criava callbacks órfãos que corrompiam o estado)
       const preSelectedPhotos = new Set<string>();
-      if (adaptedProject.photos && adaptedProject.photos.length > 0) {
-        // Para projetos grandes, usar requestIdleCallback para não travar a UI
-        if (adaptedProject.photos.length > 50) {
-          // Processar em lotes pequenos para não bloquear a thread principal
-          const processPhotosInBatches = (photos: any[], startIndex = 0) => {
-            const batchSize = 20;
-            const endIndex = Math.min(startIndex + batchSize, photos.length);
-            
-            for (let i = startIndex; i < endIndex; i++) {
-              if (photos[i].selected) {
-                preSelectedPhotos.add(photos[i].id);
-              }
-            }
-            
-            if (endIndex < photos.length) {
-              // Usar setTimeout para dar uma pausa à thread principal
-              setTimeout(() => processPhotosInBatches(photos, endIndex), 0);
-            } else {
-              // Processamento concluído, atualizar state
-              setSelectedPhotos(new Set(preSelectedPhotos));
-              // Marca que os dados foram carregados — libera auto-save
-              isProjectLoaded.current = true;
-            }
-          };
-          
-          processPhotosInBatches(adaptedProject.photos);
-        } else {
-          // Para projetos pequenos, processar normalmente
-          adaptedProject.photos.forEach(photo => {
-            if (photo.selected) {
-              preSelectedPhotos.add(photo.id);
-            }
-          });
-          setSelectedPhotos(preSelectedPhotos);
-          // Marca que os dados foram carregados — libera auto-save
-          isProjectLoaded.current = true;
+      if (adaptedProject.photos) {
+        for (const photo of adaptedProject.photos) {
+          if (photo.selected) preSelectedPhotos.add(photo.id);
         }
-      } else {
-        setSelectedPhotos(preSelectedPhotos);
-        // Mesmo sem fotos, dados foram carregados
-        isProjectLoaded.current = true;
       }
+      setSelectedPhotos(preSelectedPhotos);
+      isProjectLoaded.current = true;
       
-      // selectedPhotos já foi definido acima baseado no tamanho do projeto
       setIsFinalized(!!adaptedProject.finalizado);
       
         // Remover este projeto do localStorage para evitar usar dados desatualizados
@@ -455,7 +379,6 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
           const storedProjects = JSON.parse(localStorage.getItem('projects') || '[]');
           const filteredProjects = storedProjects.filter((p: any) => p.id.toString() !== projectId.toString());
           localStorage.setItem('projects', JSON.stringify(filteredProjects));
-          console.log('Removido projeto do localStorage para garantir dados atualizados');
         } catch (storageError) {
           console.error('Erro ao limpar localStorage:', storageError);
         }
