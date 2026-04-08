@@ -2115,7 +2115,7 @@ export default function Dashboard() {
               <img
                 src={fottufinhopng}
                 alt="Fottufinho Mascote"
-                className="w-12 h-12 sm:w-20 sm:h-20"
+                className="w-8 h-8 sm:w-12 sm:h-12"
               />
               
               <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black tracking-tight leading-none uppercase">
