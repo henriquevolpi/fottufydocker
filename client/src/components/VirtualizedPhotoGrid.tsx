@@ -73,12 +73,9 @@ export const VirtualizedPhotoGrid = memo(function VirtualizedPhotoGrid({
     return map;
   }, [photos, photoIndexMap]);
   
-  // Enable virtualization on desktop for any meaningful photo count
-  // Mobile is excluded because fixed-height scroll conflicts with native mobile scroll
-  const shouldEnableVirtualization = useMemo(() => {
-    if (deviceCapabilities.isMobile) return false;
-    return deviceCapabilities.shouldUseVirtualization && filteredPhotos.length > 50;
-  }, [deviceCapabilities.isMobile, deviceCapabilities.shouldUseVirtualization, filteredPhotos.length]);
+  // Virtualização desativada: o grid flui com a página (sem caixa de scroll interno)
+  // As fotos já carregam lazy via IntersectionObserver em cada PhotoCard
+  const shouldEnableVirtualization = false;
 
   const containerHeight = useMemo(() => {
     if (typeof window === 'undefined') return 800;
