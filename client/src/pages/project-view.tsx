@@ -167,7 +167,8 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
       // Carrega comentários quando expande a seção (lazy loading)
       loadPhotoComments(photoId);
     }
-  }, [expandedCommentPhoto]);
+  // loadPhotoComments incluído para evitar closure desatualizada do estado de comentários
+  }, [expandedCommentPhoto, loadPhotoComments]);
 
   // Mutation para criar comentário
   const createCommentMutation = useMutation({
@@ -646,9 +647,6 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
       // Array para guardar IDs das fotos selecionadas
       const selectedIds = Array.from(selectedPhotos);
       
-      // Salvar via API
-      console.log(`Salvando seleção temporária para projeto ${projectId} com ${selectedIds.length} fotos`);
-      
       const response = await fetch(`/api/v2/photos/select`, {
         method: 'PATCH',
         headers: {
@@ -666,30 +664,13 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
         throw new Error(`Erro ao salvar seleção: ${response.status} ${response.statusText}`);
       }
       
-      // Atualizar o projeto local
-      const updatedProject = { ...project };
-      updatedProject.photos = updatedProject.photos.map(photo => ({
-        ...photo,
-        selected: selectedPhotos.has(photo.id)
-      }));
-      updatedProject.selecionadas = selectedPhotos.size;
-      
-      // Atualizar status se necessário
-      if (updatedProject.status === "pendente" && selectedPhotos.size > 0) {
-        updatedProject.status = "revisado";
-      }
-      
-      setProject(updatedProject);
-      
       toast({
         title: "Seleção salva",
         description: `${selectedPhotos.size} fotos selecionadas. Você ainda pode modificar sua seleção.`,
       });
       
-      // Recarregar o projeto para garantir dados atualizados
-      setTimeout(() => {
-        loadProject();
-      }, 500);
+      // Recarregar dados confirmados do servidor (save já foi aguardado acima)
+      loadProject();
       
     } catch (error) {
       console.error('Erro ao salvar seleções:', error);
@@ -719,8 +700,6 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
       
       // Tenta finalizar via API primeiro
       try {
-        console.log(`Finalizando seleção para projeto ${projectId} com ${selectedIds.length} fotos`);
-        
         const response = await fetch(`/api/projects/${projectId}/finalize`, {
           method: 'PATCH',
           headers: {
@@ -730,12 +709,11 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
         });
         
         if (response.ok) {
-          console.log('Seleção finalizada com sucesso via API');
           setIsFinalized(true);
           setFinalizationSuccess(true);
           return;
         } else {
-          const errorData = await response.json();
+          const errorData = await response.json().catch(() => null);
           console.error('Erro ao finalizar via API:', errorData);
           // Continuar para tentar usar localStorage como fallback
         }
@@ -745,7 +723,6 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
       }
       
       // Fallback para localStorage
-      console.log('Usando localStorage como fallback para finalização');
       
       // Obter projetos existentes
       const storedProjects = localStorage.getItem('projects');
@@ -767,8 +744,6 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
       if (projectIndex === -1 && projectId) {
         projectIndex = projects.findIndex(p => p.id.toString() === projectId);
       }
-      
-      console.log('Projeto encontrado no localStorage no índice:', projectIndex);
       
       if (projectIndex === -1) {
         throw new Error('Erro ao finalizar: projeto não encontrado');
