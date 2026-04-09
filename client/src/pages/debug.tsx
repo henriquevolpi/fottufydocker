@@ -8,8 +8,8 @@ export default function DebugPage() {
   const [cookies, setCookies] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [loginStatus, setLoginStatus] = useState('');
-  const [email, setEmail] = useState('admin@studio.com');
-  const [password, setPassword] = useState('admin123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
 
   // Get session data on page load
   useEffect(() => {

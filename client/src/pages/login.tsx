@@ -84,34 +84,6 @@ export default function Login() {
             Acessar como Fotógrafo
           </Button>
           
-          <Button
-            onClick={async () => {
-              setIsLoading(true);
-              try {
-                // Use our new admin account with proper login mutation
-                await loginMutation.mutateAsync({
-                  email: "admin@studio.com",
-                  password: "admin123"
-                });
-                console.log("Redirecionando para admin");
-                setLocation("/adminchapelero");
-              } catch (error) {
-                console.error("Erro ao fazer login como admin:", error);
-                toast({
-                  title: "Erro de login admin",
-                  description: "Não foi possível fazer login com credenciais de administrador",
-                  variant: "destructive"
-                });
-              } finally {
-                setIsLoading(false);
-              }
-            }}
-            variant="outline"
-            className="text-sm bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100"
-            disabled={isLoading}
-          >
-            Acessar como Admin
-          </Button>
         </div>
         
         <div className="relative mt-6 rounded-lg border bg-card text-card-foreground shadow-sm p-4">

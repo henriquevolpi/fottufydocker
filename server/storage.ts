@@ -1184,7 +1184,7 @@ export class DatabaseStorage implements IStorage {
         await this.createUser({
           name: "Admin",
           email: "admin@studio.com",
-          password: await hashPassword("Natanael153@"),
+          password: await hashPassword(process.env.ADMIN_DEFAULT_PASSWORD || "change-me-on-first-login"),
           role: "admin",
           status: "active",
           planType: "professional",

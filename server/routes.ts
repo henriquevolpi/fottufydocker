@@ -208,32 +208,6 @@ const authenticate = async (req: Request, res: Response, next: Function) => {
     }
   }
   
-  // For development purposes only, allow alternate auth methods
-  
-  // Check for admin override parameter (for development testing only)
-  if (req.query.admin === 'true') {
-    console.log("[AUTH] Admin override via query param");
-    try {
-      // Try to find admin in the database first
-      const adminUser = await storage.getUserByEmail("admin@studio.com");
-      
-      if (adminUser) {
-        req.login(adminUser, (err) => {
-          if (err) {
-            console.error("[AUTH] Error logging in admin user:", err);
-            return next(err);
-          }
-          console.log("[AUTH] Admin session established via query param");
-          return next();
-        });
-        return; // Return to avoid calling next() twice
-      } else {
-        console.log("[AUTH] Admin user not found in database");
-      }
-    } catch (error) {
-      console.error("[AUTH] Error fetching admin user:", error);
-    }
-  }
   
   // If we reach here, user is not authenticated
   if (process.env.DEBUG_AUTH === 'true') {

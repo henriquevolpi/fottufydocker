@@ -219,7 +219,7 @@ export function setupAuth(app: Express) {
   // Configure session cookie options with enhanced security
   const sessionSettings: session.SessionOptions = {
     // Use the enhanced secure secret
-    secret: process.env.SESSION_SECRET || "studio-development-secret-key-testing-onlyaaaaa", 
+    secret: process.env.SESSION_SECRET!, 
     // Optimize for security vs compatibility
     resave: false, // Don't save session if unmodified
     saveUninitialized: false, // Don't create session until something is stored

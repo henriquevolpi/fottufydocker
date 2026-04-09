@@ -39,7 +39,6 @@ export default function AuthPage() {
   const [searchParams] = useState(() => new URLSearchParams(window.location.search));
   const redirect = searchParams.get('redirect') || '/dashboard';
   const plan = searchParams.get('plan');
-  const showAdminLogin = searchParams.get('admin') === 'true';
   const redirectUrl = plan ? `${redirect}?plan=${plan}` : redirect;
   
   const referralCode = searchParams.get('ref');
@@ -79,12 +78,6 @@ export default function AuthPage() {
       ? { ...registerData, referralCode: referralCode.toUpperCase() }
       : registerData;
     registerMutation.mutate(dataWithReferral);
-  };
-
-  const handleAdminLogin = () => {
-    loginForm.setValue("email", "admin@studio.com");
-    loginForm.setValue("password", "admin123");
-    loginMutation.mutate({ email: "admin@studio.com", password: "admin123" });
   };
 
   useEffect(() => {
@@ -306,19 +299,6 @@ export default function AuthPage() {
                               <><Sparkles className="mr-2 h-5 w-5" /> Entrar</>
                             )}
                           </Button>
-                          {showAdminLogin && (
-                            <div className="pt-2">
-                              <Button 
-                                type="button" 
-                                variant="outline" 
-                                className="w-full h-12 rounded-xl bg-white/5 border-white/20 text-white hover:bg-white/10 hover:text-white font-semibold" 
-                                onClick={handleAdminLogin} 
-                                disabled={loginMutation.isPending}
-                              >
-                                {loginMutation.isPending ? "Acessando..." : "Acessar como Admin"}
-                              </Button>
-                            </div>
-                          )}
                         </form>
                       </Form>
                     </motion.div>

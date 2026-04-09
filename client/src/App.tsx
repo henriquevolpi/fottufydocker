@@ -18,7 +18,6 @@ import SubscriptionPixPage from "@/pages/subscription-pix";
 import SubscriptionSuccessPage from "@/pages/subscription-success";
 import BlackFridayPage from "@/pages/blackfriday";
 import Checkout from "@/pages/checkout";
-import DebugPage from "@/pages/debug";
 import LandingPage from "@/pages/landing";
 import LandingAdsPage from "@/pages/landing-ads";
 import CreatePassword from "@/pages/create-password";
@@ -130,10 +129,6 @@ function Router() {
       <Route path="/pricing">
         {() => <PricingPage />}
       </Route>
-      <Route path="/debug">
-        {() => <DebugPage />}
-      </Route>
-
       <Route path="/home">
         {() => <LandingPage />}
       </Route>

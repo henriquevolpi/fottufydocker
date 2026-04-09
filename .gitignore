@@ -6,3 +6,6 @@ vite.config.ts.*
 *.tar.gz
 uploads/
 uploads/*PhotoProManager.zip
+.env
+.env.local
+.env.*.local
