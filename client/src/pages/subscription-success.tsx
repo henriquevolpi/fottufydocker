@@ -19,6 +19,7 @@ export default function SubscriptionSuccessPage() {
   const [status, setStatus] = useState<'loading' | 'success' | 'pending' | 'error'>('loading');
   const [planInfo, setPlanInfo] = useState<any>(null);
   const [retryCount, setRetryCount] = useState(0);
+  const MAX_AUTO_RETRIES = 24; // 24 x 5s = ~2 minutos máximo de polling
 
   useEffect(() => {
     const verifySession = async () => {
@@ -28,6 +29,13 @@ export default function SubscriptionSuccessPage() {
       if (!sessionId) {
         console.log('[Success] Sem session_id, redirecionando para dashboard');
         setLocation('/dashboard');
+        return;
+      }
+
+      // Parar de tentar após o limite de tentativas automáticas
+      if (retryCount > 0 && retryCount >= MAX_AUTO_RETRIES) {
+        console.log(`[Success] Limite de ${MAX_AUTO_RETRIES} tentativas automáticas atingido`);
+        setStatus('error');
         return;
       }
 

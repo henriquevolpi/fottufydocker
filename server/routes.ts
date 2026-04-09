@@ -3186,11 +3186,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
         stripeCustomerId = customer.id;
         
-        // Salvar o customerId no banco (se o campo existir)
+        // Salvar o customerId no banco
         try {
           await storage.updateUser(user.id, { stripeCustomerId: customer.id } as any);
-        } catch (e) {
-          console.log("Campo stripeCustomerId não existe no schema, continuando...");
+        } catch (e: any) {
+          console.error("Falha ao salvar stripeCustomerId no banco:", e.message);
         }
       }
 
@@ -3730,8 +3730,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             'estudio': 40000
           };
           const uploadLimit = planLimits[planType] || 6000;
-          
-          // Calcular datas de assinatura (se subscription disponível)
+
+          // Extrair subscriptionId com segurança (pode vir como string ou objeto expandido)
+          const subscriptionId = typeof session.subscription === 'string'
+            ? session.subscription
+            : (session.subscription as any)?.id || '';
+
+          // Calcular datas de assinatura (fallback calculado)
           let startDate = new Date();
           let endDate = new Date();
           if (billingCycle === 'yearly') {
@@ -3739,17 +3744,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
           } else {
             endDate.setMonth(endDate.getMonth() + 1);
           }
-          
-          // Verificar se já foi processado (idempotência)
-          if (user.subscriptionStatus === 'active' && user.planType === planType) {
-            console.log(`[Stripe Webhook] Usuário ${userId} já tem plano ${planType} ativo - ignorando`);
+
+          // Buscar datas reais da subscription no Stripe (mais precisas que as calculadas)
+          if (subscriptionId && stripe) {
+            try {
+              const stripeSub = await stripe.subscriptions.retrieve(subscriptionId);
+              startDate = new Date(stripeSub.current_period_start * 1000);
+              endDate = new Date(stripeSub.current_period_end * 1000);
+              console.log(`[Stripe Webhook] Datas reais: ${startDate.toISOString()} → ${endDate.toISOString()}`);
+            } catch (dateErr: any) {
+              console.warn(`[Stripe Webhook] Usando datas calculadas (falha ao buscar subscription): ${dateErr.message}`);
+            }
+          }
+
+          // Verificar se já foi processado - idempotência pelo subscriptionId (mais preciso)
+          if (subscriptionId && user.stripeSubscriptionId === subscriptionId && user.subscriptionStatus === 'active') {
+            console.log(`[Stripe Webhook] Subscription ${subscriptionId} já processada para usuário ${userId} - ignorando`);
             return res.json({
               message: "Já processado anteriormente",
               event: event.type,
               status: "already_processed"
             });
           }
-          
+
           // Atualizar o usuário
           await storage.updateUser(userId, {
             planType: planType,
@@ -3758,7 +3775,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             subscriptionStartDate: startDate,
             subscriptionEndDate: endDate,
             billingPeriod: billingCycle,
-            stripeSubscriptionId: session.subscription as string
+            stripeSubscriptionId: subscriptionId || (session.subscription as string)
           } as any);
           
           console.log(`[Stripe Webhook] Usuário ${userId} atualizado para plano ${planType} (${billingCycle})`);
@@ -3797,8 +3814,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         // Processar conforme o tipo de evento
-        if (event.type === 'customer.subscription.deleted' || 
-            event.type === 'customer.subscription.canceled') {
+        if (event.type === 'customer.subscription.deleted') {
           // Cancelamento de assinatura - retornar ao plano gratuito
           await storage.updateUser(userId, {
             planType: 'free',
