@@ -17,8 +17,8 @@ interface AdminLayoutProps {
 
 // Array de links para deixar o código mais limpo e fácil de manter
 const navLinks = [
-  { href: "/admin", label: "Gerenciar Usuários", icon: Users },
-  { href: "/admin/projects", label: "Projetos", icon: Folder },
+  { href: "/adminchapelero", label: "Gerenciar Usuários", icon: Users },
+  { href: "/adminchapelero/projects", label: "Projetos", icon: Folder },
 ];
 
 export default function AdminLayout({ children }: AdminLayoutProps) {

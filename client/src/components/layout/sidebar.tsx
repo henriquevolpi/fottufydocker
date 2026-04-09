@@ -39,7 +39,7 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
     },
     {
       title: "Users",
-      href: "/admin",
+      href: "/adminchapelero",
       icon: <Users className="mr-3 h-6 w-6" />,
       adminOnly: true,
     },

@@ -42,7 +42,7 @@ function RootRedirect() {
     if (user) {
       if (user.role === "admin") {
         console.log("Redirecionando para /admin");
-        setLocation("/admin");
+        setLocation("/adminchapelero");
       } else {
         console.log("Redirecionando para /dashboard");
         setLocation("/dashboard");
@@ -117,8 +117,8 @@ function Router() {
       <ProtectedRoute path="/subscription/success" component={SubscriptionSuccessPage} />
       <ProtectedRoute path="/blackfriday" component={BlackFridayPage} />
       <ProtectedRoute path="/checkout" component={Checkout} />
-      <ProtectedRoute path="/admin" component={Admin} adminOnly={true} />
-      <ProtectedRoute path="/admin/projects" component={AdminProjects} adminOnly={true} />
+      <ProtectedRoute path="/adminchapelero" component={Admin} adminOnly={true} />
+      <ProtectedRoute path="/adminchapelero/projects" component={AdminProjects} adminOnly={true} />
       <ProtectedRoute path="/whats-new" component={WhatsNew} />
       <ProtectedRoute path="/meu-portfolio" component={PortfolioPage} />
       <Route path="/portfolio/:slug">

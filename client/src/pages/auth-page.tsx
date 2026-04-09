@@ -90,7 +90,7 @@ export default function AuthPage() {
   useEffect(() => {
     if (user) {
       if (user.role === 'admin') {
-        setLocation('/admin');
+        setLocation('/adminchapelero');
       } else {
         setLocation(redirectUrl);
       }

@@ -94,7 +94,7 @@ export default function Login() {
                   password: "admin123"
                 });
                 console.log("Redirecionando para admin");
-                setLocation("/admin");
+                setLocation("/adminchapelero");
               } catch (error) {
                 console.error("Erro ao fazer login como admin:", error);
                 toast({
