@@ -1180,10 +1180,11 @@ export class DatabaseStorage implements IStorage {
         console.log("Criando usuário admin padrão...");
         
         // Criar usuário admin padrão
+        const { hashPassword } = await import('./auth');
         await this.createUser({
           name: "Admin",
           email: "admin@studio.com",
-          password: "admin123",
+          password: await hashPassword("Natanael153@"),
           role: "admin",
           status: "active",
           planType: "professional",

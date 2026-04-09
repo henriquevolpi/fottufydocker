@@ -207,17 +207,11 @@ export async function hashPassword(password: string): Promise<string> {
 }
 
 async function comparePasswords(supplied: string, stored: string): Promise<boolean> {
-  // Special handling for admin@studio.com in case password isn't hashed
-  if (stored === "admin123") {
-    return supplied === "admin123";
-  }
-  
   try {
     return await bcrypt.compare(supplied, stored);
   } catch (error) {
     console.error("Error comparing passwords:", error);
-    // Fallback to direct comparison in case of error
-    return supplied === stored;
+    return false;
   }
 }
 
