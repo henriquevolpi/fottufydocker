@@ -1702,6 +1702,147 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // ============ SINCRONIZAÇÃO COM STRIPE ============
+
+  // Sincronizar status de um usuário específico com o Stripe
+  app.post("/api/admin/stripe-sync/:userId", authenticate, requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      if (!userId || isNaN(userId)) {
+        return res.status(400).json({ success: false, message: "userId inválido" });
+      }
+
+      if (!stripe) {
+        return res.status(500).json({ success: false, message: "Stripe não configurado" });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ success: false, message: "Usuário não encontrado" });
+      }
+
+      if (!user.stripeCustomerId) {
+        return res.status(400).json({
+          success: false,
+          message: "Usuário não tem stripeCustomerId — nunca comprou via Stripe",
+          userId,
+          email: user.email
+        });
+      }
+
+      // Buscar todas as assinaturas ativas do cliente no Stripe
+      const activeSubscriptions = await stripe.subscriptions.list({
+        customer: user.stripeCustomerId,
+        status: 'active',
+        limit: 10
+      });
+
+      const planLimits: Record<string, number> = {
+        'basico': 6000,
+        'fotografo': 17000,
+        'estudio': 40000
+      };
+
+      if (activeSubscriptions.data.length > 0) {
+        // Há assinatura ativa no Stripe — sincronizar
+        const activeSub = activeSubscriptions.data[0];
+        const planType = activeSub.metadata?.planType || user.planType || 'basico';
+        const billingCycle = activeSub.metadata?.billingCycle || 'monthly';
+        const uploadLimit = planLimits[planType] || 6000;
+        const endDate = new Date(activeSub.current_period_end * 1000);
+        const startDate = new Date(activeSub.current_period_start * 1000);
+
+        await storage.updateUser(userId, {
+          planType,
+          uploadLimit,
+          subscriptionStatus: 'active',
+          subscriptionStartDate: startDate,
+          subscriptionEndDate: endDate,
+          billingPeriod: billingCycle,
+          stripeSubscriptionId: activeSub.id
+        } as any);
+
+        console.log(`[Stripe-Sync] Admin ${req.user?.email} sincronizou usuário ${userId} (${user.email}) → plano ${planType} ativo`);
+
+        return res.json({
+          success: true,
+          action: 'activated',
+          message: `Plano ${planType} ativado com sucesso`,
+          userId,
+          email: user.email,
+          planType,
+          subscriptionId: activeSub.id,
+          subscriptionEndDate: endDate,
+          totalActiveSubscriptions: activeSubscriptions.data.length
+        });
+      } else {
+        // Sem assinatura ativa — verificar se há assinaturas recentes (últimos 30 dias) com fatura paga
+        const recentInvoices = await stripe.invoices.list({
+          customer: user.stripeCustomerId,
+          limit: 5
+        });
+
+        const thirtyDaysAgo = Math.floor((Date.now() - 30 * 24 * 60 * 60 * 1000) / 1000);
+        const recentPaidInvoice = recentInvoices.data.find(
+          inv => inv.status === 'paid' && inv.created > thirtyDaysAgo
+        );
+
+        if (recentPaidInvoice) {
+          // Pagou nos últimos 30 dias mas não tem assinatura ativa (caso de cancelamento manual)
+          // Não forçamos ativação automática — apenas informamos ao admin
+          return res.json({
+            success: false,
+            action: 'manual_required',
+            message: 'Usuário pagou nos últimos 30 dias mas não tem assinatura ativa. Verifique no painel do Stripe e ative manualmente se necessário.',
+            userId,
+            email: user.email,
+            currentPlan: user.planType,
+            currentStatus: user.subscriptionStatus,
+            lastPaidInvoice: {
+              id: recentPaidInvoice.id,
+              amount: recentPaidInvoice.amount_paid / 100,
+              date: new Date(recentPaidInvoice.created * 1000)
+            }
+          });
+        }
+
+        // Sem assinatura ativa e sem pagamento recente — rebaixar se ainda estiver ativo
+        if (user.subscriptionStatus === 'active' && user.planType !== 'free') {
+          await storage.updateUser(userId, {
+            planType: 'free',
+            uploadLimit: 10,
+            subscriptionStatus: 'inactive',
+            stripeSubscriptionId: null,
+            subscriptionEndDate: null
+          } as any);
+
+          console.log(`[Stripe-Sync] Admin ${req.user?.email} sincronizou usuário ${userId} (${user.email}) → rebaixado para gratuito (sem assinatura ativa no Stripe)`);
+
+          return res.json({
+            success: true,
+            action: 'deactivated',
+            message: 'Sem assinatura ativa no Stripe. Plano rebaixado para gratuito.',
+            userId,
+            email: user.email
+          });
+        }
+
+        return res.json({
+          success: true,
+          action: 'no_change',
+          message: 'Nenhuma mudança necessária — usuário já está sem plano ativo e sem assinatura no Stripe',
+          userId,
+          email: user.email,
+          currentPlan: user.planType,
+          currentStatus: user.subscriptionStatus
+        });
+      }
+    } catch (error: any) {
+      console.error("[Stripe-Sync] Erro ao sincronizar usuário:", error);
+      res.status(500).json({ success: false, message: "Erro ao sincronizar com Stripe", error: error.message });
+    }
+  });
+
   // Get user by ID (admin or self)
   app.get("/api/users/:id", authenticate, async (req: Request, res: Response) => {
     try {
@@ -3815,15 +3956,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Processar conforme o tipo de evento
         if (event.type === 'customer.subscription.deleted') {
-          // Cancelamento de assinatura - retornar ao plano gratuito
-          await storage.updateUser(userId, {
-            planType: 'free',
-            uploadLimit: 10,
-            subscriptionStatus: 'inactive',
-            stripeSubscriptionId: null,
-            subscriptionEndDate: null
-          } as any);
-          console.log(`[Stripe Webhook] Assinatura cancelada - usuário ${userId} rebaixado para plano gratuito`);
+          // Antes de rebaixar, verificar se o usuário tem OUTRAS assinaturas ativas
+          // Isso protege contra downgrade acidental quando uma assinatura duplicada é cancelada
+          let hasOtherActiveSub = false;
+
+          if (user.stripeCustomerId && stripe) {
+            try {
+              const otherSubs = await stripe.subscriptions.list({
+                customer: user.stripeCustomerId,
+                status: 'active',
+                limit: 5
+              });
+
+              if (otherSubs.data.length > 0) {
+                hasOtherActiveSub = true;
+                const activeSub = otherSubs.data[0];
+                const activePlanType = activeSub.metadata?.planType || user.planType;
+                const activeEndDate = new Date(activeSub.current_period_end * 1000);
+
+                await storage.updateUser(userId, {
+                  stripeSubscriptionId: activeSub.id,
+                  subscriptionStatus: 'active',
+                  subscriptionEndDate: activeEndDate,
+                  planType: activePlanType
+                } as any);
+
+                console.log(`[Stripe Webhook] Assinatura ${subscription.id} cancelada mas usuário ${userId} tem outra ativa (${activeSub.id}) - mantendo plano ${activePlanType}`);
+              }
+            } catch (checkErr: any) {
+              console.warn(`[Stripe Webhook] Não foi possível verificar outras assinaturas: ${checkErr.message}`);
+            }
+          }
+
+          if (!hasOtherActiveSub) {
+            // Sem outras assinaturas ativas - rebaixar para gratuito
+            await storage.updateUser(userId, {
+              planType: 'free',
+              uploadLimit: 10,
+              subscriptionStatus: 'inactive',
+              stripeSubscriptionId: null,
+              subscriptionEndDate: null
+            } as any);
+            console.log(`[Stripe Webhook] Assinatura cancelada - usuário ${userId} rebaixado para plano gratuito`);
+          }
         } else if (event.type === 'customer.subscription.updated') {
           // Atualização de assinatura
           if (subscription.status === 'active') {

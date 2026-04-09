@@ -51,6 +51,7 @@ import {
   PencilIcon,
   Phone,
   PlusIcon,
+  RefreshCw,
   SearchIcon,
   Trash2Icon,
   UploadIcon,
@@ -366,6 +367,7 @@ export default function Admin() {
   // Reset Password Form
   const [resetPasswordUser, setResetPasswordUser] = useState<User | null>(null);
   const [newPassword, setNewPassword] = useState("");
+  const [syncingUserId, setSyncingUserId] = useState<number | null>(null);
   
   // API Queries
   const { 
@@ -733,6 +735,42 @@ export default function Admin() {
     setConfirmDialogOpen(true);
   };
   
+  const handleStripeSync = async (user: User) => {
+    setSyncingUserId(user.id);
+    try {
+      const response = await apiRequest("POST", `/api/admin/stripe-sync/${user.id}`, {});
+      const data = await response.json();
+      
+      if (data.success) {
+        const actionLabels: Record<string, string> = {
+          activated: "Plano ativado",
+          deactivated: "Plano desativado",
+          no_change: "Sem alterações"
+        };
+        toast({
+          title: actionLabels[data.action] || "Sincronizado",
+          description: data.message
+        });
+        queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      } else {
+        toast({
+          title: "Atenção",
+          description: data.message,
+          variant: data.action === 'manual_required' ? "default" : "destructive"
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Erro ao sincronizar",
+        description: error instanceof Error ? error.message : "Erro desconhecido",
+        variant: "destructive"
+      });
+    } finally {
+      setSyncingUserId(null);
+    }
+  };
+
   // Helper function to format dates
   const formatDate = (date: Date | string | null | undefined) => {
     if (!date) return "N/A";
@@ -1047,6 +1085,19 @@ export default function Admin() {
                                   >
                                     <LogIn className="h-4 w-4 mr-1" />
                                     Entrar como
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-green-600 border-green-200 hover:bg-green-50"
+                                    onClick={() => handleStripeSync(user)}
+                                    disabled={syncingUserId === user.id}
+                                    title="Sincronizar status do plano com o Stripe"
+                                  >
+                                    {syncingUserId === user.id
+                                      ? <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                      : <RefreshCw className="h-4 w-4 mr-1" />}
+                                    Stripe Sync
                                   </Button>
                                   <Button 
                                     variant="outline" 
