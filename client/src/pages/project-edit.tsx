@@ -48,7 +48,6 @@ export default function ProjectEdit() {
   const [saving, setSaving] = useState(false);
   const [project, setProject] = useState<Project | null>(null);
   const [newPhotos, setNewPhotos] = useState<File[]>([]);
-  const [photoPreviewUrls, setPhotoPreviewUrls] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStatusMsg, setUploadStatusMsg] = useState("");
@@ -108,11 +107,7 @@ export default function ProjectEdit() {
       }
     }
     
-    // Gerar URLs de preview para as imagens válidas
-    const newUrls = validFiles.map(file => URL.createObjectURL(file));
-    
     setNewPhotos(prev => [...prev, ...validFiles]);
-    setPhotoPreviewUrls(prev => [...prev, ...newUrls]);
   }, [toast]);
   
   // Configurar o dropzone
@@ -125,11 +120,7 @@ export default function ProjectEdit() {
   
   // Remover uma foto da lista de upload
   const removePhoto = (index: number) => {
-    // Liberar URL de preview
-    URL.revokeObjectURL(photoPreviewUrls[index]);
-    
     setNewPhotos(prev => prev.filter((_, i) => i !== index));
-    setPhotoPreviewUrls(prev => prev.filter((_, i) => i !== index));
   };
   
   // Upload em lote via streaming (V2 — sem compressão, vai direto pro R2)
@@ -361,11 +352,7 @@ export default function ProjectEdit() {
   
   // Limpar todas as fotos da lista de upload
   const clearPhotos = () => {
-    // Liberar todas as URLs de preview
-    photoPreviewUrls.forEach(url => URL.revokeObjectURL(url));
-    
     setNewPhotos([]);
-    setPhotoPreviewUrls([]);
   };
 
   // Inicializar o formulário com react-hook-form
@@ -857,14 +844,13 @@ export default function ProjectEdit() {
           
 
           
-          {/* Previews das fotos selecionadas */}
-          {photoPreviewUrls.length > 0 && (
+          {newPhotos.length > 0 && (
             <div>
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between mb-2">
                 <h3 className="text-sm font-semibold text-slate-700">
-                  Selecionadas
+                  Arquivos selecionados
                   <span className="ml-2 inline-flex items-center justify-center rounded-full bg-violet-100 text-violet-700 text-xs font-bold px-2 py-0.5">
-                    {photoPreviewUrls.length}
+                    {newPhotos.length}
                   </span>
                 </h3>
                 <button
@@ -875,25 +861,37 @@ export default function ProjectEdit() {
                   Limpar todas
                 </button>
               </div>
-              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
-                {photoPreviewUrls.map((url, index) => (
-                  <div key={index} className="relative group">
-                    <div className="aspect-square overflow-hidden rounded-xl border border-slate-200 bg-slate-100 shadow-sm">
-                      <img
-                        src={url}
-                        alt={`Preview ${index}`}
-                        className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
-                      />
+              <div className="rounded-xl border border-slate-100 bg-slate-50 max-h-64 overflow-y-auto">
+                {newPhotos.slice(0, 50).map((file, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between py-2.5 px-3 border-b border-slate-100 last:border-b-0 hover:bg-white transition-colors group"
+                  >
+                    <div className="flex items-center gap-2.5 overflow-hidden">
+                      <div className="w-7 h-7 rounded-lg bg-violet-100 flex items-center justify-center flex-shrink-0">
+                        <ImagePlus className="h-3.5 w-3.5 text-violet-500" />
+                      </div>
+                      <div className="overflow-hidden">
+                        <p className="text-xs font-medium text-slate-700 truncate">{file.name}</p>
+                        <p className="text-[10px] text-slate-400">{(file.size / 1024 / 1024).toFixed(1)} MB</p>
+                      </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => removePhoto(index)}
-                      className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <X className="h-3 w-3 text-white" />
-                    </button>
+                    {!isUploading && (
+                      <button
+                        type="button"
+                        onClick={() => removePhoto(index)}
+                        className="ml-2 w-6 h-6 rounded-md flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100 flex-shrink-0"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
                   </div>
                 ))}
+                {newPhotos.length > 50 && (
+                  <div className="py-2.5 px-3 text-xs font-medium text-slate-400 text-center border-t border-slate-100">
+                    + {newPhotos.length - 50} arquivo(s) adicional(is)
+                  </div>
+                )}
               </div>
               
               {isUploading && (
@@ -917,7 +915,7 @@ export default function ProjectEdit() {
               <div className="mt-4 flex justify-end">
                 <Button
                   onClick={uploadPhotos}
-                  disabled={isUploading || photoPreviewUrls.length === 0}
+                  disabled={isUploading || newPhotos.length === 0}
                   className="h-9 rounded-lg bg-violet-600 hover:bg-violet-700 text-white shadow-sm px-5 text-sm font-medium"
                 >
                   {isUploading ? (
