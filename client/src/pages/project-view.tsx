@@ -1063,35 +1063,49 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
                           Ver Fotos Selecionadas
                         </Button>
                       </DialogTrigger>
-                      <DialogContent className="sm:max-w-md rounded-2xl">
+                      <DialogContent className="sm:max-w-lg rounded-2xl">
                         <DialogHeader>
                           <DialogTitle className="font-black text-xl">Resumo da Seleção</DialogTitle>
-                          <DialogDescription>
-                            Você selecionou {selectedPhotos.size} fotos.
-                            {project.includedPhotos && project.includedPhotos > 0 && (
-                              <div className="mt-2 p-3 bg-slate-50 rounded-xl border border-slate-100">
-                                <p className="text-sm font-bold text-slate-700">Fotos Incluídas: {project.includedPhotos}</p>
-                                {selectedPhotos.size > project.includedPhotos ? (
-                                  <p className="text-sm font-bold text-amber-600">
-                                    Fotos Adicionais: {selectedPhotos.size - project.includedPhotos} ({formatCurrency((selectedPhotos.size - project.includedPhotos) * (Number(project.additionalPhotoPrice) || 0))})
-                                  </p>
-                                ) : (
-                                  <p className="text-sm font-bold text-green-600">Nenhuma foto adicional</p>
-                                )}
-                              </div>
-                            )}
+                          <DialogDescription asChild>
+                            <div>
+                              <span>Você selecionou {selectedPhotos.size} fotos.</span>
+                              {project.includedPhotos && project.includedPhotos > 0 && (
+                                <div className="mt-2 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                  <p className="text-sm font-bold text-slate-700">Fotos Incluídas: {project.includedPhotos}</p>
+                                  {selectedPhotos.size > project.includedPhotos ? (
+                                    <p className="text-sm font-bold text-amber-600">
+                                      Fotos Adicionais: {selectedPhotos.size - project.includedPhotos} ({formatCurrency((selectedPhotos.size - project.includedPhotos) * (Number(project.additionalPhotoPrice) || 0))})
+                                    </p>
+                                  ) : (
+                                    <p className="text-sm font-bold text-green-600">Nenhuma foto adicional</p>
+                                  )}
+                                </div>
+                              )}
+                            </div>
                           </DialogDescription>
                         </DialogHeader>
-                        <div className="max-h-[50vh] overflow-y-auto mt-4">
-                          <div className="space-y-2">
+                        <div className="max-h-[55vh] overflow-y-auto mt-2 pr-1">
+                          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                             {project.photos
                               .filter(photo => selectedPhotos.has(photo.id))
-                              .map(photo => (
-                                <div key={photo.id} className="p-3 bg-slate-50 rounded-xl flex items-center">
-                                  <FileText className="w-4 h-4 mr-2 text-purple-500" />
-                                  <span className="text-sm font-medium text-slate-700">{photo.originalName || photo.filename}</span>
-                                </div>
-                            ))}
+                              .map(photo => {
+                                const thumb = photo.thumbnailUrl || `https://cdn.fottufy.com/${photo.filename}`;
+                                const name = (photo.originalName || photo.filename || '').replace(/\.[^.]+$/, '');
+                                return (
+                                  <div key={photo.id} className="group flex flex-col gap-1">
+                                    <div className="aspect-square rounded-xl overflow-hidden bg-slate-100 border border-slate-100">
+                                      <img
+                                        src={thumb}
+                                        alt={name}
+                                        loading="lazy"
+                                        decoding="async"
+                                        className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
+                                      />
+                                    </div>
+                                    <p className="text-[10px] text-slate-400 truncate text-center leading-tight px-0.5">{name}</p>
+                                  </div>
+                                );
+                              })}
                           </div>
                         </div>
                         <DialogFooter>
