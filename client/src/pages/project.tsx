@@ -4,7 +4,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import PhotoCard from "@/components/photo-card";
 import { Project } from "@shared/schema";
-import { Check, Edit, ArrowLeftCircle, FileText, MessageCircle, Eye, Loader2, ArrowUp } from "lucide-react";
+import { Check, Edit, ArrowLeftCircle, MessageCircle, Eye, Loader2, ArrowUp } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { CopyNamesButton } from "@/components/copy-names-button";
@@ -279,7 +279,7 @@ export default function ProjectView() {
       
       {/* Selected Photos Filenames Dialog */}
       <Dialog open={showSelectedFilenamesDialog} onOpenChange={setShowSelectedFilenamesDialog}>
-        <DialogContent className="w-[calc(100%-2rem)] sm:max-w-md mx-auto max-h-[80vh] overflow-y-auto p-4 sm:p-6 bg-white border border-gray-200 rounded-2xl sm:rounded-3xl shadow-2xl">
+        <DialogContent className="w-[calc(100%-2rem)] sm:max-w-lg mx-auto max-h-[85vh] overflow-y-auto p-4 sm:p-6 bg-white border border-gray-200 rounded-2xl sm:rounded-3xl shadow-2xl">
           <DialogHeader className="pb-2">
             <div className="inline-block mb-1">
               <span className="px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-wider bg-gradient-to-r from-purple-100 to-pink-100 text-purple-700 border border-purple-200">
@@ -288,28 +288,37 @@ export default function ProjectView() {
             </div>
             <DialogTitle className="text-lg sm:text-2xl font-black text-gray-900">Fotos Selecionadas</DialogTitle>
             <DialogDescription className="text-sm text-gray-600">
-              Lista de arquivos selecionados.
+              Miniaturas das fotos selecionadas.
             </DialogDescription>
           </DialogHeader>
-          <div className="max-h-[40vh] overflow-y-auto my-2 sm:my-4">
-            <div className="space-y-1.5 sm:space-y-2">
-              {(Array.isArray(project.photos) && project.photos.length > 0) ? (
-                project.photos
+          <div className="max-h-[50vh] overflow-y-auto my-2 sm:my-4 pr-1">
+            {(Array.isArray(project.photos) && project.photos.length > 0) ? (
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                {project.photos
                   .filter(photo => selectedPhotos.includes(photo.id))
-                  .map(photo => (
-                    <div key={photo.id} className="p-2 sm:p-3 bg-gray-50 border border-gray-200 rounded-lg sm:rounded-xl flex items-center hover:bg-gray-100 transition-all duration-300">
-                      <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-md sm:rounded-lg bg-gradient-to-r from-purple-100 to-pink-100 flex items-center justify-center mr-2 sm:mr-3">
-                        <FileText className="w-3 h-3 sm:w-4 sm:h-4 text-purple-600" />
+                  .map(photo => {
+                    const name = (photo.originalName || photo.filename || '').replace(/\.[^.]+$/, '');
+                    return (
+                      <div key={photo.id} className="group flex flex-col gap-1">
+                        <div className="aspect-square rounded-xl overflow-hidden bg-gray-100 border border-gray-100">
+                          <img
+                            src={photo.url}
+                            alt={name}
+                            loading="lazy"
+                            decoding="async"
+                            className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
+                          />
+                        </div>
+                        <p className="text-[10px] text-gray-400 truncate text-center leading-tight px-0.5">{name}</p>
                       </div>
-                      <span className="text-xs sm:text-sm font-medium text-gray-700 truncate">{photo.originalName || photo.filename}</span>
-                    </div>
-                  ))
-              ) : (
-                <div className="p-3 text-center text-gray-500 text-sm">
-                  Nenhuma foto selecionada.
-                </div>
-              )}
-            </div>
+                    );
+                  })}
+              </div>
+            ) : (
+              <div className="p-3 text-center text-gray-500 text-sm">
+                Nenhuma foto selecionada.
+              </div>
+            )}
           </div>
           <DialogFooter className="flex flex-col sm:flex-row gap-2 pt-2">
             {selectedPhotos.length > 0 && (
