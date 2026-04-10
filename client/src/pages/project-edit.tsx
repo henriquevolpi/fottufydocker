@@ -941,7 +941,7 @@ export default function ProjectEdit() {
       </Tabs>
 
       <div className="flex justify-center pt-6 pb-2">
-        <span className="text-2xl font-bold tracking-tight bg-gradient-to-r from-sky-300 via-blue-400 to-cyan-300 bg-clip-text text-transparent select-none opacity-60">
+        <span className="text-2xl font-bold tracking-tight bg-gradient-to-r from-sky-300 to-blue-400 bg-clip-text text-transparent select-none opacity-60">
           fottufy
         </span>
       </div>
