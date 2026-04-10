@@ -42,6 +42,9 @@ import { processImage } from "./imageProcessor";
 import { sendEmail } from "./utils/sendEmail";
 import { sendWelcomeEmail } from "./utils/welcomeEmail";
 
+// Normaliza nome de arquivo para NFC (resolve acentos decompostos do macOS)
+const nfc = (s: string) => s.normalize('NFC');
+
 // Função helper para extensões de arquivo
 function getExtensionFromMimeType(mimetype: string): string {
   switch(mimetype) {
@@ -335,7 +338,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const uploadedFiles = [];
       
       for (const file of req.files) {
-        const filename = generateUniqueFileName(file.originalname);
+        const filename = generateUniqueFileName(nfc(file.originalname));
         
         try {
           // Upload para o R2 usando streaming
@@ -349,7 +352,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Atualmente, o formato é: https://cdn.fottufy.com/{filename}
           
           uploadedFiles.push({
-            originalName: file.originalname,
+            originalName: nfc(file.originalname),
             filename: filename,
             size: file.size,
             mimetype: file.mimetype,
@@ -497,11 +500,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const newPhotos = [];
       
       for (const file of req.files) {
-        const filename = generateUniqueFileName(file.originalname);
+        const filename = generateUniqueFileName(nfc(file.originalname));
         
         try {
           // Capturar informações mínimas antes do upload
-          const originalName = file.originalname;
+          const originalName = nfc(file.originalname);
           const fileSize = file.size;
           const fileMimetype = file.mimetype;
           
@@ -981,7 +984,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Processar cada arquivo
       for (const file of uploadedFiles) {
         try {
-          const filename = generateUniqueFileName(file.originalname);
+          const filename = generateUniqueFileName(nfc(file.originalname));
           
           // Upload para o R2 usando streaming
           const result = await processAndStreamToR2(
@@ -1003,7 +1006,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             successCount++;
           }
         } catch (uploadError) {
-          console.error(`[Batch Upload] Erro ao processar arquivo ${file.originalname}:`, uploadError);
+          console.error(`[Batch Upload] Erro ao processar arquivo ${nfc(file.originalname)}:`, uploadError);
           // Continuar com próximo arquivo mesmo se este falhar
         }
       }
@@ -2431,7 +2434,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         for (const file of uploadedFiles) {
           // Generate a unique filename
-          const filename = generateUniqueFileName(file.originalname);
+          const filename = generateUniqueFileName(nfc(file.originalname));
           
           try {
             // Upload file to R2
@@ -2447,10 +2450,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
               id: nanoid(),
               url: result.url,
               filename: filename, // Nome único usado pelo R2
-              originalName: file.originalname // Nome original do arquivo
+              originalName: nfc(file.originalname) // Nome original do arquivo
             });
             
-            console.log(`File uploaded to R2: ${file.originalname}, R2 URL: ${result.url}`);
+            console.log(`File uploaded to R2: ${nfc(file.originalname)}, R2 URL: ${result.url}`);
           } catch (error) {
             console.error(`Error uploading file to R2: ${error}`);
             // Continue with other files even if one fails
@@ -2882,7 +2885,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         for (const file of uploadedFiles) {
           // Generate a unique filename
-          const filename = generateUniqueFileName(file.originalname);
+          const filename = generateUniqueFileName(nfc(file.originalname));
           
           try {
             // Upload file to R2
@@ -2898,10 +2901,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
               id: nanoid(),
               url: result.url,
               filename: filename, // Nome único usado pelo R2
-              originalName: file.originalname // Nome original do arquivo
+              originalName: nfc(file.originalname) // Nome original do arquivo
             });
             
-            console.log(`File uploaded to R2 for project ${projectId}: ${file.originalname}, R2 URL: ${result.url}`);
+            console.log(`File uploaded to R2 for project ${projectId}: ${nfc(file.originalname)}, R2 URL: ${result.url}`);
           } catch (error) {
             console.error(`Error uploading file to R2: ${error}`);
             // Continue with other files even if one fails
@@ -4755,7 +4758,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const file = req.file;
-      const ext = file.originalname.split('.').pop()?.toLowerCase() || 'jpg';
+      const ext = nfc(file.originalname).split('.').pop()?.toLowerCase() || 'jpg';
       const filename = `banner_${Date.now()}.${ext}`;
       const key = `banners/${filename}`;
 
@@ -5600,7 +5603,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             .values({
               portfolioId,
               photoUrl: r2Response.url,
-              originalName: file.originalname,
+              originalName: nfc(file.originalname),
               order: currentOrder++,
               createdAt: new Date(),
             })
@@ -5612,7 +5615,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log(`[Portfolio Upload] Photo uploaded successfully: ${uniqueFilename}`);
 
         } catch (photoError) {
-          console.error(`[Portfolio Upload] Error processing photo ${file.originalname}:`, photoError);
+          console.error(`[Portfolio Upload] Error processing photo ${nfc(file.originalname)}:`, photoError);
           // Continue processing other photos
         }
       }
@@ -5650,7 +5653,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const file = req.file;
 
       console.log(`[Portfolio Banner] Starting banner upload for portfolio ${portfolioId}`);
-      console.log(`[Portfolio Banner] File received:`, file ? file.originalname : 'No file');
+      console.log(`[Portfolio Banner] File received:`, file ? nfc(file.originalname) : 'No file');
 
       if (!file) {
         return res.status(400).json({ error: "No banner file uploaded" });

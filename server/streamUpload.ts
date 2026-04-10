@@ -170,7 +170,7 @@ export function streamUploadMiddleware(options: StreamUploadOptions = {}) {
 
           req.files!.push({
             fieldname,
-            originalname: filename,
+            originalname: filename.normalize('NFC'),
             filename: uniqueFilename,
             mimetype: mimeType,
             path: tmpFilePath,
