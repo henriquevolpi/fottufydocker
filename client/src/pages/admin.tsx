@@ -777,94 +777,99 @@ export default function Admin() {
     return format(new Date(date), "MMM d, yyyy");
   };
   
-  // Helper function to get status badge
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "active":
-        return <Badge className="bg-green-100 text-green-800">Active</Badge>;
+        return <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200 font-medium">Ativo</Badge>;
       case "suspended":
-        return <Badge className="bg-yellow-100 text-yellow-800">Suspended</Badge>;
+        return <Badge className="bg-amber-50 text-amber-700 border border-amber-200 font-medium">Suspenso</Badge>;
       case "canceled":
-        return <Badge className="bg-red-100 text-red-800">Canceled</Badge>;
+        return <Badge className="bg-red-50 text-red-700 border border-red-200 font-medium">Cancelado</Badge>;
       default:
-        return <Badge>{status}</Badge>;
+        return <Badge className="bg-slate-100 text-slate-600 border border-slate-200 font-medium">{status}</Badge>;
     }
   };
-  
-  // Helper function to get subscription badge
+
   const getSubscriptionBadge = (subscriptionStatus: string) => {
     switch (subscriptionStatus) {
       case "active":
-        return <Badge className="bg-green-100 text-green-800">Active</Badge>;
+        return <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200 font-medium">Ativa</Badge>;
       case "inactive":
-        return <Badge className="bg-gray-100 text-gray-800">Inactive</Badge>;
+        return <Badge className="bg-slate-100 text-slate-500 border border-slate-200 font-medium">Inativa</Badge>;
       case "canceled":
-        return <Badge className="bg-red-100 text-red-800">Canceled</Badge>;
+        return <Badge className="bg-red-50 text-red-700 border border-red-200 font-medium">Cancelada</Badge>;
       default:
-        return <Badge>{subscriptionStatus}</Badge>;
+        return <Badge className="bg-slate-100 text-slate-600 border border-slate-200 font-medium">{subscriptionStatus}</Badge>;
     }
   };
-  
-  // Helper function to get plan badge
+
   const getPlanBadge = (planType: string) => {
     switch (planType) {
       case "free":
-        return <Badge className="bg-gray-100 text-gray-800">Free</Badge>;
+        return <Badge className="bg-slate-100 text-slate-500 border border-slate-200 font-medium">Free</Badge>;
+      case "basico":
+        return <Badge className="bg-sky-50 text-sky-700 border border-sky-200 font-medium">Básico</Badge>;
+      case "fotografo":
+        return <Badge className="bg-violet-50 text-violet-700 border border-violet-200 font-medium">Fotógrafo</Badge>;
+      case "estudio":
+        return <Badge className="bg-indigo-50 text-indigo-700 border border-indigo-200 font-medium">Estúdio</Badge>;
       case "basic":
-        return <Badge className="bg-blue-100 text-blue-800">Basic</Badge>;
+        return <Badge className="bg-sky-50 text-sky-700 border border-sky-200 font-medium">Basic</Badge>;
       case "standard":
-        return <Badge className="bg-purple-100 text-purple-800">Standard</Badge>;
+        return <Badge className="bg-violet-50 text-violet-700 border border-violet-200 font-medium">Standard</Badge>;
       case "professional":
-        return <Badge className="bg-indigo-100 text-indigo-800">Professional</Badge>;
+        return <Badge className="bg-indigo-50 text-indigo-700 border border-indigo-200 font-medium">Professional</Badge>;
       default:
-        return <Badge>{planType}</Badge>;
+        return <Badge className="bg-slate-100 text-slate-600 border border-slate-200 font-medium">{planType}</Badge>;
     }
   };
   
   return (
     <AdminLayout>
-      <div className="flex flex-col min-h-screen">
-        <header className="bg-white border-b shadow-sm">
-          <div className="container mx-auto py-4 px-4 sm:px-6">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">User Management</h1>
-              <Button 
-                onClick={() => setAddUserDialogOpen(true)}
-                className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 w-full sm:w-auto"
-                size="sm"
-              >
-                <PlusIcon className="h-4 w-4 mr-2" />
-                Add User
-              </Button>
+      <div className="flex flex-col min-h-full">
+        {/* Top header bar */}
+        <header className="sticky top-0 z-10 bg-white/90 backdrop-blur-sm border-b border-slate-200 shadow-sm">
+          <div className="px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
+            <div>
+              <h1 className="text-lg sm:text-xl font-bold text-slate-900 leading-tight">Painel Admin</h1>
+              <p className="text-xs text-slate-500 hidden sm:block">Fottufy — Gerenciamento interno</p>
             </div>
+            <Button
+              onClick={() => setAddUserDialogOpen(true)}
+              className="bg-violet-600 hover:bg-violet-700 text-white shadow-sm h-9 px-4 text-sm rounded-lg"
+              size="sm"
+            >
+              <PlusIcon className="h-3.5 w-3.5 mr-1.5" />
+              Novo usuário
+            </Button>
           </div>
         </header>
-        
-        <main className="flex-1 bg-gray-50">
-        <div className="container mx-auto py-6 px-4 sm:px-6">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+
+        <main className="flex-1 bg-slate-50">
+          <div className="px-4 sm:px-6 py-5">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-5">
             <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
-              <TabsList className="inline-flex w-auto min-w-full sm:min-w-0 sm:grid sm:grid-cols-5 gap-1">
-                <TabsTrigger value="users" className="flex items-center whitespace-nowrap text-xs sm:text-sm px-2 sm:px-3">
-                  <UsersIcon className="h-4 w-4 mr-1 sm:mr-2 shrink-0" />
-                  <span className="hidden sm:inline">Users Management</span>
+              <TabsList className="inline-flex h-10 items-center gap-1 rounded-xl bg-slate-200/70 p-1 text-slate-600">
+                <TabsTrigger value="users" className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs sm:text-sm font-medium whitespace-nowrap transition-all data-[state=active]:bg-white data-[state=active]:text-violet-700 data-[state=active]:shadow-sm">
+                  <UsersIcon className="h-3.5 w-3.5 shrink-0" />
+                  <span className="hidden sm:inline">Usuários</span>
                   <span className="sm:hidden">Users</span>
                 </TabsTrigger>
-                <TabsTrigger value="subscriptions" className="flex items-center whitespace-nowrap text-xs sm:text-sm px-2 sm:px-3">
-                  <BarChart className="h-4 w-4 mr-1 sm:mr-2 shrink-0" />
-                  <span className="hidden sm:inline">Subscriptions</span>
+                <TabsTrigger value="subscriptions" className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs sm:text-sm font-medium whitespace-nowrap transition-all data-[state=active]:bg-white data-[state=active]:text-violet-700 data-[state=active]:shadow-sm">
+                  <BarChart className="h-3.5 w-3.5 shrink-0" />
+                  <span className="hidden sm:inline">Assinaturas</span>
                   <span className="sm:hidden">Subs</span>
                 </TabsTrigger>
-                <TabsTrigger value="hotmart" className="flex items-center whitespace-nowrap text-xs sm:text-sm px-2 sm:px-3">
-                  <KeyIcon className="h-4 w-4 mr-1 sm:mr-2 shrink-0" />
+                <TabsTrigger value="hotmart" className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs sm:text-sm font-medium whitespace-nowrap transition-all data-[state=active]:bg-white data-[state=active]:text-violet-700 data-[state=active]:shadow-sm">
+                  <KeyIcon className="h-3.5 w-3.5 shrink-0" />
                   Hotmart
                 </TabsTrigger>
-                <TabsTrigger value="banner" className="flex items-center whitespace-nowrap text-xs sm:text-sm px-2 sm:px-3">
-                  <ImageIcon className="h-4 w-4 mr-1 sm:mr-2 shrink-0" />
+                <TabsTrigger value="banner" className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs sm:text-sm font-medium whitespace-nowrap transition-all data-[state=active]:bg-white data-[state=active]:text-violet-700 data-[state=active]:shadow-sm">
+                  <ImageIcon className="h-3.5 w-3.5 shrink-0" />
                   Banner
                 </TabsTrigger>
-                <TabsTrigger value="stats" className="flex items-center whitespace-nowrap text-xs sm:text-sm px-2 sm:px-3">
-                  <CheckCircleIcon className="h-4 w-4 mr-1 sm:mr-2 shrink-0" />
+                <TabsTrigger value="stats" className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs sm:text-sm font-medium whitespace-nowrap transition-all data-[state=active]:bg-white data-[state=active]:text-violet-700 data-[state=active]:shadow-sm">
+                  <CheckCircleIcon className="h-3.5 w-3.5 shrink-0" />
                   Stats
                 </TabsTrigger>
               </TabsList>
