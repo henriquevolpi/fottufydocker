@@ -1,7 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { 
@@ -595,22 +594,29 @@ export default function ProjectEdit() {
   
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-        <p className="mt-4 text-lg text-gray-600">Carregando dados do projeto...</p>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-16 h-16 rounded-2xl bg-white shadow-md border border-slate-200 flex items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-violet-600" />
+          </div>
+          <p className="text-base font-medium text-slate-600">Carregando projeto...</p>
+        </div>
       </div>
     );
   }
-  
+
   if (!project) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
-        <div className="text-center max-w-md p-6">
-          <h1 className="text-2xl font-bold mb-2">Projeto não encontrado</h1>
-          <p className="text-gray-600 mb-6">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 px-4">
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 text-center max-w-md p-8">
+          <div className="w-12 h-12 rounded-xl bg-red-50 flex items-center justify-center mx-auto mb-4">
+            <X className="h-6 w-6 text-red-500" />
+          </div>
+          <h1 className="text-xl font-bold text-slate-900 mb-2">Projeto não encontrado</h1>
+          <p className="text-sm text-slate-500 mb-6">
             O projeto que você está tentando editar não existe ou foi removido.
           </p>
-          <Button onClick={() => setLocation("/dashboard")}>
+          <Button onClick={() => setLocation("/dashboard")} className="bg-violet-600 hover:bg-violet-700 text-white rounded-lg px-6">
             Voltar para Dashboard
           </Button>
         </div>
@@ -619,177 +625,233 @@ export default function ProjectEdit() {
   }
   
   return (
-    <div className="container mx-auto py-6 max-w-5xl">
-      <div className="flex items-center mb-6">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="mr-4"
-          onClick={() => setLocation(`/project/${project.id}`)}
-        >
-          <ArrowLeftCircle className="h-6 w-6" />
-        </Button>
-        <h1 className="text-2xl font-bold">Editar Projeto</h1>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100/80">
+      {/* ── Page Header ── */}
+      <div className="sticky top-0 z-10 bg-white/90 backdrop-blur-sm border-b border-slate-200 shadow-sm">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3 flex items-center gap-3">
+          <button
+            onClick={() => setLocation(`/project/${project.id}`)}
+            className="flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors group"
+          >
+            <ArrowLeftCircle className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
+            Voltar
+          </button>
+          <span className="text-slate-300">/</span>
+          <h1 className="text-base font-semibold text-slate-800 truncate">
+            Editar Projeto
+            {project.name && (
+              <span className="ml-2 text-violet-600 font-medium">{project.name}</span>
+            )}
+          </h1>
+        </div>
       </div>
-      
+
+      {/* ── Main Content ── */}
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="details">Detalhes do Projeto</TabsTrigger>
-          <TabsTrigger value="photos">Adicionar Fotos</TabsTrigger>
+        <TabsList className="inline-flex h-10 items-center gap-1 rounded-xl bg-slate-200/70 p-1 text-slate-600 mb-6">
+          <TabsTrigger
+            value="details"
+            className="inline-flex items-center gap-2 rounded-lg px-4 py-1.5 text-sm font-medium transition-all data-[state=active]:bg-white data-[state=active]:text-violet-700 data-[state=active]:shadow-sm"
+          >
+            <Eye className="h-3.5 w-3.5" />
+            Detalhes
+          </TabsTrigger>
+          <TabsTrigger
+            value="photos"
+            className="inline-flex items-center gap-2 rounded-lg px-4 py-1.5 text-sm font-medium transition-all data-[state=active]:bg-white data-[state=active]:text-violet-700 data-[state=active]:shadow-sm"
+          >
+            <ImagePlus className="h-3.5 w-3.5" />
+            Adicionar Fotos
+          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="details" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Informações do Projeto</CardTitle>
-            </CardHeader>
-            <CardContent>
+        <TabsContent value="details">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
+            {/* Card Header */}
+            <div className="px-6 py-5 border-b border-slate-100 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-violet-50 flex items-center justify-center flex-shrink-0">
+                <Eye className="h-4 w-4 text-violet-600" />
+              </div>
+              <div>
+                <h2 className="text-base font-semibold text-slate-800">Informações do Projeto</h2>
+                <p className="text-xs text-slate-500">Atualize os dados do projeto e do cliente</p>
+              </div>
+            </div>
+
+            {/* Form Body */}
+            <div className="px-6 py-6">
               <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nome do Projeto</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Ex: Casamento Ana e Pedro" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormField
-                  control={form.control}
-                  name="clientName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Nome do Cliente</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Ex: Ana Silva" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="clientEmail"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email do Cliente</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Ex: cliente@email.com" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              
-              <FormField
-                control={form.control}
-                name="status"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Status do Projeto</FormLabel>
-                    <Select 
-                      onValueChange={field.onChange} 
-                      defaultValue={field.value}
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-sm font-medium text-slate-700">Nome do Projeto</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Ex: Casamento Ana e Pedro"
+                            className="h-10 rounded-lg border-slate-200 bg-slate-50 focus:bg-white focus:border-violet-400 focus:ring-violet-400/20 transition-colors"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <FormField
+                      control={form.control}
+                      name="clientName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-sm font-medium text-slate-700">Nome do Cliente</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="Ex: Ana Silva"
+                              className="h-10 rounded-lg border-slate-200 bg-slate-50 focus:bg-white focus:border-violet-400 focus:ring-violet-400/20 transition-colors"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="clientEmail"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-sm font-medium text-slate-700">Email do Cliente</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="Ex: cliente@email.com"
+                              className="h-10 rounded-lg border-slate-200 bg-slate-50 focus:bg-white focus:border-violet-400 focus:ring-violet-400/20 transition-colors"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <FormField
+                    control={form.control}
+                    name="status"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-sm font-medium text-slate-700">Status do Projeto</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger className="h-10 rounded-lg border-slate-200 bg-slate-50 focus:bg-white focus:border-violet-400">
+                              <SelectValue placeholder="Selecione o status" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="pending">Pendente</SelectItem>
+                            <SelectItem value="reviewed">Revisado</SelectItem>
+                            <SelectItem value="archived">Arquivado</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="reopenSelection"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-start gap-3 rounded-xl border border-amber-200 bg-amber-50/50 p-4">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            className="mt-0.5 border-amber-400 data-[state=checked]:bg-amber-500 data-[state=checked]:border-amber-500"
+                          />
+                        </FormControl>
+                        <div className="space-y-0.5 leading-none">
+                          <FormLabel className="text-sm font-medium text-amber-800 cursor-pointer">Reabrir seleção de fotos</FormLabel>
+                          <FormDescription className="text-xs text-amber-700/70">
+                            Permite que o cliente faça uma nova seleção de fotos, descartando qualquer seleção anterior.
+                          </FormDescription>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="flex justify-end items-center gap-3 pt-2 border-t border-slate-100 mt-6">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setLocation(`/project/${project.id}`)}
+                      disabled={saving}
+                      className="h-9 rounded-lg border-slate-200 text-slate-600 hover:bg-slate-50 px-4 text-sm"
                     >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione o status" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="pending">Pendente</SelectItem>
-                        <SelectItem value="reviewed">Revisado</SelectItem>
-                        <SelectItem value="archived">Arquivado</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="reopenSelection"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel>Reabrir seleção de fotos</FormLabel>
-                      <FormDescription>
-                        Permite que o cliente faça uma nova seleção de fotos, descartando qualquer seleção anterior.
-                      </FormDescription>
-                    </div>
-                  </FormItem>
-                )}
-              />
-              
-              <div className="flex justify-end space-x-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setLocation(`/project/${project.id}`)}
-                  disabled={saving}
-                >
-                  Cancelar
-                </Button>
-                <Button 
-                  type="submit"
-                  disabled={saving}
-                >
-                  {saving ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Salvando...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="mr-2 h-4 w-4" />
-                      Salvar Alterações
-                    </>
-                  )}
-                </Button>
-              </div>
-            </form>
-          </Form>
-            </CardContent>
-          </Card>
+                      Cancelar
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={saving}
+                      className="h-9 rounded-lg bg-violet-600 hover:bg-violet-700 text-white shadow-sm px-5 text-sm font-medium"
+                    >
+                      {saving ? (
+                        <>
+                          <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                          Salvando...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="mr-2 h-3.5 w-3.5" />
+                          Salvar Alterações
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </form>
+              </Form>
+            </div>
+          </div>
         </TabsContent>
 
-        <TabsContent value="photos" className="mt-6">
-          <Card>
-        <CardHeader>
-          <CardTitle>Adicionar Novas Fotos</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div 
-            {...getRootProps()} 
-            className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
-              isDragActive ? 'border-primary bg-primary/5' : 'border-gray-300 hover:border-primary/50'
+        <TabsContent value="photos">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
+            <div className="px-6 py-5 border-b border-slate-100 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-violet-50 flex items-center justify-center flex-shrink-0">
+                <ImagePlus className="h-4 w-4 text-violet-600" />
+              </div>
+              <div>
+                <h2 className="text-base font-semibold text-slate-800">Adicionar Novas Fotos</h2>
+                <p className="text-xs text-slate-500">Arraste ou selecione imagens para adicionar ao projeto</p>
+              </div>
+            </div>
+            <div className="px-6 py-6 space-y-6">
+          <div
+            {...getRootProps()}
+            className={`relative rounded-xl border-2 border-dashed p-10 text-center cursor-pointer transition-all duration-200 ${
+              isDragActive ? 'border-violet-400 bg-violet-50 scale-[1.01]' : 'border-slate-200 hover:border-violet-300 hover:bg-slate-50/50'
             }`}
           >
             <input {...getInputProps()} />
-            <div className="flex flex-col items-center justify-center gap-2">
-              <ImagePlus className="h-10 w-10 text-gray-400" />
-              <h3 className="text-lg font-medium">
-                {isDragActive ? "Solte as imagens aqui..." : "Arraste e solte as fotos aqui"}
-              </h3>
-              <p className="text-sm text-gray-500">
-                ou clique para selecionar arquivos
-              </p>
+            <div className="flex flex-col items-center gap-3">
+              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-colors ${isDragActive ? 'bg-violet-100' : 'bg-slate-100'}`}>
+                <ImagePlus className={`h-7 w-7 transition-colors ${isDragActive ? 'text-violet-500' : 'text-slate-400'}`} />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-slate-700">
+                  {isDragActive ? "Solte as imagens aqui..." : "Arraste e solte as fotos aqui"}
+                </p>
+                <p className="text-xs text-slate-400 mt-1">
+                  ou <span className="text-violet-600 font-medium underline underline-offset-2">clique para selecionar</span> — JPG, PNG, WEBP
+                </p>
+              </div>
             </div>
           </div>
           
@@ -797,84 +859,89 @@ export default function ProjectEdit() {
           
           {/* Previews das fotos selecionadas */}
           {photoPreviewUrls.length > 0 && (
-            <div className="mt-6">
-              <h3 className="font-medium mb-3">Novas fotos selecionadas ({photoPreviewUrls.length})</h3>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-slate-700">
+                  Selecionadas
+                  <span className="ml-2 inline-flex items-center justify-center rounded-full bg-violet-100 text-violet-700 text-xs font-bold px-2 py-0.5">
+                    {photoPreviewUrls.length}
+                  </span>
+                </h3>
+                <button
+                  type="button"
+                  onClick={clearPhotos}
+                  className="text-xs text-red-500 hover:text-red-700 font-medium transition-colors"
+                >
+                  Limpar todas
+                </button>
+              </div>
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
                 {photoPreviewUrls.map((url, index) => (
                   <div key={index} className="relative group">
-                    <div className="aspect-square overflow-hidden rounded-md border bg-gray-50">
-                      <img 
-                        src={url} 
-                        alt={`Preview ${index}`} 
-                        className="h-full w-full object-cover"
+                    <div className="aspect-square overflow-hidden rounded-xl border border-slate-200 bg-slate-100 shadow-sm">
+                      <img
+                        src={url}
+                        alt={`Preview ${index}`}
+                        className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
                       />
                     </div>
-                    <button 
+                    <button
                       type="button"
                       onClick={() => removePhoto(index)}
-                      className="absolute -top-2 -right-2 bg-white rounded-full p-1 shadow-md border hover:bg-red-50"
+                      className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
                     >
-                      <X className="h-4 w-4 text-red-500" />
+                      <X className="h-3 w-3 text-white" />
                     </button>
-                    <p className="text-xs text-gray-500 truncate mt-1">
-                      {newPhotos[index]?.name}
-                    </p>
                   </div>
                 ))}
               </div>
               
-              {/* Barra de progresso de upload */}
               {isUploading && (
-                <div className="w-full flex flex-col gap-2 mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                  <div className="h-3 bg-gray-200 rounded-full overflow-hidden shadow-inner">
+                <div className="mt-4 p-4 bg-violet-50 rounded-xl border border-violet-200">
+                  <div className="flex justify-between items-center text-xs font-medium text-violet-700 mb-2">
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      <span>{uploadStatusMsg || `Processando ${newPhotos.length} fotos...`}</span>
+                    </div>
+                    <span className="tabular-nums">{uploadProgress}%</span>
+                  </div>
+                  <div className="h-2 bg-violet-100 rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 transition-all duration-300 ease-in-out"
+                      className="h-full bg-gradient-to-r from-violet-500 to-indigo-500 rounded-full transition-all duration-300 ease-out"
                       style={{ width: `${uploadProgress}%` }}
                     />
                   </div>
-                  <div className="flex justify-between items-center text-xs text-gray-600 mt-1 px-1">
-                    <div className="flex items-center">
-                      <svg className="animate-spin -ml-1 mr-2 h-3 w-3 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      <span>Processando {newPhotos.length} fotos</span>
-                    </div>
-                    <span className="font-medium text-blue-600">{uploadProgress}%</span>
-                  </div>
-                  <div className="text-xs text-gray-500 mt-1 text-center">
-                    {uploadStatusMsg || (uploadProgress < 25 ? "Comprimindo imagens..." : uploadProgress < 95 ? "Enviando fotos para o servidor..." : "Finalizando o processamento...")}
-                  </div>
                 </div>
               )}
-              
-              {/* Botão para fazer upload */}
+
               <div className="mt-4 flex justify-end">
-                <Button 
+                <Button
                   onClick={uploadPhotos}
                   disabled={isUploading || photoPreviewUrls.length === 0}
+                  className="h-9 rounded-lg bg-violet-600 hover:bg-violet-700 text-white shadow-sm px-5 text-sm font-medium"
                 >
                   {isUploading ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
                       Enviando...
                     </>
                   ) : (
                     <>
-                      <Upload className="mr-2 h-4 w-4" />
-                      Adicionar Fotos ao Projeto
+                      <Upload className="mr-2 h-3.5 w-3.5" />
+                      Adicionar ao Projeto
                     </>
                   )}
                 </Button>
               </div>
             </div>
           )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </TabsContent>
 
 
       </Tabs>
+      </div>
     </div>
   );
 }
