@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { SiMercadopago } from "react-icons/si";
-import { CheckCircle2, Link2, Unlink, ExternalLink, Loader2 } from "lucide-react";
+import { CheckCircle2, Link2, Unlink, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function MpConnect() {
@@ -14,6 +14,23 @@ export function MpConnect() {
   const { data: status, isLoading } = useQuery<{ connected: boolean }>({
     queryKey: ["/api/mp/status"],
   });
+
+  // Detecta retorno do OAuth MP via query param
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const mp = params.get("mp");
+    if (mp === "connected") {
+      toast({ title: "Mercado Pago conectado com sucesso!" });
+      qc.invalidateQueries({ queryKey: ["/api/mp/status"] });
+      // Remove o param da URL sem recarregar a página
+      const clean = window.location.pathname;
+      window.history.replaceState({}, "", clean);
+    } else if (mp === "error") {
+      toast({ title: "Erro ao conectar Mercado Pago", description: "Tente novamente.", variant: "destructive" });
+      const clean = window.location.pathname;
+      window.history.replaceState({}, "", clean);
+    }
+  }, []);
 
   const disconnectMutation = useMutation({
     mutationFn: () => apiRequest("POST", "/api/mp/disconnect", {}),
@@ -29,17 +46,17 @@ export function MpConnect() {
       const res = await apiRequest("GET", "/api/mp/auth-url", undefined);
       const data = await res.json();
       if (data.url) {
-        window.open(data.url, "_blank", "width=600,height=700");
+        window.location.href = data.url;
       } else {
         toast({
           title: "Integração não configurada",
           description: data.error || "Aguarde a liberação do Mercado Pago.",
           variant: "destructive",
         });
+        setConnecting(false);
       }
     } catch {
       toast({ title: "Erro ao conectar", variant: "destructive" });
-    } finally {
       setConnecting(false);
     }
   };
@@ -78,9 +95,7 @@ export function MpConnect() {
               {disconnectMutation.isPending ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
               ) : (
-                <>
-                  <Unlink className="h-3.5 w-3.5 mr-1" /> Desconectar
-                </>
+                <><Unlink className="h-3.5 w-3.5 mr-1" /> Desconectar</>
               )}
             </Button>
           ) : (
@@ -93,9 +108,7 @@ export function MpConnect() {
               {connecting ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
               ) : (
-                <>
-                  <Link2 className="h-3.5 w-3.5 mr-1" /> Conectar
-                </>
+                <><Link2 className="h-3.5 w-3.5 mr-1" /> Conectar</>
               )}
             </Button>
           )}

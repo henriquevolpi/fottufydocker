@@ -100,16 +100,17 @@ mpRouter.get("/api/mp/callback", async (req: Request, res: Response) => {
       redirect_uri: MP_REDIRECT_URI,
     });
     if (!token.access_token) {
-      return res.status(400).json({ error: "Falha ao obter token do Mercado Pago." });
+      return res.redirect("/dashboard?mp=error");
     }
     const userId = (req.user as any).id;
     await db
       .update(users)
       .set({ mpAccessToken: token.access_token, mpUserId: String(token.user_id) })
       .where(eq(users.id, userId));
-    res.json({ ok: true });
+    res.redirect("/dashboard?mp=connected");
   } catch (e: any) {
-    res.status(500).json({ error: e.message });
+    console.error("[MP OAuth callback] Erro:", e.message);
+    res.redirect("/dashboard?mp=error");
   }
 });
 
