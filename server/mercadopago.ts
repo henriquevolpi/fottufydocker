@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
 import { db } from "./db";
 import { users, newProjects, mpPayments } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { eq, isNotNull } from "drizzle-orm";
 import https from "https";
 import crypto from "crypto";
 
@@ -250,8 +250,10 @@ mpRouter.post("/api/mp/webhook", async (req: Request, res: Response) => {
           .from(mpPayments)
           .where(eq(mpPayments.mpPaymentId, mpPaymentId));
 
+        const validStatuses = ["approved", "rejected", "cancelled", "refunded"];
+
         if (existing && existing.status !== "approved") {
-          // Busca o access token do fotógrafo para consultar o MP
+          // ── Pix: pagamento JÁ registrado, apenas atualiza status ──
           const [project] = await db
             .select({ userId: newProjects.userId })
             .from(newProjects)
@@ -265,19 +267,60 @@ mpRouter.post("/api/mp/webhook", async (req: Request, res: Response) => {
               .where(eq(users.id, project.userId));
 
             if (photographer?.mpAccessToken) {
-              // Consulta o status real do pagamento na API do MP
               const mpPayment = await mpGet(`/v1/payments/${mpPaymentId}`, photographer.mpAccessToken);
               mpStatus = mpPayment?.status || "pending";
             }
           }
 
-          const validStatuses = ["approved", "rejected", "cancelled", "refunded"];
           if (validStatuses.includes(mpStatus)) {
             await db
               .update(mpPayments)
               .set({ status: mpStatus, updatedAt: new Date() })
               .where(eq(mpPayments.id, existing.id));
-            console.log(`[MP Webhook] Pagamento ${mpPaymentId} atualizado para: ${mpStatus}`);
+            console.log(`[MP Webhook] Pix ${mpPaymentId} atualizado para: ${mpStatus}`);
+          }
+
+        } else if (!existing) {
+          // ── Cartão (Checkout Pro): pagamento NÃO está no banco ainda ──
+          // Tenta identificar o projeto via external_reference percorrendo os tokens dos fotógrafos
+          const photographers = await db
+            .select({ id: users.id, mpAccessToken: users.mpAccessToken })
+            .from(users)
+            .where(isNotNull(users.mpAccessToken));
+
+          for (const photo of photographers) {
+            if (!photo.mpAccessToken) continue;
+            try {
+              const mpPayment = await mpGet(`/v1/payments/${mpPaymentId}`, photo.mpAccessToken);
+              if (!mpPayment?.id) continue;
+
+              const projectId = mpPayment.external_reference;
+              if (!projectId || !isUUID(projectId)) continue;
+
+              // Verificamos que o projeto pertence mesmo a esse fotógrafo
+              const [project] = await db
+                .select({ userId: newProjects.userId })
+                .from(newProjects)
+                .where(eq(newProjects.id, projectId));
+              if (!project || project.userId !== photo.id) continue;
+
+              // Salva o registro do pagamento de cartão no banco
+              const amountCents = Math.round((mpPayment.transaction_amount || 0) * 100);
+              await db.insert(mpPayments).values({
+                projectId,
+                mpPaymentId,
+                status: mpPayment.status || "pending",
+                amount: amountCents,
+                payerEmail: mpPayment.payer?.email || null,
+                pixCopiaECola: null,
+                qrCodeBase64: null,
+              });
+
+              console.log(`[MP Webhook] Cartão ${mpPaymentId} salvo no DB: status=${mpPayment.status} projeto=${projectId}`);
+              break;
+            } catch {
+              // Token errado para esse pagamento → tenta o próximo fotógrafo
+            }
           }
         }
       } catch (dbErr: any) {
@@ -420,11 +463,15 @@ mpRouter.post("/api/mp/create-preference", async (req: Request, res: Response) =
         unit_price: parsedAmount,
         currency_id: "BRL",
       }],
+      // external_reference permite identificar o projeto no webhook do MP
+      external_reference: projectId,
       back_urls: {
         success: `${baseUrl}/project-view/${projectId}?payment=success`,
         failure: `${baseUrl}/project-view/${projectId}?payment=failure`,
         pending: `${baseUrl}/project-view/${projectId}?payment=pending`,
       },
+      // notification_url garante que o MP notifica nosso webhook mesmo sem config no painel do fotógrafo
+      notification_url: "https://fottufy.com/api/mp/webhook",
       // auto_return exige back_url HTTPS pública — só enviar em produção
       ...(isPublicHttps ? { auto_return: "approved" } : {}),
     };
