@@ -14,6 +14,10 @@ const MP_CLIENT_ID = process.env.MP_CLIENT_ID || "";
 const MP_CLIENT_SECRET = process.env.MP_CLIENT_SECRET || "";
 const MP_REDIRECT_URI = process.env.MP_REDIRECT_URI || "";
 
+// Comissão da plataforma Fottufy sobre cada pagamento processado via MP
+const PLATFORM_FEE_RATE = 0.05; // 5%
+const calcFee = (amount: number) => Math.round(amount * PLATFORM_FEE_RATE * 100) / 100;
+
 // Mapa temporário de state OAuth → userId (TTL 10 minutos)
 // Evita dependência de sessão no callback (que chega via redirect externo)
 const oauthStateMap = new Map<string, { userId: number; expiresAt: number }>();
@@ -369,6 +373,7 @@ mpRouter.post("/api/mp/create-payment", async (req: Request, res: Response) => {
       description: description || "Fotos selecionadas — Fottufy",
       payment_method_id: "pix",
       payer: { email: payerEmail || "cliente@fottufy.com" },
+      marketplace_fee: calcFee(parsedAmount),
     };
 
     const mpRes = await new Promise<any>((resolve, reject) => {
@@ -472,6 +477,8 @@ mpRouter.post("/api/mp/create-preference", async (req: Request, res: Response) =
       },
       // notification_url garante que o MP notifica nosso webhook mesmo sem config no painel do fotógrafo
       notification_url: "https://fottufy.com/api/mp/webhook",
+      // Comissão da plataforma (5%) — vai para a conta MP da Fottufy automaticamente
+      marketplace_fee: calcFee(parsedAmount),
       // auto_return exige back_url HTTPS pública — só enviar em produção
       ...(isPublicHttps ? { auto_return: "approved" } : {}),
     };
