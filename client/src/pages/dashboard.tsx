@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import PromotionalBanner from "@/components/PromotionalBanner";
-// import { MpConnect } from "@/components/mp-connect"; // oculto temporariamente
+import { MpConnect } from "@/components/mp-connect";
 import { Button } from "@/components/ui/button";
 import { useLocation, Link } from "wouter";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";

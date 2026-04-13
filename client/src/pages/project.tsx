@@ -302,8 +302,8 @@ export default function ProjectView() {
             </DialogDescription>
           </DialogHeader>
 
-          {/* Bloco de pagamento Pix — oculto temporariamente até integração MP estar pronta */}
-          {false && mpStatus?.acceptsPayment &&
+          {/* Bloco de pagamento Pix — aparece apenas se fotógrafo tem MP e há fotos extras */}
+          {mpStatus?.acceptsPayment &&
             project.includedPhotos && project.includedPhotos > 0 &&
             selectedPhotos.length > project.includedPhotos &&
             project.additionalPhotoPrice && project.additionalPhotoPrice > 0 && (
