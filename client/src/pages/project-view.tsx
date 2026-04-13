@@ -141,6 +141,10 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
   const [pixInternalId, setPixInternalId] = useState<string | null>(null);
   const [pixStatus, setPixStatus] = useState<"pending" | "approved" | "rejected" | null>(null);
   const [showPixDialog, setShowPixDialog] = useState(false);
+  // Estado para pagamento com cartão
+  const [cardLoading, setCardLoading] = useState(false);
+  // Retorno do MP após checkout com cartão: "success" | "failure" | "pending" | null
+  const [cardPaymentReturn, setCardPaymentReturn] = useState<string | null>(null);
   
   const queryClient = useQueryClient();
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -203,6 +207,57 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
       setPixLoading(false);
     }
   };
+
+  // Inicia pagamento com cartão via MP Checkout Pro
+  const handleCardPayment = async () => {
+    if (!project) return;
+    const limit = Number(project.includedPhotos || 0);
+    const price = Number(project.additionalPhotoPrice || 0);
+    const extraCount = Math.max(0, selectedPhotos.size - limit);
+    const totalCents = extraCount * price;
+    if (totalCents <= 0) return;
+    setCardLoading(true);
+    try {
+      const res = await fetch("/api/mp/create-preference", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId,
+          amount: totalCents / 100,
+          description: `${extraCount} foto(s) extra(s) — ${project.nome || project.cliente || "Projeto"}`,
+        }),
+      });
+      const data = await res.json();
+      if (data.initPoint) {
+        window.location.href = data.initPoint;
+      } else {
+        toast({ title: "Erro ao iniciar pagamento", description: data.error || "Tente novamente.", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Erro de conexão", description: "Não foi possível criar o pagamento.", variant: "destructive" });
+    } finally {
+      setCardLoading(false);
+    }
+  };
+
+  // Detecta retorno do MP Checkout Pro via query params (?payment=success|failure|pending)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const paymentResult = params.get("payment");
+    if (paymentResult) {
+      setCardPaymentReturn(paymentResult);
+      // Limpa o param da URL sem recarregar a página
+      const cleanUrl = window.location.pathname;
+      window.history.replaceState({}, "", cleanUrl);
+    }
+  }, []);
+
+  // Quando finaliza sem extras (ou fotógrafo não aceita MP), fecha o dialog de confirmação
+  useEffect(() => {
+    if (finalizationSuccess && (additionalPhotosCount === 0 || !mpStatus?.acceptsPayment)) {
+      setShowConfirmDialog(false);
+    }
+  }, [finalizationSuccess, additionalPhotosCount, mpStatus?.acceptsPayment]);
 
   // Polling de status do pagamento Pix (a cada 5 segundos até aprovar/rejeitar)
   useEffect(() => {
@@ -1347,23 +1402,91 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
       </header>
       {/* Main content - Youze Style */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* Retorno do pagamento com cartão MP */}
+        {cardPaymentReturn && (
+          <div className={`rounded-2xl p-4 mb-6 text-center border ${
+            cardPaymentReturn === "success"
+              ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+              : cardPaymentReturn === "pending"
+              ? "bg-amber-50 border-amber-200 text-amber-800"
+              : "bg-red-50 border-red-200 text-red-800"
+          }`}>
+            {cardPaymentReturn === "success" && <p className="font-bold">✅ Pagamento com cartão aprovado! Obrigado.</p>}
+            {cardPaymentReturn === "pending" && <p className="font-bold">⏳ Pagamento em análise. Você receberá uma confirmação em breve.</p>}
+            {cardPaymentReturn === "failure" && <p className="font-bold">❌ Pagamento não aprovado. Tente novamente abaixo.</p>}
+          </div>
+        )}
+
         {isFinalized && finalizationSuccess ? (
-          <div className="bg-gradient-to-br from-emerald-50 to-green-50 border border-emerald-200 rounded-2xl p-6 sm:p-8 mb-8 text-center shadow-lg shadow-green-500/10">
-            <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-emerald-500 to-green-500 rounded-2xl flex items-center justify-center shadow-lg shadow-green-500/30">
-              <CheckCircle2 className="h-8 w-8 text-white" />
+          <div className="bg-gradient-to-br from-emerald-50 to-green-50 border border-emerald-200 rounded-2xl p-6 sm:p-8 mb-8 shadow-lg shadow-green-500/10">
+            <div className="flex flex-col items-center text-center mb-6">
+              <div className="w-16 h-16 mb-4 bg-gradient-to-br from-emerald-500 to-green-500 rounded-2xl flex items-center justify-center shadow-lg shadow-green-500/30">
+                <CheckCircle2 className="h-8 w-8 text-white" />
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-black text-emerald-800 mb-2">Seleção finalizada!</h2>
+              <p className="text-emerald-700 font-medium">
+                Suas {selectedPhotos.size} fotos foram salvas. O fotógrafo receberá uma notificação.
+              </p>
             </div>
-            <h2 className="text-2xl sm:text-3xl font-black text-emerald-800 mb-2">Seleção finalizada!</h2>
-            <p className="text-emerald-700 mb-6 font-medium">
-              Suas {selectedPhotos.size} fotos selecionadas foram salvas com sucesso.
-              O fotógrafo receberá uma notificação.
-            </p>
-            <Button 
-              variant="outline" 
-              className="rounded-xl font-bold border-emerald-300 text-emerald-700 hover:bg-emerald-100"
-              onClick={() => setLocation("/dashboard")}
-            >
-              Voltar para o Dashboard
-            </Button>
+
+            {/* Opções de pagamento para extras — visíveis mesmo após fechar o dialog */}
+            {additionalPhotosCount > 0 && mpStatus?.acceptsPayment && (
+              <div className="mt-4 space-y-3">
+                <div className="bg-white border border-amber-200 rounded-xl p-4 text-center">
+                  <p className="text-xs font-bold text-amber-700 uppercase tracking-widest mb-1">Fotos extras a pagar</p>
+                  <p className="text-2xl font-black text-amber-600">{formatCurrency(additionalPriceTotal)}</p>
+                  <p className="text-xs text-amber-600">
+                    {additionalPhotosCount} foto(s) × {formatCurrency(Number(project.additionalPhotoPrice))}
+                  </p>
+                </div>
+
+                {pixStatus === "approved" || cardPaymentReturn === "success" ? (
+                  <div className="flex items-center justify-center gap-2 py-3 text-emerald-700 font-bold">
+                    <CheckCircle2 className="h-5 w-5" />
+                    Pagamento confirmado!
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-3">
+                    {/* Pix */}
+                    <Button
+                      onClick={pixData && pixStatus === "pending" ? () => setShowPixDialog(true) : handlePixPayment}
+                      disabled={pixLoading}
+                      className="h-16 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs flex flex-col items-center justify-center gap-1"
+                    >
+                      {pixLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : (
+                        <>
+                          <span className="text-xl">🔑</span>
+                          <span>{pixData && pixStatus === "pending" ? "Ver Pix" : "Pagar com Pix"}</span>
+                        </>
+                      )}
+                    </Button>
+                    {/* Cartão */}
+                    <Button
+                      onClick={handleCardPayment}
+                      disabled={cardLoading}
+                      className="h-16 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs flex flex-col items-center justify-center gap-1"
+                    >
+                      {cardLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : (
+                        <>
+                          <span className="text-xl">💳</span>
+                          <span>Pagar com Cartão</span>
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="mt-6 text-center">
+              <Button
+                variant="outline"
+                className="rounded-xl font-bold border-emerald-300 text-emerald-700 hover:bg-emerald-100"
+                onClick={() => setLocation("/dashboard")}
+              >
+                Voltar para o Dashboard
+              </Button>
+            </div>
           </div>
         ) : null}
         
@@ -1487,76 +1610,139 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
         </DialogContent>
       </Dialog>
 
-      {/* Confirmation Dialog - Youze Style */}
+      {/* Confirmation Dialog — muda para opções de pagamento após finalizar */}
       <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
         <DialogContent className="rounded-2xl sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="font-black text-2xl">Finalizar Seleção</DialogTitle>
-            <DialogDescription className="text-slate-500">
-              Tem certeza que deseja finalizar sua seleção de fotos?
-              Após finalizar, você não poderá mais alterar as fotos selecionadas.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="py-4 space-y-3">
-            <div className="bg-purple-50 rounded-xl p-4 text-center">
-              <p className="text-3xl font-black text-purple-600">{selectedPhotos.size}</p>
-              <p className="text-sm text-purple-500 font-medium">de {project.photos.length} fotos selecionadas</p>
-            </div>
-            
-            {project.includedPhotos && project.includedPhotos > 0 && (
-              <div className={`rounded-xl p-4 text-center ${
-                selectedPhotos.size > project.includedPhotos 
-                  ? 'bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200' 
-                  : 'bg-green-50 border border-green-200'
-              }`}>
-                {selectedPhotos.size <= project.includedPhotos ? (
-                  <p className="text-sm text-green-700 font-medium">
-                    ✓ {selectedPhotos.size} de {project.includedPhotos} fotos incluídas no pacote
-                  </p>
-                ) : (
-                  <>
-                    <p className="text-sm text-amber-700 font-medium">
-                      📸 {project.includedPhotos} fotos incluídas + {selectedPhotos.size - project.includedPhotos} adicionais
-                    </p>
-                    {project.additionalPhotoPrice && project.additionalPhotoPrice > 0 && (
-                      <p className="text-lg font-bold text-amber-800 mt-1">
-                        Valor adicional: R$ {((selectedPhotos.size - project.includedPhotos) * project.additionalPhotoPrice / 100).toFixed(2)}
+          {!finalizationSuccess ? (
+            /* ── Passo 1: confirmação ── */
+            <>
+              <DialogHeader>
+                <DialogTitle className="font-black text-2xl">Finalizar Seleção</DialogTitle>
+                <DialogDescription className="text-slate-500">
+                  Tem certeza que deseja finalizar sua seleção de fotos?
+                  Após finalizar, você não poderá mais alterar as fotos selecionadas.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="py-4 space-y-3">
+                <div className="bg-purple-50 rounded-xl p-4 text-center">
+                  <p className="text-3xl font-black text-purple-600">{selectedPhotos.size}</p>
+                  <p className="text-sm text-purple-500 font-medium">de {project.photos.length} fotos selecionadas</p>
+                </div>
+                {project.includedPhotos && project.includedPhotos > 0 && (
+                  <div className={`rounded-xl p-4 text-center ${
+                    selectedPhotos.size > project.includedPhotos
+                      ? 'bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200'
+                      : 'bg-green-50 border border-green-200'
+                  }`}>
+                    {selectedPhotos.size <= project.includedPhotos ? (
+                      <p className="text-sm text-green-700 font-medium">
+                        ✓ {selectedPhotos.size} de {project.includedPhotos} fotos incluídas no pacote
                       </p>
+                    ) : (
+                      <>
+                        <p className="text-sm text-amber-700 font-medium">
+                          📸 {project.includedPhotos} incluídas + {selectedPhotos.size - project.includedPhotos} adicionais
+                        </p>
+                        {project.additionalPhotoPrice && project.additionalPhotoPrice > 0 && (
+                          <p className="text-lg font-bold text-amber-800 mt-1">
+                            Valor adicional: R$ {((selectedPhotos.size - project.includedPhotos) * project.additionalPhotoPrice / 100).toFixed(2)}
+                          </p>
+                        )}
+                      </>
                     )}
-                  </>
+                  </div>
                 )}
               </div>
-            )}
-          </div>
-          
-          <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button 
-              variant="outline" 
-              onClick={() => setShowConfirmDialog(false)}
-              disabled={isSubmitting}
-              className="rounded-xl border-slate-200"
-            >
-              Cancelar
-            </Button>
-            <Button 
-              onClick={finalizeSelection}
-              disabled={isSubmitting}
-              className="rounded-xl bg-gradient-to-r from-purple-600 to-fuchsia-500 hover:from-purple-700 hover:to-fuchsia-600 font-bold shadow-lg shadow-purple-500/30"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Finalizando...
-                </>
-              ) : (
-                <>
-                  <Check className="mr-2 h-4 w-4" />
-                  Sim, finalizar
-                </>
-              )}
-            </Button>
-          </DialogFooter>
+              <DialogFooter className="flex-col sm:flex-row gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowConfirmDialog(false)}
+                  disabled={isSubmitting}
+                  className="rounded-xl border-slate-200"
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={finalizeSelection}
+                  disabled={isSubmitting}
+                  className="rounded-xl bg-gradient-to-r from-purple-600 to-fuchsia-500 hover:from-purple-700 hover:to-fuchsia-600 font-bold shadow-lg shadow-purple-500/30"
+                >
+                  {isSubmitting ? (
+                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Finalizando...</>
+                  ) : (
+                    <><Check className="mr-2 h-4 w-4" />Sim, finalizar</>
+                  )}
+                </Button>
+              </DialogFooter>
+            </>
+          ) : (
+            /* ── Passo 2: opções de pagamento (extras pendentes) ── */
+            <>
+              <DialogHeader>
+                <div className="flex flex-col items-center gap-2 pb-2">
+                  <div className="w-12 h-12 bg-emerald-100 rounded-2xl flex items-center justify-center">
+                    <CheckCircle2 className="h-6 w-6 text-emerald-600" />
+                  </div>
+                  <DialogTitle className="font-black text-xl text-center">Seleção finalizada!</DialogTitle>
+                  <DialogDescription className="text-center text-slate-500">
+                    Você tem {additionalPhotosCount} foto(s) extra(s).
+                    Escolha como pagar {formatCurrency(additionalPriceTotal)}.
+                  </DialogDescription>
+                </div>
+              </DialogHeader>
+              <div className="py-2 space-y-3">
+                {/* Resumo do valor */}
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-center">
+                  <p className="text-xs font-bold text-amber-700 uppercase tracking-widest">Total a pagar</p>
+                  <p className="text-2xl font-black text-amber-600">{formatCurrency(additionalPriceTotal)}</p>
+                  <p className="text-xs text-amber-600">
+                    {additionalPhotosCount} foto(s) × {formatCurrency(Number(project.additionalPhotoPrice))}
+                  </p>
+                </div>
+                {/* Opção Pix */}
+                <Button
+                  onClick={() => { setShowConfirmDialog(false); handlePixPayment(); }}
+                  disabled={pixLoading || pixStatus === "approved"}
+                  className="w-full h-14 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-sm flex items-center justify-center gap-3"
+                >
+                  {pixLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : (
+                    <>
+                      <span className="text-xl">🔑</span>
+                      <div className="text-left">
+                        <p className="font-black">Pagar com Pix</p>
+                        <p className="text-xs font-normal opacity-80">QR Code — aprovação imediata</p>
+                      </div>
+                    </>
+                  )}
+                </Button>
+                {/* Opção Cartão */}
+                <Button
+                  onClick={() => { setShowConfirmDialog(false); handleCardPayment(); }}
+                  disabled={cardLoading}
+                  className="w-full h-14 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-sm flex items-center justify-center gap-3"
+                >
+                  {cardLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : (
+                    <>
+                      <span className="text-xl">💳</span>
+                      <div className="text-left">
+                        <p className="font-black">Pagar com Cartão</p>
+                        <p className="text-xs font-normal opacity-80">Crédito ou débito — checkout seguro</p>
+                      </div>
+                    </>
+                  )}
+                </Button>
+              </div>
+              <DialogFooter>
+                <Button
+                  variant="ghost"
+                  className="w-full rounded-xl text-slate-500 text-xs"
+                  onClick={() => setShowConfirmDialog(false)}
+                >
+                  Pagar depois
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
       {/* Lightbox Modal - Estilo personalizado igual ao portfolio público */}

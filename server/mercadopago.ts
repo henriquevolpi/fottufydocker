@@ -382,6 +382,86 @@ mpRouter.post("/api/mp/create-payment", async (req: Request, res: Response) => {
   }
 });
 
+// POST /api/mp/create-preference — cria preferência MP para pagamento com cartão (Checkout Pro)
+mpRouter.post("/api/mp/create-preference", async (req: Request, res: Response) => {
+  try {
+    const { projectId, amount, description } = req.body;
+    const parsedAmount = Number(amount);
+    if (!projectId || isNaN(parsedAmount) || parsedAmount <= 0) {
+      return res.status(400).json({ error: "Dados inválidos." });
+    }
+    if (!isUUID(projectId)) {
+      return res.status(400).json({ error: "Projeto inválido." });
+    }
+
+    const [project] = await db
+      .select({ userId: newProjects.userId })
+      .from(newProjects)
+      .where(eq(newProjects.id, projectId));
+    if (!project) return res.status(404).json({ error: "Projeto não encontrado." });
+
+    const [photographer] = await db
+      .select({ mpAccessToken: users.mpAccessToken })
+      .from(users)
+      .where(eq(users.id, project.userId));
+    if (!photographer?.mpAccessToken) {
+      return res.status(400).json({ error: "Fotógrafo não conectou o Mercado Pago." });
+    }
+
+    const baseUrl = process.env.NODE_ENV === "production"
+      ? "https://fottufy.com"
+      : `http://localhost:${process.env.PORT || 5000}`;
+
+    const preferenceBody = {
+      items: [{
+        title: description || "Fotos selecionadas — Fottufy",
+        quantity: 1,
+        unit_price: parsedAmount,
+        currency_id: "BRL",
+      }],
+      back_urls: {
+        success: `${baseUrl}/project-view/${projectId}?payment=success`,
+        failure: `${baseUrl}/project-view/${projectId}?payment=failure`,
+        pending: `${baseUrl}/project-view/${projectId}?payment=pending`,
+      },
+      auto_return: "approved",
+    };
+
+    const mpRes = await new Promise<any>((resolve, reject) => {
+      const data = JSON.stringify(preferenceBody);
+      const options = {
+        hostname: "api.mercadopago.com",
+        path: "/checkout/preferences",
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Content-Length": Buffer.byteLength(data),
+          Authorization: `Bearer ${photographer.mpAccessToken}`,
+        },
+      };
+      const r = https.request(options, (resp) => {
+        let raw = "";
+        resp.on("data", (chunk) => (raw += chunk));
+        resp.on("end", () => { try { resolve(JSON.parse(raw)); } catch { reject(new Error("parse")); } });
+      });
+      r.on("error", reject);
+      r.write(data);
+      r.end();
+    });
+
+    if (!mpRes.id) {
+      console.error("[MP create-preference] Resposta sem id:", mpRes);
+      return res.status(400).json({ error: mpRes.message || "Erro ao criar preferência." });
+    }
+
+    console.log(`[MP create-preference] Preferência criada para projeto ${projectId}: ${mpRes.id}`);
+    res.json({ initPoint: mpRes.init_point });
+  } catch (e: any) {
+    console.error("[MP create-preference] Erro:", e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // GET /api/mp/payment-status/:internalId — verifica status de um pagamento pelo ID interno
 mpRouter.get("/api/mp/payment-status/:internalId", async (req: Request, res: Response) => {
   try {
