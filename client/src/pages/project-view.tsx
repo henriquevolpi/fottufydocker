@@ -252,13 +252,6 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
     }
   }, []);
 
-  // Quando finaliza sem extras (ou fotógrafo não aceita MP), fecha o dialog de confirmação
-  useEffect(() => {
-    if (finalizationSuccess && (additionalPhotosCount === 0 || !mpStatus?.acceptsPayment)) {
-      setShowConfirmDialog(false);
-    }
-  }, [finalizationSuccess, additionalPhotosCount, mpStatus?.acceptsPayment]);
-
   // Polling de status do pagamento Pix (a cada 5 segundos até aprovar/rejeitar)
   useEffect(() => {
     if (!pixInternalId || pixStatus !== "pending") return;
@@ -955,6 +948,14 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
     if (!price) return 0;
     return additionalPhotosCount * price;
   }, [additionalPhotosCount, project?.additionalPhotoPrice]);
+
+  // Quando finaliza sem extras (ou fotógrafo não aceita MP), fecha o dialog de confirmação
+  // IMPORTANTE: deve ficar APÓS os useMemo de additionalPhotosCount e additionalPriceTotal
+  useEffect(() => {
+    if (finalizationSuccess && (additionalPhotosCount === 0 || !mpStatus?.acceptsPayment)) {
+      setShowConfirmDialog(false);
+    }
+  }, [finalizationSuccess, additionalPhotosCount, mpStatus?.acceptsPayment]);
 
   const formatCurrency = (cents: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cents / 100);
