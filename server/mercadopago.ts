@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
 import { db } from "./db";
 import { users, newProjects, mpPayments } from "@shared/schema";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import https from "https";
 import crypto from "crypto";
 
@@ -140,13 +140,13 @@ mpRouter.get("/api/mp/photographer-status/:projectId", async (req: Request, res:
     const [project] = await db
       .select({ userId: newProjects.userId })
       .from(newProjects)
-      .where(eq(newProjects.publicId, projectId));
+      .where(eq(newProjects.id, projectId));
     if (!project) return res.json({ acceptsPayment: false });
     const [photographer] = await db
-      .select({ mpUserId: users.mpUserId })
+      .select({ mpUserId: users.mpUserId, mpAccessToken: users.mpAccessToken })
       .from(users)
       .where(eq(users.id, project.userId));
-    res.json({ acceptsPayment: !!photographer?.mpUserId });
+    res.json({ acceptsPayment: !!(photographer?.mpUserId && photographer?.mpAccessToken) });
   } catch {
     res.json({ acceptsPayment: false });
   }
@@ -194,28 +194,50 @@ mpRouter.post("/api/mp/webhook", async (req: Request, res: Response) => {
       }
     }
 
-    const { type, data } = req.body;
+    const { type, action, data } = req.body;
     if (type === "payment" && data?.id) {
       const mpPaymentId = String(data.id);
-      console.log(`[MP Webhook] Notificação de pagamento recebida: ID=${mpPaymentId}`);
+      console.log(`[MP Webhook] Notificação recebida: ID=${mpPaymentId} action=${action}`);
 
-      // Busca o registro interno pelo mpPaymentId e atualiza status
       try {
+        // Busca registro interno + token do fotógrafo para consultar status real no MP
         const [existing] = await db
-          .select({ id: mpPayments.id, status: mpPayments.status })
+          .select({
+            id: mpPayments.id,
+            status: mpPayments.status,
+            projectId: mpPayments.projectId,
+          })
           .from(mpPayments)
           .where(eq(mpPayments.mpPaymentId, mpPaymentId));
 
-        if (existing) {
-          // Consulta o status atual diretamente na API do MP (webhook só traz o ID)
-          // Para simplificar, marcamos como approved se o evento chegou
-          // (O status real poderia ser verificado via GET /v1/payments/:id)
-          if (existing.status !== "approved") {
+        if (existing && existing.status !== "approved") {
+          // Busca o access token do fotógrafo para consultar o MP
+          const [project] = await db
+            .select({ userId: newProjects.userId })
+            .from(newProjects)
+            .where(eq(newProjects.id, existing.projectId));
+
+          let mpStatus = "pending";
+          if (project) {
+            const [photographer] = await db
+              .select({ mpAccessToken: users.mpAccessToken })
+              .from(users)
+              .where(eq(users.id, project.userId));
+
+            if (photographer?.mpAccessToken) {
+              // Consulta o status real do pagamento na API do MP
+              const mpPayment = await mpGet(`/v1/payments/${mpPaymentId}`, photographer.mpAccessToken);
+              mpStatus = mpPayment?.status || "pending";
+            }
+          }
+
+          const validStatuses = ["approved", "rejected", "cancelled", "refunded"];
+          if (validStatuses.includes(mpStatus)) {
             await db
               .update(mpPayments)
-              .set({ status: "approved", updatedAt: new Date() })
+              .set({ status: mpStatus, updatedAt: new Date() })
               .where(eq(mpPayments.id, existing.id));
-            console.log(`[MP Webhook] Pagamento ${mpPaymentId} marcado como approved`);
+            console.log(`[MP Webhook] Pagamento ${mpPaymentId} atualizado para: ${mpStatus}`);
           }
         }
       } catch (dbErr: any) {
@@ -255,8 +277,6 @@ mpRouter.post("/api/mp/create-payment", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Fotógrafo não conectou o Mercado Pago." });
     }
 
-    const platformFeeRatio = Number(process.env.MP_PLATFORM_FEE_RATIO || "0.05");
-    const platformFee = Math.round(amount * platformFeeRatio * 100) / 100;
     const amountCents = Math.round(amount * 100);
 
     const idempotencyKey = `fottufy-${projectId}-${Date.now()}`;
@@ -265,7 +285,6 @@ mpRouter.post("/api/mp/create-payment", async (req: Request, res: Response) => {
       description: description || "Fotos selecionadas — Fottufy",
       payment_method_id: "pix",
       payer: { email: payerEmail || "cliente@fottufy.com" },
-      application_fee: platformFee,
     };
 
     const mpRes = await new Promise<any>((resolve, reject) => {

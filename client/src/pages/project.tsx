@@ -4,7 +4,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import PhotoCard from "@/components/photo-card";
 import { Project } from "@shared/schema";
-import { Check, Edit, ArrowLeftCircle, MessageCircle, Eye, Loader2, ArrowUp, QrCode, Copy } from "lucide-react";
+import { Check, Edit, ArrowLeftCircle, MessageCircle, Eye, Loader2, ArrowUp, Copy } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { CopyNamesButton } from "@/components/copy-names-button";
