@@ -1479,23 +1479,24 @@ function Statistics({ setLocation, user }: { setLocation: (path: string) => void
         <div className="relative group">
           <div className={`absolute inset-0 rounded-2xl sm:rounded-3xl blur-xl transition-opacity ${planInfo.planType !== 'free' ? 'bg-gradient-to-br from-slate-700 to-slate-900 opacity-25 group-hover:opacity-35' : 'bg-gradient-to-br from-emerald-500 to-teal-600 opacity-20 group-hover:opacity-30'}`}></div>
           <Card className={`relative shadow-lg sm:shadow-xl backdrop-blur-xl hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] rounded-2xl sm:rounded-3xl overflow-hidden h-full ${planInfo.planType !== 'free' ? 'border-2 border-slate-300 dark:border-slate-600 bg-gradient-to-br from-white via-slate-50 to-slate-100 dark:from-slate-800 dark:via-slate-850 dark:to-slate-900' : 'border border-slate-100 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80'}`}>
-            <CardContent className="p-3 sm:p-6">
-              <div className="flex flex-col sm:flex-row items-center sm:gap-4 mb-2 sm:mb-4">
-                <div className={`w-8 h-8 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform mb-1 sm:mb-0 ${planInfo.planType !== 'free' ? 'bg-gradient-to-br from-slate-700 to-slate-900 shadow-lg shadow-slate-500/30' : 'bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/20'}`}>
+            <CardContent className="p-4 sm:p-6">
+              {/* Header: ícone + info lado a lado em qualquer tamanho */}
+              <div className="flex items-center gap-3 sm:gap-4 mb-3 sm:mb-4">
+                <div className={`shrink-0 w-10 h-10 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform ${planInfo.planType !== 'free' ? 'bg-gradient-to-br from-slate-700 to-slate-900 shadow-lg shadow-slate-500/30' : 'bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/20'}`}>
                   {planInfo.planType !== 'free' ? (
-                    <Crown className="h-4 w-4 sm:h-7 sm:w-7 text-white" />
+                    <Crown className="h-5 w-5 sm:h-7 sm:w-7 text-white" />
                   ) : (
-                    <CreditCard className="h-4 w-4 sm:h-7 sm:w-7 text-white" />
+                    <CreditCard className="h-5 w-5 sm:h-7 sm:w-7 text-white" />
                   )}
                 </div>
-                <div className="text-center sm:text-left">
-                  <p className="text-[8px] sm:text-xs font-black text-slate-400 uppercase tracking-widest">Plano</p>
+                <div className="min-w-0">
+                  <p className="text-[10px] sm:text-xs font-black text-slate-400 uppercase tracking-widest">Plano</p>
                   {planInfo.planType !== 'free' ? (
-                    <div className="flex items-center justify-center sm:justify-start gap-2">
-                      <span className="text-sm sm:text-lg font-black text-transparent bg-clip-text bg-gradient-to-r from-slate-800 to-slate-600 dark:from-white dark:to-slate-300 tracking-tight">
-                        {planInfo.planType === 'basic' || planInfo.planType === 'basic_v2' ? 'Básico' : 
-                         planInfo.planType === 'standard' || planInfo.planType === 'standard_v2' ? 'Fotógrafo' : 
-                         planInfo.planType === 'professional' || planInfo.planType === 'professional_v2' ? 'Estúdio' : 
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-base sm:text-lg font-black text-transparent bg-clip-text bg-gradient-to-r from-slate-800 to-slate-600 dark:from-white dark:to-slate-300 tracking-tight leading-tight">
+                        {planInfo.planType === 'basic' || planInfo.planType === 'basic_v2' ? 'Básico' :
+                         planInfo.planType === 'standard' || planInfo.planType === 'standard_v2' ? 'Fotógrafo' :
+                         planInfo.planType === 'professional' || planInfo.planType === 'professional_v2' ? 'Estúdio' :
                          planInfo.planType.charAt(0).toUpperCase() + planInfo.planType.slice(1)}
                       </span>
                       {user?.billingPeriod === 'yearly' && (
@@ -1503,29 +1504,28 @@ function Statistics({ setLocation, user }: { setLocation: (path: string) => void
                       )}
                     </div>
                   ) : (
-                    <p className="text-sm font-medium text-slate-600 dark:text-slate-300">
-                      Gratuito
-                    </p>
+                    <p className="text-base font-bold text-slate-600 dark:text-slate-300">Gratuito</p>
                   )}
                 </div>
               </div>
-              <div className="space-y-2">
-                <div className="flex justify-center sm:justify-between items-center">
-                  <span className="hidden sm:block text-xs font-bold text-slate-500 uppercase tracking-wider">Uso</span>
-                  <span className="text-[10px] sm:text-sm font-black text-purple-600 bg-purple-100 px-2 sm:px-3 py-0.5 sm:py-1 rounded-full">
+              {/* Barra de uso */}
+              <div className="space-y-1.5">
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider">Uso</span>
+                  <span className="text-xs sm:text-sm font-black text-purple-600 bg-purple-100 px-2 sm:px-3 py-0.5 rounded-full">
                     {planInfo.usedUploads}/{planInfo.planType === "unlimited" ? "∞" : planInfo.uploadLimit}
                   </span>
                 </div>
                 <div className="w-full h-1.5 sm:h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                  <div 
+                  <div
                     className="h-full bg-gradient-to-r from-purple-500 to-fuchsia-500 rounded-full transition-all duration-500"
                     style={{ width: planInfo.planType === "unlimited" ? "0%" : `${planInfo.percentageUsed}%` }}
                   />
                 </div>
               </div>
             </CardContent>
-            <CardFooter className="px-3 sm:px-4 pb-3 sm:pb-4 pt-0">
-              <Button 
+            <CardFooter className="px-4 sm:px-4 pb-4 pt-0">
+              <Button
                 className="w-full font-bold text-xs tracking-wide uppercase py-2.5 sm:py-3 rounded-xl transition-all bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg shadow-purple-500/20 hover:scale-105"
                 onClick={() => setLocation("/subscription")}
               >
