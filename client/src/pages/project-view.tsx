@@ -134,6 +134,13 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
   const [expandedCommentPhoto, setExpandedCommentPhoto] = useState<string | null>(null);
   const [showOnlySelected, setShowOnlySelected] = useState(false);
   const [showScrollToTop, setShowScrollToTop] = useState(false);
+
+  // Estados para pagamento Pix via Mercado Pago
+  const [pixData, setPixData] = useState<{ qrCode: string; copiaECola: string } | null>(null);
+  const [pixLoading, setPixLoading] = useState(false);
+  const [pixInternalId, setPixInternalId] = useState<string | null>(null);
+  const [pixStatus, setPixStatus] = useState<"pending" | "approved" | "rejected" | null>(null);
+  const [showPixDialog, setShowPixDialog] = useState(false);
   
   const queryClient = useQueryClient();
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -154,6 +161,69 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
     });
     return map;
   }, [project?.photos]);
+
+  // Query: verifica se o fotógrafo deste projeto aceita pagamento via MP
+  const { data: mpStatus } = useQuery<{ acceptsPayment: boolean }>({
+    queryKey: [`/api/mp/photographer-status/${projectId}`],
+    enabled: !!projectId,
+  });
+
+  // Inicia cobrança Pix para fotos extras
+  const handlePixPayment = async () => {
+    if (!project) return;
+    const limit = Number(project.includedPhotos || 0);
+    const price = Number(project.additionalPhotoPrice || 0);
+    const extraCount = Math.max(0, selectedPhotos.size - limit);
+    const totalCents = extraCount * price;
+    if (totalCents <= 0) return;
+    setPixLoading(true);
+    try {
+      const res = await fetch("/api/mp/create-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId,
+          amount: totalCents / 100,
+          description: `${extraCount} foto(s) extra(s) — ${project.nome || project.cliente || "Projeto"}`,
+          payerEmail: project.emailCliente || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (data.pixCopiaECola || data.qrCodeBase64) {
+        setPixData({ qrCode: data.qrCodeBase64 || "", copiaECola: data.pixCopiaECola || "" });
+        setPixInternalId(data.internalId || null);
+        setPixStatus("pending");
+        setShowPixDialog(true);
+      } else {
+        toast({ title: "Erro ao gerar Pix", description: data.error || "Tente novamente.", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Erro de conexão", description: "Não foi possível criar o pagamento.", variant: "destructive" });
+    } finally {
+      setPixLoading(false);
+    }
+  };
+
+  // Polling de status do pagamento Pix (a cada 5 segundos até aprovar/rejeitar)
+  useEffect(() => {
+    if (!pixInternalId || pixStatus !== "pending") return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/mp/payment-status/${pixInternalId}`);
+        const data = await res.json();
+        if (data.status === "approved") {
+          setPixStatus("approved");
+          setShowPixDialog(false);
+          toast({ title: "Pagamento confirmado!", description: "Seu pagamento via Pix foi recebido com sucesso." });
+          clearInterval(interval);
+        } else if (data.status === "rejected" || data.status === "cancelled") {
+          setPixStatus("rejected");
+          clearInterval(interval);
+        }
+      } catch { /* ignora erros de rede no polling */ }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [pixInternalId, pixStatus]);
 
   // Carrega comentários apenas quando necessário (não todos de uma vez)
   // useEffect removido para melhor performance - comentários são carregados sob demanda
@@ -928,13 +998,47 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
               </div>
             )}
 
-            <Button 
-              onClick={() => setShowConfirmDialog(true)}
-              disabled={selectedPhotos.size === 0 || isSubmitting}
-              className="bg-purple-600 hover:bg-purple-700 text-white font-black text-xs uppercase tracking-widest px-6 h-12 rounded-2xl shadow-md transition-colors"
-            >
-              {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Finalizar"}
-            </Button>
+            <div className="flex gap-2">
+              {/* Botões de pagamento Pix — aparece quando há fotos extras E fotógrafo aceita pagamento */}
+              {additionalPhotosCount > 0 && mpStatus?.acceptsPayment && (
+                <>
+                  {/* Pix ainda não gerado: botão para criar pagamento */}
+                  {!pixData && pixStatus !== "approved" && (
+                    <Button
+                      onClick={handlePixPayment}
+                      disabled={pixLoading}
+                      className="bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs uppercase tracking-widest px-4 h-12 rounded-2xl shadow-md transition-colors flex items-center gap-1.5"
+                    >
+                      {pixLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Pagar Pix"}
+                    </Button>
+                  )}
+                  {/* Pix gerado e aguardando: botão para reabrir o modal */}
+                  {pixData && pixStatus === "pending" && (
+                    <Button
+                      onClick={() => setShowPixDialog(true)}
+                      className="bg-amber-500 hover:bg-amber-600 text-white font-black text-xs uppercase tracking-widest px-4 h-12 rounded-2xl shadow-md flex items-center gap-1.5"
+                    >
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Ver Pix
+                    </Button>
+                  )}
+                  {/* Pix aprovado */}
+                  {pixStatus === "approved" && (
+                    <div className="flex items-center gap-1.5 px-4 h-12 bg-emerald-100 text-emerald-700 rounded-2xl font-black text-xs uppercase tracking-widest">
+                      <Check className="h-4 w-4" />
+                      Pago
+                    </div>
+                  )}
+                </>
+              )}
+              <Button 
+                onClick={() => setShowConfirmDialog(true)}
+                disabled={selectedPhotos.size === 0 || isSubmitting}
+                className="bg-purple-600 hover:bg-purple-700 text-white font-black text-xs uppercase tracking-widest px-6 h-12 rounded-2xl shadow-md transition-colors"
+              >
+                {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Finalizar"}
+              </Button>
+            </div>
           </div>
         </div>
       )}
@@ -1314,6 +1418,75 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
           />
         </LocalErrorBoundary>
       </main>
+      {/* Dialog do QR Code Pix */}
+      <Dialog open={showPixDialog} onOpenChange={setShowPixDialog}>
+        <DialogContent className="rounded-2xl sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="font-black text-xl text-center">Pagamento via Pix</DialogTitle>
+            <DialogDescription className="text-center text-slate-500">
+              Escaneie o QR Code ou copie o código abaixo para pagar
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2 space-y-4">
+            {project && additionalPhotosCount > 0 && (
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-center">
+                <p className="text-xs font-bold text-emerald-700 uppercase tracking-widest">Total a pagar</p>
+                <p className="text-2xl font-black text-emerald-600">{formatCurrency(additionalPriceTotal)}</p>
+                <p className="text-xs text-emerald-600">{additionalPhotosCount} foto(s) extra(s) × {formatCurrency(Number(project.additionalPhotoPrice))}</p>
+              </div>
+            )}
+            {pixData?.qrCode && (
+              <div className="flex justify-center">
+                <img
+                  src={`data:image/png;base64,${pixData.qrCode}`}
+                  alt="QR Code Pix"
+                  className="w-48 h-48 rounded-xl border border-slate-200"
+                />
+              </div>
+            )}
+            {pixData?.copiaECola && (
+              <div className="space-y-2">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-widest text-center">Pix Copia e Cola</p>
+                <div className="flex gap-2">
+                  <input
+                    readOnly
+                    value={pixData.copiaECola}
+                    className="flex-1 text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-mono truncate"
+                  />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="rounded-xl px-3 border-slate-200 shrink-0"
+                    onClick={() => {
+                      navigator.clipboard.writeText(pixData.copiaECola);
+                      toast({ title: "Copiado!", description: "Código Pix copiado para a área de transferência." });
+                    }}
+                  >
+                    Copiar
+                  </Button>
+                </div>
+              </div>
+            )}
+            {pixStatus === "pending" && (
+              <div className="flex items-center justify-center gap-2 text-amber-600 text-sm font-medium">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Aguardando confirmação do pagamento...
+              </div>
+            )}
+            {pixStatus === "rejected" && (
+              <div className="text-center text-red-500 text-sm font-bold">
+                Pagamento não aprovado. Tente novamente.
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" className="rounded-xl w-full" onClick={() => setShowPixDialog(false)}>
+              Fechar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Confirmation Dialog - Youze Style */}
       <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
         <DialogContent className="rounded-2xl sm:max-w-md">
