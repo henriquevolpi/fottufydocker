@@ -1477,8 +1477,8 @@ function Statistics({ setLocation, user }: { setLocation: (path: string) => void
 
         {/* Upload usage card */}
         <div className="relative group">
-          <div className={`absolute inset-0 rounded-2xl sm:rounded-3xl blur-xl transition-opacity ${planInfo.planType !== 'free' ? 'bg-gradient-to-br from-slate-700 to-slate-900 opacity-25 group-hover:opacity-35' : 'bg-gradient-to-br from-emerald-500 to-teal-600 opacity-20 group-hover:opacity-30'}`}></div>
-          <Card className={`relative shadow-lg sm:shadow-xl backdrop-blur-xl hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] rounded-2xl sm:rounded-3xl overflow-hidden h-full ${planInfo.planType !== 'free' ? 'border-2 border-slate-300 dark:border-slate-600 bg-gradient-to-br from-white via-slate-50 to-slate-100 dark:from-slate-800 dark:via-slate-850 dark:to-slate-900' : 'border border-slate-100 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80'}`}>
+          <div className={`absolute inset-0 rounded-2xl sm:rounded-3xl blur-xl transition-opacity ${planInfo.planType !== 'free' ? 'bg-gradient-to-br from-slate-700 to-slate-900 opacity-25 group-hover:opacity-35' : 'bg-gradient-to-br from-violet-400 to-purple-500 opacity-20 group-hover:opacity-30'}`}></div>
+          <Card onClick={() => setLocation("/subscription")} className={`relative cursor-pointer shadow-lg sm:shadow-xl backdrop-blur-xl hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] rounded-2xl sm:rounded-3xl overflow-hidden h-full ${planInfo.planType !== 'free' ? 'border-2 border-slate-300 dark:border-slate-600 bg-gradient-to-br from-white via-slate-50 to-slate-100 dark:from-slate-800 dark:via-slate-850 dark:to-slate-900' : 'border-2 border-violet-300 dark:border-violet-700 bg-white/80 dark:bg-slate-900/80'}`}>
             <CardContent className="p-4 sm:p-6">
               {/* Header: ícone + info lado a lado em qualquer tamanho */}
               <div className="flex items-center gap-3 sm:gap-4 mb-3 sm:mb-4">
@@ -1524,15 +1524,6 @@ function Statistics({ setLocation, user }: { setLocation: (path: string) => void
                 </div>
               </div>
             </CardContent>
-            <CardFooter className="px-4 sm:px-4 pb-4 pt-0">
-              <Button
-                className="w-full font-bold text-xs tracking-wide uppercase py-2.5 sm:py-3 rounded-xl transition-all bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg shadow-purple-500/20 hover:scale-105"
-                onClick={() => setLocation("/subscription")}
-              >
-                <Settings className="mr-2 h-3 w-3" />
-                Gerenciar Plano
-              </Button>
-            </CardFooter>
           </Card>
         </div>
         
