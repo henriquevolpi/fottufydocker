@@ -1054,47 +1054,13 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
               </div>
             )}
 
-            <div className="flex gap-2">
-              {/* Botões de pagamento Pix — aparece quando há fotos extras E fotógrafo aceita pagamento */}
-              {additionalPhotosCount > 0 && mpStatus?.acceptsPayment && (
-                <>
-                  {/* Pix ainda não gerado: botão para criar pagamento */}
-                  {!pixData && pixStatus !== "approved" && (
-                    <Button
-                      onClick={handlePixPayment}
-                      disabled={pixLoading}
-                      className="bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs uppercase tracking-widest px-4 h-12 rounded-2xl shadow-md transition-colors flex items-center gap-1.5"
-                    >
-                      {pixLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Pagar Pix"}
-                    </Button>
-                  )}
-                  {/* Pix gerado e aguardando: botão para reabrir o modal */}
-                  {pixData && pixStatus === "pending" && (
-                    <Button
-                      onClick={() => setShowPixDialog(true)}
-                      className="bg-amber-500 hover:bg-amber-600 text-white font-black text-xs uppercase tracking-widest px-4 h-12 rounded-2xl shadow-md flex items-center gap-1.5"
-                    >
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      Ver Pix
-                    </Button>
-                  )}
-                  {/* Pix aprovado */}
-                  {pixStatus === "approved" && (
-                    <div className="flex items-center gap-1.5 px-4 h-12 bg-emerald-100 text-emerald-700 rounded-2xl font-black text-xs uppercase tracking-widest">
-                      <Check className="h-4 w-4" />
-                      Pago
-                    </div>
-                  )}
-                </>
-              )}
-              <Button 
-                onClick={() => setShowConfirmDialog(true)}
-                disabled={selectedPhotos.size === 0 || isSubmitting}
-                className="bg-purple-600 hover:bg-purple-700 text-white font-black text-xs uppercase tracking-widest px-6 h-12 rounded-2xl shadow-md transition-colors"
-              >
-                {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Finalizar"}
-              </Button>
-            </div>
+            <Button 
+              onClick={() => setShowConfirmDialog(true)}
+              disabled={selectedPhotos.size === 0 || isSubmitting}
+              className="bg-purple-600 hover:bg-purple-700 text-white font-black text-xs uppercase tracking-widest px-6 h-12 rounded-2xl shadow-md transition-colors"
+            >
+              {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Finalizar"}
+            </Button>
           </div>
         </div>
       )}
