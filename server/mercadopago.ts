@@ -256,8 +256,9 @@ mpRouter.post("/api/mp/webhook", async (req: Request, res: Response) => {
 mpRouter.post("/api/mp/create-payment", async (req: Request, res: Response) => {
   try {
     const { projectId, amount, description, payerEmail } = req.body;
-    if (!projectId || !amount) {
-      return res.status(400).json({ error: "projectId e amount são obrigatórios." });
+    const parsedAmount = Number(amount);
+    if (!projectId || !amount || isNaN(parsedAmount) || parsedAmount <= 0) {
+      return res.status(400).json({ error: "projectId e amount válido (> 0) são obrigatórios." });
     }
     if (!isUUID(projectId)) {
       return res.status(400).json({ error: "Projeto inválido." });
@@ -277,11 +278,11 @@ mpRouter.post("/api/mp/create-payment", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Fotógrafo não conectou o Mercado Pago." });
     }
 
-    const amountCents = Math.round(amount * 100);
+    const amountCents = Math.round(parsedAmount * 100);
 
     const idempotencyKey = `fottufy-${projectId}-${Date.now()}`;
     const paymentBody = {
-      transaction_amount: amount,
+      transaction_amount: parsedAmount,
       description: description || "Fotos selecionadas — Fottufy",
       payment_method_id: "pix",
       payer: { email: payerEmail || "cliente@fottufy.com" },

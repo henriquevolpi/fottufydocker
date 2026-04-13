@@ -302,39 +302,31 @@ export default function ProjectView() {
         </div>
         
 
-        {/* Scroll to top button */}
-        {showScrollToTop && (
-          <button
-            onClick={scrollToTop}
-            className="fixed bottom-24 right-4 sm:bottom-32 sm:right-8 z-30 md:hidden w-12 h-12 bg-white/80 hover:bg-white backdrop-blur-xl border border-gray-200 rounded-2xl flex items-center justify-center text-gray-700 shadow-lg transition-all duration-300"
-            aria-label="Voltar ao topo"
-          >
-            <ArrowUp className="h-5 w-5" />
-          </button>
-        )}
-      </div>
-      
-      {/* Finalized message modal */}
-      <Dialog open={finalizeDialogOpen} onOpenChange={(open) => { if (!open) { setPixData(null); setPixInternalId(null); setPixStatus(null); } setFinalizeDialogOpen(open); }}>
-        <DialogContent className="sm:max-w-md bg-white border border-gray-200 rounded-3xl shadow-2xl">
-          <DialogHeader>
-            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-green-400 to-emerald-500 flex items-center justify-center">
-              <Check className="h-8 w-8 text-white" />
-            </div>
-            <DialogTitle className="text-2xl font-black text-gray-900 text-center">Seleção Finalizada!</DialogTitle>
-            <DialogDescription className="text-gray-600 text-center">
-              Obrigado por fazer sua seleção. Seu fotógrafo foi notificado e processará as fotos selecionadas. Você selecionou {selectedPhotos.length} de {project.photos?.length || 0} fotos.
-            </DialogDescription>
-          </DialogHeader>
+        {/* ── Bloco de pagamento Pix ── aparece quando há fotos extras além do pacote */}
+        {mpStatus?.acceptsPayment &&
+          project.includedPhotos != null && project.includedPhotos > 0 &&
+          selectedPhotos.length > project.includedPhotos &&
+          project.additionalPhotoPrice != null && project.additionalPhotoPrice > 0 && (
+          <div className="mt-10 mb-4 max-w-md mx-auto">
+            <div className="rounded-2xl border border-[#009EE3]/30 bg-white shadow-md p-5">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-xl bg-[#009EE3]/10 flex items-center justify-center flex-shrink-0">
+                  <SiMercadopago className="w-6 h-6 text-[#009EE3]" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-slate-800">Fotos extras — pagamento via Pix</p>
+                  <p className="text-xs text-slate-500">
+                    {selectedPhotos.length - project.includedPhotos} foto(s) extra(s) ×{" "}
+                    R$ {(project.additionalPhotoPrice / 100).toFixed(2).replace(".", ",")} ={" "}
+                    <strong className="text-slate-700">
+                      R$ {((selectedPhotos.length - project.includedPhotos) * project.additionalPhotoPrice / 100).toFixed(2).replace(".", ",")}
+                    </strong>
+                  </p>
+                </div>
+              </div>
 
-          {/* Bloco de pagamento Pix — aparece apenas se fotógrafo tem MP e há fotos extras */}
-          {mpStatus?.acceptsPayment &&
-            project.includedPhotos && project.includedPhotos > 0 &&
-            selectedPhotos.length > project.includedPhotos &&
-            project.additionalPhotoPrice && project.additionalPhotoPrice > 0 && (
-            <div className="mt-2 rounded-2xl border border-[#009EE3]/30 bg-[#009EE3]/5 p-4">
               {pixStatus === "approved" ? (
-                <div className="flex flex-col items-center gap-2 py-2">
+                <div className="flex flex-col items-center gap-2 py-3">
                   <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center">
                     <Check className="h-6 w-6 text-emerald-600" />
                   </div>
@@ -342,36 +334,24 @@ export default function ProjectView() {
                   <p className="text-xs text-slate-500 text-center">Seu Pix foi recebido. O fotógrafo já foi notificado.</p>
                 </div>
               ) : pixStatus === "rejected" ? (
-                <div className="flex flex-col items-center gap-2 py-2">
+                <div className="flex flex-col items-center gap-2 py-3">
                   <p className="text-sm font-bold text-red-500 text-center">Pagamento não aprovado</p>
                   <Button size="sm" variant="outline" className="rounded-xl text-xs" onClick={() => { setPixData(null); setPixInternalId(null); setPixStatus(null); }}>
                     Tentar novamente
                   </Button>
                 </div>
               ) : !pixData ? (
-                <>
-                  <p className="text-sm font-bold text-slate-800 text-center mb-1">
-                    Pagar fotos extras via Pix
-                  </p>
-                  <p className="text-xs text-slate-500 text-center mb-3">
-                    {selectedPhotos.length - project.includedPhotos} foto(s) extra(s) ×{" "}
-                    R$ {(project.additionalPhotoPrice / 100).toFixed(2).replace(".", ",")} ={" "}
-                    <strong className="text-slate-700">
-                      R$ {((selectedPhotos.length - project.includedPhotos) * project.additionalPhotoPrice / 100).toFixed(2).replace(".", ",")}
-                    </strong>
-                  </p>
-                  <Button
-                    onClick={handlePixPayment}
-                    disabled={pixLoading}
-                    className="w-full rounded-xl bg-[#009EE3] hover:bg-[#0082c1] text-white font-bold text-sm"
-                  >
-                    {pixLoading ? (
-                      <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Gerando Pix...</>
-                    ) : (
-                      <><SiMercadopago className="h-4 w-4 mr-2" /> Pagar agora via Pix</>
-                    )}
-                  </Button>
-                </>
+                <Button
+                  onClick={handlePixPayment}
+                  disabled={pixLoading}
+                  className="w-full rounded-xl bg-[#009EE3] hover:bg-[#0082c1] text-white font-bold text-sm"
+                >
+                  {pixLoading ? (
+                    <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Gerando Pix...</>
+                  ) : (
+                    <><SiMercadopago className="h-4 w-4 mr-2" /> Pagar agora via Pix</>
+                  )}
+                </Button>
               ) : (
                 <>
                   <p className="text-xs font-bold text-slate-700 text-center mb-2">Escaneie o QR code ou copie o código Pix</p>
@@ -395,11 +375,37 @@ export default function ProjectView() {
                 </>
               )}
             </div>
-          )}
+          </div>
+        )}
+
+        {/* Scroll to top button */}
+        {showScrollToTop && (
+          <button
+            onClick={scrollToTop}
+            className="fixed bottom-24 right-4 sm:bottom-32 sm:right-8 z-30 md:hidden w-12 h-12 bg-white/80 hover:bg-white backdrop-blur-xl border border-gray-200 rounded-2xl flex items-center justify-center text-gray-700 shadow-lg transition-all duration-300"
+            aria-label="Voltar ao topo"
+          >
+            <ArrowUp className="h-5 w-5" />
+          </button>
+        )}
+      </div>
+      
+      {/* Finalized message modal */}
+      <Dialog open={finalizeDialogOpen} onOpenChange={setFinalizeDialogOpen}>
+        <DialogContent className="sm:max-w-md bg-white border border-gray-200 rounded-3xl shadow-2xl">
+          <DialogHeader>
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-green-400 to-emerald-500 flex items-center justify-center">
+              <Check className="h-8 w-8 text-white" />
+            </div>
+            <DialogTitle className="text-2xl font-black text-gray-900 text-center">Seleção Finalizada!</DialogTitle>
+            <DialogDescription className="text-gray-600 text-center">
+              Obrigado por fazer sua seleção. Seu fotógrafo foi notificado e processará as fotos selecionadas. Você selecionou {selectedPhotos.length} de {project.photos?.length || 0} fotos.
+            </DialogDescription>
+          </DialogHeader>
 
           <DialogFooter className="mt-4">
             <Button 
-              onClick={() => { setPixData(null); setFinalizeDialogOpen(false); }}
+              onClick={() => setFinalizeDialogOpen(false)}
               className="w-full bg-gradient-to-r from-purple-600 via-pink-500 to-orange-400 text-white font-bold rounded-2xl hover:opacity-90 transition-all duration-300"
             >
               Fechar
