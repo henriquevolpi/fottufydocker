@@ -3,6 +3,7 @@ import { db } from "./db";
 import { users, newProjects } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import https from "https";
+import crypto from "crypto";
 
 const isUUID = (str: string) =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
@@ -153,17 +154,53 @@ mpRouter.get("/api/mp/photographer-status/:projectId", async (req: Request, res:
 // POST /api/mp/webhook — recebe notificações do MP sobre status de pagamentos
 mpRouter.post("/api/mp/webhook", async (req: Request, res: Response) => {
   try {
+    // Validação da assinatura secreta do MP
+    const webhookSecret = process.env.MP_WEBHOOK_SECRET || "";
+    if (webhookSecret) {
+      const xSignature = req.headers["x-signature"] as string | undefined;
+      const xRequestId = req.headers["x-request-id"] as string | undefined;
+      const dataId = (req.query["data.id"] || req.body?.data?.id) as string | undefined;
+
+      if (!xSignature) {
+        console.warn("[MP Webhook] Requisição sem x-signature rejeitada");
+        return res.sendStatus(401);
+      }
+
+      // Extrair ts e v1 do header x-signature (formato: ts=...;v1=...)
+      const parts: Record<string, string> = {};
+      for (const part of xSignature.split(";")) {
+        const [k, v] = part.split("=");
+        if (k && v) parts[k.trim()] = v.trim();
+      }
+
+      const manifest = [
+        parts.ts ? `ts:${parts.ts}` : null,
+        xRequestId ? `x-request-id:${xRequestId}` : null,
+        dataId ? `x-data-id:${dataId}` : null,
+      ]
+        .filter(Boolean)
+        .join(",");
+
+      const expectedHash = crypto
+        .createHmac("sha256", webhookSecret)
+        .update(manifest)
+        .digest("hex");
+
+      if (parts.v1 !== expectedHash) {
+        console.warn("[MP Webhook] Assinatura inválida rejeitada");
+        return res.sendStatus(401);
+      }
+    }
+
     const { type, data } = req.body;
-    // MP envia type="payment" quando um pagamento muda de status
     if (type === "payment" && data?.id) {
       console.log(`[MP Webhook] Notificação de pagamento recebida: ID=${data.id}`);
-      // Aqui futuramente: buscar detalhes do pagamento, atualizar status no banco etc.
     }
-    // Sempre responde 200 rapidamente para o MP não retentar
+
     res.sendStatus(200);
   } catch (e: any) {
     console.error("[MP Webhook] Erro:", e.message);
-    res.sendStatus(200); // ainda retorna 200 para não gerar reenvios
+    res.sendStatus(200);
   }
 });
 
