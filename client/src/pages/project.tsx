@@ -32,6 +32,8 @@ export default function ProjectView() {
   const [showScrollToTop, setShowScrollToTop] = useState(false);
   const [pixData, setPixData] = useState<{ qrCode: string; copiaECola: string } | null>(null);
   const [pixLoading, setPixLoading] = useState(false);
+  const [pixInternalId, setPixInternalId] = useState<string | null>(null);
+  const [pixStatus, setPixStatus] = useState<"pending" | "approved" | "rejected" | null>(null);
   
   // ============================================
   // CONTROLE DE SELEÇÃO DE FOTOS
@@ -65,11 +67,14 @@ export default function ProjectView() {
       const res = await apiRequest("POST", "/api/mp/create-payment", {
         projectId: id,
         amount: total,
-        description: `${extraPhotos} foto(s) extra(s) — ${project.name}`,
+        description: `${extraPhotos} foto(s) extra(s) — ${project.name || project.clientName || "Projeto"}`,
+        payerEmail: project.clientEmail || undefined,
       });
       const data = await res.json();
       if (data.pixCopiaECola || data.qrCodeBase64) {
         setPixData({ qrCode: data.qrCodeBase64 || "", copiaECola: data.pixCopiaECola || "" });
+        setPixInternalId(data.internalId || null);
+        setPixStatus("pending");
       } else {
         toast({ title: "Erro ao gerar Pix", description: data.error || "Tente novamente.", variant: "destructive" });
       }
@@ -79,6 +84,26 @@ export default function ProjectView() {
       setPixLoading(false);
     }
   };
+
+  // Polling de status do pagamento Pix — verifica a cada 5s até aprovar ou cancelar
+  useEffect(() => {
+    if (!pixInternalId || pixStatus === "approved" || pixStatus === "rejected") return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/mp/payment-status/${pixInternalId}`);
+        const data = await res.json();
+        if (data.status === "approved") {
+          setPixStatus("approved");
+          toast({ title: "Pagamento confirmado!", description: "Seu pagamento via Pix foi recebido." });
+          clearInterval(interval);
+        } else if (data.status === "rejected" || data.status === "cancelled") {
+          setPixStatus("rejected");
+          clearInterval(interval);
+        }
+      } catch { /* ignora erros de rede no polling */ }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [pixInternalId, pixStatus]);
 
   const markCommentsAsViewedMutation = useMutation({
     mutationFn: async (commentIds: string[]) => {
@@ -290,7 +315,7 @@ export default function ProjectView() {
       </div>
       
       {/* Finalized message modal */}
-      <Dialog open={finalizeDialogOpen} onOpenChange={(open) => { if (!open) { setPixData(null); } setFinalizeDialogOpen(open); }}>
+      <Dialog open={finalizeDialogOpen} onOpenChange={(open) => { if (!open) { setPixData(null); setPixInternalId(null); setPixStatus(null); } setFinalizeDialogOpen(open); }}>
         <DialogContent className="sm:max-w-md bg-white border border-gray-200 rounded-3xl shadow-2xl">
           <DialogHeader>
             <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-green-400 to-emerald-500 flex items-center justify-center">
@@ -308,7 +333,22 @@ export default function ProjectView() {
             selectedPhotos.length > project.includedPhotos &&
             project.additionalPhotoPrice && project.additionalPhotoPrice > 0 && (
             <div className="mt-2 rounded-2xl border border-[#009EE3]/30 bg-[#009EE3]/5 p-4">
-              {!pixData ? (
+              {pixStatus === "approved" ? (
+                <div className="flex flex-col items-center gap-2 py-2">
+                  <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center">
+                    <Check className="h-6 w-6 text-emerald-600" />
+                  </div>
+                  <p className="text-sm font-bold text-emerald-700 text-center">Pagamento confirmado!</p>
+                  <p className="text-xs text-slate-500 text-center">Seu Pix foi recebido. O fotógrafo já foi notificado.</p>
+                </div>
+              ) : pixStatus === "rejected" ? (
+                <div className="flex flex-col items-center gap-2 py-2">
+                  <p className="text-sm font-bold text-red-500 text-center">Pagamento não aprovado</p>
+                  <Button size="sm" variant="outline" className="rounded-xl text-xs" onClick={() => { setPixData(null); setPixInternalId(null); setPixStatus(null); }}>
+                    Tentar novamente
+                  </Button>
+                </div>
+              ) : !pixData ? (
                 <>
                   <p className="text-sm font-bold text-slate-800 text-center mb-1">
                     Pagar fotos extras via Pix
@@ -349,6 +389,9 @@ export default function ProjectView() {
                       <span className="truncate font-mono">{pixData.copiaECola}</span>
                     </button>
                   )}
+                  <p className="text-xs text-slate-400 text-center mt-2 flex items-center justify-center gap-1">
+                    <Loader2 className="h-3 w-3 animate-spin" /> Aguardando confirmação do pagamento...
+                  </p>
                 </>
               )}
             </div>

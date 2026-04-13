@@ -548,3 +548,27 @@ export type InsertNurturingEmail = z.infer<typeof insertNurturingEmailSchema>;
 // A tabela session é gerenciada pelo connect-pg-simple e não deve ser alterada pelo Drizzle
 // Formato atual no banco: sid (varchar), sess (json), expire (timestamp)
 // Esta abordagem previne tentativas de alteração da tabela session pelo Drizzle
+
+// ==================== MERCADO PAGO PAYMENTS TABLE ====================
+// Rastreamento de pagamentos Pix gerados via Mercado Pago
+export const mpPayments = pgTable("mp_payments", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  projectId: text("project_id").notNull(),         // public_id (V1) ou uuid (V2) do projeto
+  mpPaymentId: text("mp_payment_id").notNull(),     // ID do pagamento no Mercado Pago
+  status: text("status").notNull().default("pending"), // pending | approved | rejected | cancelled
+  amount: integer("amount").notNull(),              // Valor em centavos
+  payerEmail: text("payer_email"),                  // Email do cliente pagador
+  pixCopiaECola: text("pix_copia_e_cola"),          // Código copia e cola do Pix
+  qrCodeBase64: text("qr_code_base64"),             // QR code em base64
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertMpPaymentSchema = createInsertSchema(mpPayments).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type MpPayment = typeof mpPayments.$inferSelect;
+export type InsertMpPayment = z.infer<typeof insertMpPaymentSchema>;

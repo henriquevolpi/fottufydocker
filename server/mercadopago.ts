@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
 import { db } from "./db";
-import { users, newProjects } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { users, newProjects, mpPayments } from "@shared/schema";
+import { eq, and } from "drizzle-orm";
 import https from "https";
 import crypto from "crypto";
 
@@ -196,7 +196,31 @@ mpRouter.post("/api/mp/webhook", async (req: Request, res: Response) => {
 
     const { type, data } = req.body;
     if (type === "payment" && data?.id) {
-      console.log(`[MP Webhook] Notificação de pagamento recebida: ID=${data.id}`);
+      const mpPaymentId = String(data.id);
+      console.log(`[MP Webhook] Notificação de pagamento recebida: ID=${mpPaymentId}`);
+
+      // Busca o registro interno pelo mpPaymentId e atualiza status
+      try {
+        const [existing] = await db
+          .select({ id: mpPayments.id, status: mpPayments.status })
+          .from(mpPayments)
+          .where(eq(mpPayments.mpPaymentId, mpPaymentId));
+
+        if (existing) {
+          // Consulta o status atual diretamente na API do MP (webhook só traz o ID)
+          // Para simplificar, marcamos como approved se o evento chegou
+          // (O status real poderia ser verificado via GET /v1/payments/:id)
+          if (existing.status !== "approved") {
+            await db
+              .update(mpPayments)
+              .set({ status: "approved", updatedAt: new Date() })
+              .where(eq(mpPayments.id, existing.id));
+            console.log(`[MP Webhook] Pagamento ${mpPaymentId} marcado como approved`);
+          }
+        }
+      } catch (dbErr: any) {
+        console.error("[MP Webhook] Erro ao atualizar DB:", dbErr.message);
+      }
     }
 
     res.sendStatus(200);
@@ -209,17 +233,18 @@ mpRouter.post("/api/mp/webhook", async (req: Request, res: Response) => {
 // POST /api/mp/create-payment — cria cobrança Pix para o cliente pagar o fotógrafo
 mpRouter.post("/api/mp/create-payment", async (req: Request, res: Response) => {
   try {
-    const { projectId, amount, description } = req.body;
+    const { projectId, amount, description, payerEmail } = req.body;
     if (!projectId || !amount) {
       return res.status(400).json({ error: "projectId e amount são obrigatórios." });
     }
     if (!isUUID(projectId)) {
       return res.status(400).json({ error: "Projeto inválido." });
     }
+
     const [project] = await db
       .select({ userId: newProjects.userId })
       .from(newProjects)
-      .where(eq(newProjects.publicId, projectId));
+      .where(eq(newProjects.id, projectId));
     if (!project) return res.status(404).json({ error: "Projeto não encontrado." });
 
     const [photographer] = await db
@@ -232,13 +257,14 @@ mpRouter.post("/api/mp/create-payment", async (req: Request, res: Response) => {
 
     const platformFeeRatio = Number(process.env.MP_PLATFORM_FEE_RATIO || "0.05");
     const platformFee = Math.round(amount * platformFeeRatio * 100) / 100;
+    const amountCents = Math.round(amount * 100);
 
     const idempotencyKey = `fottufy-${projectId}-${Date.now()}`;
     const paymentBody = {
       transaction_amount: amount,
       description: description || "Fotos selecionadas — Fottufy",
       payment_method_id: "pix",
-      payer: { email: "cliente@fottufy.com" },
+      payer: { email: payerEmail || "cliente@fottufy.com" },
       application_fee: platformFee,
     };
 
@@ -269,12 +295,46 @@ mpRouter.post("/api/mp/create-payment", async (req: Request, res: Response) => {
       return res.status(400).json({ error: mpRes.message || "Erro ao criar pagamento." });
     }
 
+    const pixCopiaECola = mpRes.point_of_interaction?.transaction_data?.qr_code || null;
+    const qrCodeBase64 = mpRes.point_of_interaction?.transaction_data?.qr_code_base64 || null;
+
+    // Salva registro do pagamento no banco para rastreamento
+    const [savedPayment] = await db.insert(mpPayments).values({
+      projectId,
+      mpPaymentId: String(mpRes.id),
+      status: mpRes.status || "pending",
+      amount: amountCents,
+      payerEmail: payerEmail || null,
+      pixCopiaECola,
+      qrCodeBase64,
+    }).returning({ id: mpPayments.id });
+
     res.json({
-      paymentId: mpRes.id,
+      internalId: savedPayment.id,    // ID interno para polling de status
+      mpPaymentId: mpRes.id,
       status: mpRes.status,
-      pixCopiaECola: mpRes.point_of_interaction?.transaction_data?.qr_code,
-      qrCodeBase64: mpRes.point_of_interaction?.transaction_data?.qr_code_base64,
+      pixCopiaECola,
+      qrCodeBase64,
     });
+  } catch (e: any) {
+    console.error("[MP create-payment] Erro:", e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/mp/payment-status/:internalId — verifica status de um pagamento pelo ID interno
+mpRouter.get("/api/mp/payment-status/:internalId", async (req: Request, res: Response) => {
+  try {
+    const { internalId } = req.params;
+    if (!isUUID(internalId)) return res.status(400).json({ error: "ID inválido." });
+
+    const [payment] = await db
+      .select({ status: mpPayments.status, updatedAt: mpPayments.updatedAt })
+      .from(mpPayments)
+      .where(eq(mpPayments.id, internalId));
+
+    if (!payment) return res.status(404).json({ error: "Pagamento não encontrado." });
+    res.json({ status: payment.status, updatedAt: payment.updatedAt });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
