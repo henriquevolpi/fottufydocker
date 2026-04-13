@@ -150,6 +150,23 @@ mpRouter.get("/api/mp/photographer-status/:projectId", async (req: Request, res:
   }
 });
 
+// POST /api/mp/webhook — recebe notificações do MP sobre status de pagamentos
+mpRouter.post("/api/mp/webhook", async (req: Request, res: Response) => {
+  try {
+    const { type, data } = req.body;
+    // MP envia type="payment" quando um pagamento muda de status
+    if (type === "payment" && data?.id) {
+      console.log(`[MP Webhook] Notificação de pagamento recebida: ID=${data.id}`);
+      // Aqui futuramente: buscar detalhes do pagamento, atualizar status no banco etc.
+    }
+    // Sempre responde 200 rapidamente para o MP não retentar
+    res.sendStatus(200);
+  } catch (e: any) {
+    console.error("[MP Webhook] Erro:", e.message);
+    res.sendStatus(200); // ainda retorna 200 para não gerar reenvios
+  }
+});
+
 // POST /api/mp/create-payment — cria cobrança Pix para o cliente pagar o fotógrafo
 mpRouter.post("/api/mp/create-payment", async (req: Request, res: Response) => {
   try {
