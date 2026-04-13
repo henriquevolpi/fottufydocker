@@ -2572,7 +2572,7 @@ export default function Dashboard() {
 </DialogContent>
 </Dialog>
 
-    {/* <MpConnect /> — oculto temporariamente até integração MP estar pronta */}
+    <MpConnect />
 
     <div className="mt-8 mb-6 text-center">
       <p className="text-xs text-slate-400">
