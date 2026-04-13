@@ -58,6 +58,10 @@ export const users = pgTable("users", {
   // Bônus por indicações convertidas
   bonusPhotos: integer("bonus_photos").default(0), // Fotos extras ganhas por indicações (+1000 por indicação)
   isAmbassador: boolean("is_ambassador").default(false), // Selo de embaixador (ganhou ao menos 1 indicação convertida)
+
+  // Mercado Pago — conta do fotógrafo para receber pagamentos dos clientes
+  mpAccessToken: text("mp_access_token"),  // Token OAuth do fotógrafo (salvo via OAuth MP)
+  mpUserId: text("mp_user_id"),            // ID da conta MP do fotógrafo
 });
 
 // Relations for users

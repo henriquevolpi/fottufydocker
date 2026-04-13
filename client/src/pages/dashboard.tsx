@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import PromotionalBanner from "@/components/PromotionalBanner";
+import { MpConnect } from "@/components/mp-connect";
 import { Button } from "@/components/ui/button";
 import { useLocation, Link } from "wouter";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -2571,7 +2572,9 @@ export default function Dashboard() {
 </DialogContent>
 </Dialog>
 
-    <div className="mt-16 mb-6 text-center">
+    <MpConnect />
+
+    <div className="mt-8 mb-6 text-center">
       <p className="text-xs text-slate-400">
         A Fottufy é uma plataforma de <strong>seleção e entrega</strong> de fotos, não de armazenamento. Fotos de contas inativas podem ser removidas.{' '}
         <a href="https://fottufy.com/termos" target="_blank" rel="noopener" className="underline hover:text-slate-500 transition-colors">Saiba mais</a>

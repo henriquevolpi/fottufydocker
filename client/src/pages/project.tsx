@@ -4,10 +4,11 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import PhotoCard from "@/components/photo-card";
 import { Project } from "@shared/schema";
-import { Check, Edit, ArrowLeftCircle, MessageCircle, Eye, Loader2, ArrowUp } from "lucide-react";
+import { Check, Edit, ArrowLeftCircle, MessageCircle, Eye, Loader2, ArrowUp, QrCode, Copy } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { CopyNamesButton } from "@/components/copy-names-button";
+import { SiMercadopago } from "react-icons/si";
 import {
   Dialog,
   DialogContent,
@@ -29,6 +30,8 @@ export default function ProjectView() {
   const [showCommentsModal, setShowCommentsModal] = useState(false);
   const [comments, setComments] = useState<any[]>([]);
   const [showScrollToTop, setShowScrollToTop] = useState(false);
+  const [pixData, setPixData] = useState<{ qrCode: string; copiaECola: string } | null>(null);
+  const [pixLoading, setPixLoading] = useState(false);
   
   // ============================================
   // CONTROLE DE SELEÇÃO DE FOTOS
@@ -44,6 +47,38 @@ export default function ProjectView() {
     queryKey: [`/api/projects/${id}/comments`],
     enabled: showCommentsModal && !!id,
   });
+
+  // Verifica se o fotógrafo aceitará pagamento via MP
+  const { data: mpStatus } = useQuery<{ acceptsPayment: boolean }>({
+    queryKey: [`/api/mp/photographer-status/${id}`],
+    enabled: !!id,
+  });
+
+  const handlePixPayment = async () => {
+    if (!project) return;
+    const extraPhotos = Math.max(0, selectedPhotos.length - (project.includedPhotos || 0));
+    const pricePerPhoto = Number(project.additionalPhotoPrice || 0) / 100;
+    const total = extraPhotos * pricePerPhoto;
+    if (total <= 0) return;
+    setPixLoading(true);
+    try {
+      const res = await apiRequest("POST", "/api/mp/create-payment", {
+        projectId: id,
+        amount: total,
+        description: `${extraPhotos} foto(s) extra(s) — ${project.name}`,
+      });
+      const data = await res.json();
+      if (data.pixCopiaECola || data.qrCodeBase64) {
+        setPixData({ qrCode: data.qrCodeBase64 || "", copiaECola: data.pixCopiaECola || "" });
+      } else {
+        toast({ title: "Erro ao gerar Pix", description: data.error || "Tente novamente.", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Erro ao gerar Pix", variant: "destructive" });
+    } finally {
+      setPixLoading(false);
+    }
+  };
 
   const markCommentsAsViewedMutation = useMutation({
     mutationFn: async (commentIds: string[]) => {
@@ -255,7 +290,7 @@ export default function ProjectView() {
       </div>
       
       {/* Finalized message modal */}
-      <Dialog open={finalizeDialogOpen} onOpenChange={setFinalizeDialogOpen}>
+      <Dialog open={finalizeDialogOpen} onOpenChange={(open) => { if (!open) { setPixData(null); } setFinalizeDialogOpen(open); }}>
         <DialogContent className="sm:max-w-md bg-white border border-gray-200 rounded-3xl shadow-2xl">
           <DialogHeader>
             <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-green-400 to-emerald-500 flex items-center justify-center">
@@ -266,9 +301,62 @@ export default function ProjectView() {
               Obrigado por fazer sua seleção. Seu fotógrafo foi notificado e processará as fotos selecionadas. Você selecionou {selectedPhotos.length} de {project.photos?.length || 0} fotos.
             </DialogDescription>
           </DialogHeader>
+
+          {/* Bloco de pagamento Pix — aparece apenas se fotógrafo tem MP e há fotos extras */}
+          {mpStatus?.acceptsPayment &&
+            project.includedPhotos && project.includedPhotos > 0 &&
+            selectedPhotos.length > project.includedPhotos &&
+            project.additionalPhotoPrice && project.additionalPhotoPrice > 0 && (
+            <div className="mt-2 rounded-2xl border border-[#009EE3]/30 bg-[#009EE3]/5 p-4">
+              {!pixData ? (
+                <>
+                  <p className="text-sm font-bold text-slate-800 text-center mb-1">
+                    Pagar fotos extras via Pix
+                  </p>
+                  <p className="text-xs text-slate-500 text-center mb-3">
+                    {selectedPhotos.length - project.includedPhotos} foto(s) extra(s) ×{" "}
+                    R$ {(project.additionalPhotoPrice / 100).toFixed(2).replace(".", ",")} ={" "}
+                    <strong className="text-slate-700">
+                      R$ {((selectedPhotos.length - project.includedPhotos) * project.additionalPhotoPrice / 100).toFixed(2).replace(".", ",")}
+                    </strong>
+                  </p>
+                  <Button
+                    onClick={handlePixPayment}
+                    disabled={pixLoading}
+                    className="w-full rounded-xl bg-[#009EE3] hover:bg-[#0082c1] text-white font-bold text-sm"
+                  >
+                    {pixLoading ? (
+                      <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Gerando Pix...</>
+                    ) : (
+                      <><SiMercadopago className="h-4 w-4 mr-2" /> Pagar agora via Pix</>
+                    )}
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <p className="text-xs font-bold text-slate-700 text-center mb-2">Escaneie o QR code ou copie o código Pix</p>
+                  {pixData.qrCode && (
+                    <div className="flex justify-center mb-3">
+                      <img src={`data:image/png;base64,${pixData.qrCode}`} alt="QR Code Pix" className="w-40 h-40 rounded-xl border border-slate-200" />
+                    </div>
+                  )}
+                  {pixData.copiaECola && (
+                    <button
+                      onClick={() => { navigator.clipboard.writeText(pixData.copiaECola); toast({ title: "Código Pix copiado!" }); }}
+                      className="w-full flex items-center gap-2 p-2.5 rounded-xl bg-white border border-slate-200 text-xs text-slate-600 hover:bg-slate-50 transition-colors"
+                    >
+                      <Copy className="h-3.5 w-3.5 flex-shrink-0 text-[#009EE3]" />
+                      <span className="truncate font-mono">{pixData.copiaECola}</span>
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
           <DialogFooter className="mt-4">
             <Button 
-              onClick={() => setFinalizeDialogOpen(false)}
+              onClick={() => { setPixData(null); setFinalizeDialogOpen(false); }}
               className="w-full bg-gradient-to-r from-purple-600 via-pink-500 to-orange-400 text-white font-bold rounded-2xl hover:opacity-90 transition-all duration-300"
             >
               Fechar

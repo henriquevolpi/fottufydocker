@@ -41,6 +41,7 @@ import { eq, and, or, not, desc, count, sql, inArray } from "drizzle-orm";
 import { processImage } from "./imageProcessor";
 import { sendEmail } from "./utils/sendEmail";
 import { sendWelcomeEmail } from "./utils/welcomeEmail";
+import { mpRouter } from "./mercadopago";
 
 // Normaliza nome de arquivo para NFC (resolve acentos decompostos do macOS)
 const nfc = (s: string) => s.normalize('NFC');
@@ -6104,6 +6105,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // 1. Primeiro, registre um middleware para garantir que todos os arquivos sejam servidos com o MIME type correto
+  app.use(mpRouter);
+
   app.use((req: Request, res: Response, next: NextFunction) => {
     const path = req.path;
     
