@@ -14,12 +14,30 @@ const MP_CLIENT_ID = process.env.MP_CLIENT_ID || "";
 const MP_CLIENT_SECRET = process.env.MP_CLIENT_SECRET || "";
 const MP_REDIRECT_URI = process.env.MP_REDIRECT_URI || "";
 
+// Mapa temporário de state OAuth → userId (TTL 10 minutos)
+// Evita dependência de sessão no callback (que chega via redirect externo)
+const oauthStateMap = new Map<string, { userId: number; expiresAt: number }>();
+
 function isLoggedIn(req: Request, res: Response): boolean {
   if (!req.isAuthenticated || !req.isAuthenticated()) {
     res.status(401).json({ error: "Não autenticado" });
     return false;
   }
   return true;
+}
+
+function generateOAuthState(userId: number): string {
+  const token = crypto.randomBytes(24).toString("hex");
+  oauthStateMap.set(token, { userId, expiresAt: Date.now() + 10 * 60 * 1000 });
+  return token;
+}
+
+function consumeOAuthState(token: string): number | null {
+  const entry = oauthStateMap.get(token);
+  if (!entry) return null;
+  oauthStateMap.delete(token);
+  if (Date.now() > entry.expiresAt) return null;
+  return entry.userId;
 }
 
 function mpPost(path: string, body: object): Promise<any> {
@@ -75,22 +93,43 @@ mpRouter.get("/api/mp/auth-url", (req: Request, res: Response) => {
   if (!MP_CLIENT_ID || !MP_REDIRECT_URI) {
     return res.status(503).json({ error: "Integração com Mercado Pago não configurada ainda." });
   }
+  // Gera um state token que carrega o userId — o callback usa isso em vez da sessão
+  const userId = (req.user as any).id;
+  const state = generateOAuthState(userId);
   const url =
     `https://auth.mercadopago.com.br/authorization?client_id=${MP_CLIENT_ID}` +
-    `&response_type=code&platform_id=mp&redirect_uri=${encodeURIComponent(MP_REDIRECT_URI)}`;
+    `&response_type=code&platform_id=mp` +
+    `&redirect_uri=${encodeURIComponent(MP_REDIRECT_URI)}` +
+    `&state=${state}`;
   res.json({ url });
 });
 
 // GET /api/mp/callback — Recebe o code do OAuth e salva o token do fotógrafo
+// NÃO requer sessão ativa — o userId vem do state parameter (gerado em auth-url)
 mpRouter.get("/api/mp/callback", async (req: Request, res: Response) => {
-  if (!isLoggedIn(req, res)) return;
-  const { code } = req.query;
+  const { code, state } = req.query;
+
   if (!code || typeof code !== "string") {
-    return res.status(400).json({ error: "Código de autorização ausente." });
+    console.warn("[MP OAuth callback] Código de autorização ausente");
+    return res.redirect("/dashboard?mp=error");
   }
+
+  if (!state || typeof state !== "string") {
+    console.warn("[MP OAuth callback] State OAuth ausente — possível CSRF ou link expirado");
+    return res.redirect("/dashboard?mp=error");
+  }
+
+  // Valida e consome o state para obter o userId sem precisar de sessão
+  const userId = consumeOAuthState(state);
+  if (!userId) {
+    console.warn("[MP OAuth callback] State inválido ou expirado");
+    return res.redirect("/dashboard?mp=error");
+  }
+
   if (!MP_CLIENT_ID || !MP_CLIENT_SECRET || !MP_REDIRECT_URI) {
-    return res.status(503).json({ error: "Integração não configurada." });
+    return res.redirect("/dashboard?mp=error");
   }
+
   try {
     const token = await mpPost("/oauth/token", {
       client_id: MP_CLIENT_ID,
@@ -100,13 +139,14 @@ mpRouter.get("/api/mp/callback", async (req: Request, res: Response) => {
       redirect_uri: MP_REDIRECT_URI,
     });
     if (!token.access_token) {
+      console.error("[MP OAuth callback] Token sem access_token:", token);
       return res.redirect("/dashboard?mp=error");
     }
-    const userId = (req.user as any).id;
     await db
       .update(users)
       .set({ mpAccessToken: token.access_token, mpUserId: String(token.user_id) })
       .where(eq(users.id, userId));
+    console.log(`[MP OAuth callback] Fotógrafo ${userId} conectou conta MP ${token.user_id}`);
     res.redirect("/dashboard?mp=connected");
   } catch (e: any) {
     console.error("[MP OAuth callback] Erro:", e.message);
