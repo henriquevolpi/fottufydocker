@@ -154,9 +154,10 @@ mpRouter.get("/api/mp/photographer-status/:projectId", async (req: Request, res:
 // POST /api/mp/webhook — recebe notificações do MP sobre status de pagamentos
 mpRouter.post("/api/mp/webhook", async (req: Request, res: Response) => {
   try {
-    // Validação da assinatura secreta do MP
+    // Validação da assinatura secreta do MP (apenas em live_mode)
     const webhookSecret = process.env.MP_WEBHOOK_SECRET || "";
-    if (webhookSecret) {
+    const isLiveMode = req.body?.live_mode !== false;
+    if (webhookSecret && isLiveMode) {
       const xSignature = req.headers["x-signature"] as string | undefined;
       const xRequestId = req.headers["x-request-id"] as string | undefined;
       const dataId = (req.query["data.id"] || req.body?.data?.id) as string | undefined;
