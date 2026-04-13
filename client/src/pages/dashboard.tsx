@@ -1424,7 +1424,7 @@ function Statistics({ setLocation, user }: { setLocation: (path: string) => void
         </span>
       </div>
       
-      <div className={`grid gap-2 sm:gap-4 ${(user?.billingPeriod === 'yearly' || user?.isManualActivation || user?.role === 'admin') ? 'grid-cols-2 sm:grid-cols-4 lg:grid-cols-4' : 'grid-cols-3 sm:grid-cols-3 lg:grid-cols-3'}`}>
+      <div className={`grid gap-2 sm:gap-4 ${(user?.billingPeriod === 'yearly' || user?.isManualActivation || user?.role === 'admin') ? 'grid-cols-2 sm:grid-cols-4 lg:grid-cols-4' : 'grid-cols-2 sm:grid-cols-2 lg:grid-cols-2'}`}>
         {/* Active projects card - Glassmorphism Style */}
         <div className="relative group">
           <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl sm:rounded-3xl blur-xl opacity-20 group-hover:opacity-30 transition-opacity"></div>
@@ -1479,32 +1479,32 @@ function Statistics({ setLocation, user }: { setLocation: (path: string) => void
         <div className="relative group">
           <div className={`absolute inset-0 rounded-2xl sm:rounded-3xl blur-xl transition-opacity ${planInfo.planType !== 'free' ? 'bg-gradient-to-br from-slate-700 to-slate-900 opacity-25 group-hover:opacity-35' : 'bg-gradient-to-br from-violet-400 to-purple-500 opacity-20 group-hover:opacity-30'}`}></div>
           <Card onClick={() => setLocation("/subscription")} className={`relative cursor-pointer shadow-lg sm:shadow-xl backdrop-blur-xl hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] rounded-2xl sm:rounded-3xl overflow-hidden h-full ${planInfo.planType !== 'free' ? 'border-2 border-slate-300 dark:border-slate-600 bg-gradient-to-br from-white via-slate-50 to-slate-100 dark:from-slate-800 dark:via-slate-850 dark:to-slate-900' : 'border-2 border-violet-300 dark:border-violet-700 bg-white/80 dark:bg-slate-900/80'}`}>
-            <CardContent className="p-4 sm:p-6">
-              {/* Header: ícone + info lado a lado em qualquer tamanho */}
-              <div className="flex items-center gap-3 sm:gap-4 mb-3 sm:mb-4">
-                <div className={`shrink-0 w-10 h-10 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform ${planInfo.planType !== 'free' ? 'bg-gradient-to-br from-slate-700 to-slate-900 shadow-lg shadow-slate-500/30' : 'bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/20'}`}>
+            <CardContent className="p-3 sm:p-6">
+              {/* Header: ícone + info — vertical no mobile, horizontal no sm+ */}
+              <div className="flex flex-col sm:flex-row items-center sm:gap-4 mb-2 sm:mb-4">
+                <div className={`w-8 h-8 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform mb-1 sm:mb-0 ${planInfo.planType !== 'free' ? 'bg-gradient-to-br from-slate-700 to-slate-900 shadow-lg shadow-slate-500/30' : 'bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/20'}`}>
                   {planInfo.planType !== 'free' ? (
-                    <Crown className="h-5 w-5 sm:h-7 sm:w-7 text-white" />
+                    <Crown className="h-4 w-4 sm:h-7 sm:w-7 text-white" />
                   ) : (
-                    <CreditCard className="h-5 w-5 sm:h-7 sm:w-7 text-white" />
+                    <CreditCard className="h-4 w-4 sm:h-7 sm:w-7 text-white" />
                   )}
                 </div>
-                <div className="min-w-0">
-                  <p className="text-[10px] sm:text-xs font-black text-slate-400 uppercase tracking-widest">Plano</p>
+                <div className="text-center sm:text-left min-w-0">
+                  <p className="text-[8px] sm:text-xs font-black text-slate-400 uppercase tracking-widest">Plano</p>
                   {planInfo.planType !== 'free' ? (
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-base sm:text-lg font-black text-transparent bg-clip-text bg-gradient-to-r from-slate-800 to-slate-600 dark:from-white dark:to-slate-300 tracking-tight leading-tight">
+                    <div className="flex items-center justify-center sm:justify-start gap-1.5 flex-wrap">
+                      <span className="text-sm sm:text-lg font-black text-transparent bg-clip-text bg-gradient-to-r from-slate-800 to-slate-600 dark:from-white dark:to-slate-300 tracking-tight leading-tight">
                         {planInfo.planType === 'basic' || planInfo.planType === 'basic_v2' ? 'Básico' :
                          planInfo.planType === 'standard' || planInfo.planType === 'standard_v2' ? 'Fotógrafo' :
                          planInfo.planType === 'professional' || planInfo.planType === 'professional_v2' ? 'Estúdio' :
                          planInfo.planType.charAt(0).toUpperCase() + planInfo.planType.slice(1)}
                       </span>
                       {user?.billingPeriod === 'yearly' && (
-                        <span className="text-[9px] px-2 py-0.5 bg-amber-100 text-amber-700 font-bold rounded-full uppercase tracking-wider">Anual</span>
+                        <span className="text-[9px] px-1.5 py-0.5 bg-amber-100 text-amber-700 font-bold rounded-full uppercase tracking-wider">Anual</span>
                       )}
                     </div>
                   ) : (
-                    <p className="text-base font-bold text-slate-600 dark:text-slate-300">Gratuito</p>
+                    <p className="text-xs sm:text-base font-bold text-slate-600 dark:text-slate-300">Gratuito</p>
                   )}
                 </div>
               </div>
