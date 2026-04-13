@@ -412,7 +412,8 @@ mpRouter.post("/api/mp/create-preference", async (req: Request, res: Response) =
       ? "https://fottufy.com"
       : `http://localhost:${process.env.PORT || 5000}`;
 
-    const preferenceBody = {
+    const isPublicHttps = baseUrl.startsWith("https://");
+    const preferenceBody: Record<string, any> = {
       items: [{
         title: description || "Fotos selecionadas — Fottufy",
         quantity: 1,
@@ -424,7 +425,8 @@ mpRouter.post("/api/mp/create-preference", async (req: Request, res: Response) =
         failure: `${baseUrl}/project-view/${projectId}?payment=failure`,
         pending: `${baseUrl}/project-view/${projectId}?payment=pending`,
       },
-      auto_return: "approved",
+      // auto_return exige back_url HTTPS pública — só enviar em produção
+      ...(isPublicHttps ? { auto_return: "approved" } : {}),
     };
 
     const mpRes = await new Promise<any>((resolve, reject) => {
