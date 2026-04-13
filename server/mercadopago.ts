@@ -373,7 +373,6 @@ mpRouter.post("/api/mp/create-payment", async (req: Request, res: Response) => {
       description: description || "Fotos selecionadas — Fottufy",
       payment_method_id: "pix",
       payer: { email: payerEmail || "cliente@fottufy.com" },
-      marketplace_fee: calcFee(parsedAmount),
     };
 
     const mpRes = await new Promise<any>((resolve, reject) => {
