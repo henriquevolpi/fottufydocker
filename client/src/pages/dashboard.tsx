@@ -1491,8 +1491,8 @@ function Statistics({ setLocation, user }: { setLocation: (path: string) => void
                 <div className="text-center sm:text-left">
                   <p className="text-[8px] sm:text-xs font-black text-slate-400 uppercase tracking-widest">Plano</p>
                   {planInfo.planType !== 'free' ? (
-                    <div className="hidden sm:flex items-center gap-2">
-                      <span className="text-lg font-black text-transparent bg-clip-text bg-gradient-to-r from-slate-800 to-slate-600 dark:from-white dark:to-slate-300 tracking-tight">
+                    <div className="flex items-center justify-center sm:justify-start gap-2">
+                      <span className="text-sm sm:text-lg font-black text-transparent bg-clip-text bg-gradient-to-r from-slate-800 to-slate-600 dark:from-white dark:to-slate-300 tracking-tight">
                         {planInfo.planType === 'basic' || planInfo.planType === 'basic_v2' ? 'Básico' : 
                          planInfo.planType === 'standard' || planInfo.planType === 'standard_v2' ? 'Fotógrafo' : 
                          planInfo.planType === 'professional' || planInfo.planType === 'professional_v2' ? 'Estúdio' : 
@@ -1503,7 +1503,7 @@ function Statistics({ setLocation, user }: { setLocation: (path: string) => void
                       )}
                     </div>
                   ) : (
-                    <p className="hidden sm:block text-sm font-medium text-slate-600 dark:text-slate-300">
+                    <p className="text-sm font-medium text-slate-600 dark:text-slate-300">
                       Gratuito
                     </p>
                   )}
@@ -1524,9 +1524,9 @@ function Statistics({ setLocation, user }: { setLocation: (path: string) => void
                 </div>
               </div>
             </CardContent>
-            <CardFooter className="hidden sm:block px-4 pb-4 pt-0">
+            <CardFooter className="px-3 sm:px-4 pb-3 sm:pb-4 pt-0">
               <Button 
-                className="w-full font-bold text-xs tracking-wide uppercase py-3 rounded-xl transition-all bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg shadow-purple-500/20 hover:scale-105"
+                className="w-full font-bold text-xs tracking-wide uppercase py-2.5 sm:py-3 rounded-xl transition-all bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg shadow-purple-500/20 hover:scale-105"
                 onClick={() => setLocation("/subscription")}
               >
                 <Settings className="mr-2 h-3 w-3" />
