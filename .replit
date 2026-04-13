@@ -48,3 +48,9 @@ waitForPort = 5000
 
 [agent]
 integrations = ["javascript_stripe:1.0.0"]
+
+[userenv]
+
+[userenv.shared]
+MP_CLIENT_ID = "531921236668170"
+MP_REDIRECT_URI = "https://fottufy.com/api/mp/callback"
