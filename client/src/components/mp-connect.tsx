@@ -323,39 +323,50 @@ export function MpConnect() {
       <div className="max-w-xl mx-auto">
         {/* Se já conectado: card de status com acesso ao modal */}
         {status?.connected ? (
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 shadow-sm p-5 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center flex-shrink-0">
-              <SiMercadopago className="w-7 h-7 text-emerald-600" />
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 shadow-sm p-4 sm:p-5">
+            {/* Linha principal: ícone + título + botões */}
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                <SiMercadopago className="w-6 h-6 sm:w-7 sm:h-7 text-emerald-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-slate-800 leading-tight">Mercado Pago conectado</p>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="hidden sm:flex rounded-xl text-xs text-slate-500 hover:text-slate-700"
+                  onClick={() => setShowPromo(true)}
+                >
+                  Como funciona
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-xl text-xs border-red-200 text-red-500 hover:bg-red-50 hover:border-red-300"
+                  onClick={() => disconnectMutation.mutate()}
+                  disabled={disconnectMutation.isPending}
+                >
+                  {disconnectMutation.isPending ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <><Unlink className="h-3.5 w-3.5 mr-1" /> Desconectar</>
+                  )}
+                </Button>
+              </div>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-slate-800">Mercado Pago conectado</p>
-              <p className="text-xs text-emerald-600 flex items-center gap-1 mt-0.5 font-medium">
-                <CheckCircle2 className="h-3.5 w-3.5" /> Clientes pagam via Pix e Cartão ao finalizar
-              </p>
-            </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="rounded-xl text-xs text-slate-500 hover:text-slate-700"
-                onClick={() => setShowPromo(true)}
-              >
-                Como funciona
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="rounded-xl text-xs border-red-200 text-red-500 hover:bg-red-50 hover:border-red-300"
-                onClick={() => disconnectMutation.mutate()}
-                disabled={disconnectMutation.isPending}
-              >
-                {disconnectMutation.isPending ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <><Unlink className="h-3.5 w-3.5 mr-1" /> Desconectar</>
-                )}
-              </Button>
-            </div>
+            {/* Descrição abaixo da linha principal */}
+            <p className="text-xs text-emerald-600 flex items-center gap-1 mt-2.5 ml-[52px] sm:ml-[60px] font-medium">
+              <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0" /> Clientes pagam via Pix e Cartão ao finalizar
+            </p>
+            {/* Link "Como funciona" só no mobile */}
+            <button
+              className="sm:hidden mt-2 ml-[52px] text-xs text-slate-500 underline underline-offset-2"
+              onClick={() => setShowPromo(true)}
+            >
+              Como funciona
+            </button>
           </div>
         ) : isLoading ? (
           <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-5 flex items-center gap-4">
