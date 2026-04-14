@@ -3932,8 +3932,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(404).json({ error: "Usuário não encontrado" });
         }
         
+        // Mapa de limites de upload por plano
+        const subPlanLimits: Record<string, number> = {
+          'basico': 6000,
+          'fotografo': 17000,
+          'estudio': 40000
+        };
+
         // Processar conforme o tipo de evento
-        if (event.type === 'customer.subscription.deleted') {
+        if (event.type === 'customer.subscription.created') {
+          // Ativação via subscription.created — net de segurança caso checkout.session.completed falhe
+          if (subscription.status === 'active' || subscription.status === 'trialing') {
+            const planType = subscription.metadata?.planType || user.planType || 'basico';
+            const billingCycle = subscription.metadata?.billingCycle || 'monthly';
+            const uploadLimit = subPlanLimits[planType] || 6000;
+            const endDate = new Date(subscription.current_period_end * 1000);
+            const startDate = new Date(subscription.current_period_start * 1000);
+
+            // Só ativa se o usuário não tem uma assinatura ativa mais recente
+            if (user.subscriptionStatus !== 'active' || !user.stripeSubscriptionId) {
+              await storage.updateUser(userId, {
+                planType,
+                uploadLimit,
+                subscriptionStatus: 'active',
+                subscriptionStartDate: startDate,
+                subscriptionEndDate: endDate,
+                billingPeriod: billingCycle,
+                stripeSubscriptionId: subscription.id
+              } as any);
+              console.log(`[Stripe Webhook] subscription.created → plano ${planType} ativado para usuário ${userId}`);
+            } else {
+              console.log(`[Stripe Webhook] subscription.created ignorado — usuário ${userId} já tem plano ativo`);
+            }
+          }
+        } else if (event.type === 'customer.subscription.deleted') {
           // Antes de rebaixar, verificar se o usuário tem OUTRAS assinaturas ativas
           // Isso protege contra downgrade acidental quando uma assinatura duplicada é cancelada
           let hasOtherActiveSub = false;
@@ -3982,14 +4014,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (subscription.status === 'active') {
             const planType = subscription.metadata?.planType || user.planType;
             const billingCycle = subscription.metadata?.billingCycle || 'monthly';
-            
-            const planLimits: Record<string, number> = {
-              'basico': 6000,
-              'fotografo': 17000,
-              'estudio': 40000
-            };
-            const uploadLimit = planLimits[planType] || 6000;
-            
+            const uploadLimit = subPlanLimits[planType] || 6000;
             const endDate = new Date(subscription.current_period_end * 1000);
             
             await storage.updateUser(userId, {
@@ -3997,7 +4022,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               uploadLimit: uploadLimit,
               subscriptionStatus: 'active',
               subscriptionEndDate: endDate,
-              billingPeriod: billingCycle
+              billingPeriod: billingCycle,
+              stripeSubscriptionId: subscription.id   // garante que está sempre salvo
             } as any);
             
             console.log(`[Stripe Webhook] Assinatura atualizada para usuário ${userId}: ${planType}`);
@@ -4014,25 +4040,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Processar invoice.paid (renovação de assinatura)
+      // Processar invoice.paid (renovação de assinatura + ativação fallback)
       if (event.type === 'invoice.paid') {
         const invoice = event.data.object;
         console.log(`[Stripe Webhook] Invoice paga: ${invoice.id}`);
         
         if (invoice.subscription) {
-          // Buscar usuário pelo subscription ID
           const allUsers = await storage.getUsers();
-          const user = allUsers.find(u => u.stripeSubscriptionId === invoice.subscription);
+          // Busca primária: pelo subscriptionId já salvo (renovações)
+          let user = allUsers.find(u => u.stripeSubscriptionId === invoice.subscription);
+          
+          // Busca fallback: pelo customerId (primeira fatura — subscriptionId ainda não salvo)
+          if (!user && invoice.customer) {
+            user = allUsers.find(u => u.stripeCustomerId === invoice.customer);
+            if (user) {
+              console.log(`[Stripe Webhook] invoice.paid — usuário encontrado pelo customerId (primeira fatura)`);
+            }
+          }
           
           if (user) {
-            // Atualizar data de fim da assinatura
+            const subscriptionId = typeof invoice.subscription === 'string' ? invoice.subscription : (invoice.subscription as any)?.id;
             const periodEnd = new Date((invoice.lines?.data?.[0]?.period?.end || Date.now() / 1000) * 1000);
-            await storage.updateUser(user.id, {
+            
+            // Na primeira fatura, também salva o subscriptionId se ainda não estiver salvo
+            const updatePayload: any = {
               subscriptionStatus: 'active',
               subscriptionEndDate: periodEnd,
               lastPaymentDate: new Date()
-            } as any);
-            console.log(`[Stripe Webhook] Renovação processada para usuário ${user.id}`);
+            };
+            if (subscriptionId && !user.stripeSubscriptionId) {
+              updatePayload.stripeSubscriptionId = subscriptionId;
+              console.log(`[Stripe Webhook] invoice.paid — salvando stripeSubscriptionId ${subscriptionId} para usuário ${user.id}`);
+            }
+
+            await storage.updateUser(user.id, updatePayload);
+            console.log(`[Stripe Webhook] invoice.paid → usuário ${user.id} confirmado ativo até ${periodEnd.toISOString()}`);
+          } else {
+            console.warn(`[Stripe Webhook] invoice.paid — usuário não encontrado (subscription: ${invoice.subscription}, customer: ${invoice.customer})`);
           }
         }
         
