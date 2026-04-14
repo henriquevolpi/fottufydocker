@@ -1727,18 +1727,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const planType = activeSub.metadata?.planType || user.planType || 'basico';
         const billingCycle = activeSub.metadata?.billingCycle || 'monthly';
         const uploadLimit = planLimits[planType] || 6000;
-        const endDate = new Date(activeSub.current_period_end * 1000);
-        const startDate = new Date(activeSub.current_period_start * 1000);
 
-        await storage.updateUser(userId, {
+        // Logar valores brutos para diagnóstico
+        console.log(`[Stripe-Sync] current_period_start raw: ${activeSub.current_period_start} (type: ${typeof activeSub.current_period_start})`);
+        console.log(`[Stripe-Sync] current_period_end raw: ${activeSub.current_period_end} (type: ${typeof activeSub.current_period_end})`);
+
+        const startTs = activeSub.current_period_start;
+        const endTs = activeSub.current_period_end;
+
+        // Usar datas apenas se os timestamps forem válidos
+        const startDate = (typeof startTs === 'number' && isFinite(startTs) && startTs > 0)
+          ? new Date(startTs * 1000)
+          : null;
+        const endDate = (typeof endTs === 'number' && isFinite(endTs) && endTs > 0)
+          ? new Date(endTs * 1000)
+          : null;
+
+        console.log(`[Stripe-Sync] startDate: ${startDate} | endDate: ${endDate}`);
+        console.log(`[Stripe-Sync] planType: ${planType} | billingCycle: ${billingCycle} | uploadLimit: ${uploadLimit}`);
+
+        const updatePayload: any = {
           planType,
           uploadLimit,
           subscriptionStatus: 'active',
-          subscriptionStartDate: startDate,
-          subscriptionEndDate: endDate,
           billingPeriod: billingCycle,
           stripeSubscriptionId: activeSub.id
-        } as any);
+        };
+        if (startDate) updatePayload.subscriptionStartDate = startDate;
+        if (endDate) updatePayload.subscriptionEndDate = endDate;
+
+        const updatedUser = await storage.updateUser(userId, updatePayload);
+        if (!updatedUser) {
+          console.error(`[Stripe-Sync] ❌ updateUser retornou undefined para userId ${userId}`);
+          return res.status(500).json({ success: false, message: "Falha ao atualizar usuário no banco" });
+        }
 
         console.log(`[Stripe-Sync] Admin ${req.user?.email} sincronizou usuário ${userId} (${user.email}) → plano ${planType} ativo`);
 

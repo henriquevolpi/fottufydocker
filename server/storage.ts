@@ -1309,18 +1309,28 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateUser(id: number, userData: Partial<User>): Promise<User | undefined> {
-    try {
-      const [updatedUser] = await db
-        .update(users)
-        .set(userData)
-        .where(eq(users.id, id))
-        .returning();
-      
-      return updatedUser;
-    } catch (error) {
-      console.error("Erro ao atualizar usuário:", error);
-      return undefined;
+    // Sanitizar campos de data para evitar "Invalid time value" no Drizzle
+    const sanitized: any = { ...userData };
+    const dateFields = ['subscriptionStartDate', 'subscriptionEndDate'] as const;
+    for (const field of dateFields) {
+      if (sanitized[field] !== undefined && sanitized[field] !== null) {
+        const d = sanitized[field] instanceof Date ? sanitized[field] : new Date(sanitized[field]);
+        if (isNaN(d.getTime())) {
+          console.warn(`[updateUser] Campo '${field}' tem data inválida (${sanitized[field]}) — removendo do update`);
+          delete sanitized[field];
+        } else {
+          sanitized[field] = d;
+        }
+      }
     }
+
+    const [updatedUser] = await db
+      .update(users)
+      .set(sanitized)
+      .where(eq(users.id, id))
+      .returning();
+    
+    return updatedUser;
   }
 
   async deleteUser(id: number): Promise<boolean> {
