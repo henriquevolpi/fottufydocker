@@ -20,7 +20,7 @@ export default function SubscriptionSuccessPage() {
   const [planInfo, setPlanInfo] = useState<any>(null);
   const [retryCount, setRetryCount] = useState(0);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
-  const MAX_AUTO_RETRIES = 24; // 24 x 5s = ~2 minutos máximo de polling
+  const MAX_AUTO_RETRIES = 999; // polling contínuo — erro só aparece se pagamento realmente falhou
 
   useEffect(() => {
     const verifySession = async () => {
@@ -77,49 +77,22 @@ export default function SubscriptionSuccessPage() {
           // Limpa o localStorage após ativação bem-sucedida
           localStorage.removeItem('pending_stripe_session');
           queryClient.invalidateQueries({ queryKey: ['/api/user'] });
-        } else if (data.status === 'unpaid' || data.status === 'open') {
-          console.warn(`[STRIPE-SUCCESS] ⏳ Pagamento ainda não confirmado — status: ${data.status}`);
-          setStatus('pending');
-        } else if (data.status === 'paid' && !data.success) {
-          // Race condition: Stripe marcou como 'paid' mas subscription ainda não está vinculada
-          // Acontece quando o usuário volta para a página de sucesso antes do Stripe finalizar
-          // Solução: tratar como 'pending' e continuar tentando (polling irá resolver)
-          console.warn(`[STRIPE-SUCCESS] ⏳ Race condition detectada: payment_status=paid mas subscription ainda não pronta — aguardando retry automático`);
-          setStatus('pending');
+        } else if (data.status === 'unpaid') {
+          // Pagamento realmente falhou — mostrar erro
+          console.error(`[STRIPE-SUCCESS] ❌ Pagamento não aprovado — status: ${data.status}`);
+          setStatus('error');
         } else {
-          console.error(`[STRIPE-SUCCESS] ❌ Resposta inesperada (não é paid/unpaid/open):`, data);
-          // Só mostra erro real se já tentou muitas vezes
-          if (retryCount >= 3) {
-            setStatus('error');
-          } else {
-            console.warn(`[STRIPE-SUCCESS] Aguardando mais ${3 - retryCount} tentativas antes de mostrar erro`);
-            setStatus('pending');
-          }
+          // Qualquer outro caso (open, paid sem subscription, etc): manter processando
+          console.warn(`[STRIPE-SUCCESS] ⏳ Aguardando confirmação — status: ${data.status || 'desconhecido'}`);
+          setStatus('pending');
         }
       } catch (error: any) {
         console.error(`%c[STRIPE-SUCCESS] ❌ Erro na chamada ao endpoint: ${error.message}`, 'color: red; font-weight: bold');
         console.error('[STRIPE-SUCCESS] Detalhes:', error);
-        if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
-          console.log('[STRIPE-SUCCESS] → Erro 401: usuário não autenticado — mostrando tela de login');
-          setStatus('pending');
-        } else if (error.message?.includes('403')) {
-          console.error('[STRIPE-SUCCESS] → Erro 403: mismatch de userId ou customerId — verificar logs do servidor');
-          // Mesmo 403 pode ser transitório em condição de corrida — aguarda antes de mostrar erro
-          if (retryCount >= 3) {
-            setStatus('error');
-          } else {
-            console.warn(`[STRIPE-SUCCESS] 403 transitório? Aguardando mais ${3 - retryCount} tentativas`);
-            setStatus('pending');
-          }
-        } else {
-          // Erros genéricos: retry antes de mostrar erro ao usuário
-          if (retryCount >= 5) {
-            setStatus('error');
-          } else {
-            console.warn(`[STRIPE-SUCCESS] Erro transitório, aguardando retry (tentativa ${retryCount + 1}/5)`);
-            setStatus('pending');
-          }
-        }
+        // Em todos os casos de erro (401, 403, 500, rede): manter como pending e continuar tentando
+        // Nunca mostrar erro de pagamento por falha técnica/rede — só por status 'unpaid' do Stripe
+        console.warn(`[STRIPE-SUCCESS] Erro transitório (${error.message}) — continuando polling`);
+        setStatus('pending');
       }
     };
 
@@ -276,19 +249,20 @@ export default function SubscriptionSuccessPage() {
               <span className="text-3xl">!</span>
             </div>
             <h1 className="text-2xl font-bold text-gray-900 mb-4">
-              Algo deu errado
+              Pagamento não aprovado
             </h1>
             <p className="text-gray-600 mb-6">
-              Não conseguimos confirmar seu pagamento. Se você foi cobrado, entre em contato conosco.
+              Seu pagamento não foi aprovado pela operadora. Nenhuma cobrança foi realizada. Verifique os dados do cartão e tente novamente.
             </p>
             <div className="flex flex-col gap-3">
-              <Button onClick={handleRetry} variant="outline" className="w-full">
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Tentar novamente
-              </Button>
               <Link href="/subscription">
                 <Button className="w-full">
-                  Voltar para planos
+                  Tentar novamente
+                </Button>
+              </Link>
+              <Link href="/dashboard">
+                <Button variant="outline" className="w-full">
+                  Ir para Dashboard
                 </Button>
               </Link>
             </div>

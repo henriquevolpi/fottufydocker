@@ -3403,15 +3403,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         expand: ['subscription', 'customer']
       });
 
-      // Se pago mas sem subscription: aguarda até 3 tentativas com 1.5s de intervalo
+      // Se pago mas sem subscription: aguarda até 6 tentativas com 2s de intervalo
       if (session.payment_status === 'paid' && !session.subscription) {
         console.warn(`[STRIPE-ACTIVATE] ⚠️ Race condition: payment_status=paid mas subscription=null — aguardando Stripe...`);
-        for (let attempt = 1; attempt <= 3; attempt++) {
-          await new Promise(resolve => setTimeout(resolve, 1500));
+        for (let attempt = 1; attempt <= 6; attempt++) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
           session = await stripe.checkout.sessions.retrieve(sessionId, {
             expand: ['subscription', 'customer']
           });
-          console.log(`[STRIPE-ACTIVATE] Retry ${attempt}/3: subscription=${session.subscription ? 'ok' : 'null'}`);
+          console.log(`[STRIPE-ACTIVATE] Retry ${attempt}/6: subscription=${session.subscription ? 'ok' : 'null'}`);
           if (session.subscription) break;
         }
       }
@@ -3445,6 +3445,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Acesso negado" });
       }
       console.log(`[STRIPE-ACTIVATE] customer validado ✓`);
+
+      // Fallback: se pago mas subscription ainda não vinculada à sessão,
+      // buscar subscription ativa diretamente pelo customer no Stripe
+      if (session.payment_status === 'paid' && !session.subscription) {
+        const fallbackCustomerId = typeof session.customer === 'string'
+          ? session.customer
+          : (session.customer as Stripe.Customer)?.id;
+        
+        if (fallbackCustomerId && stripe) {
+          console.warn(`[STRIPE-ACTIVATE] ⚠️ Subscription ainda null após retries — buscando via customer ${fallbackCustomerId}`);
+          try {
+            const subsFromCustomer = await stripe.subscriptions.list({
+              customer: fallbackCustomerId,
+              status: 'active',
+              limit: 1,
+              expand: ['data.latest_invoice']
+            });
+            if (subsFromCustomer.data.length > 0) {
+              console.log(`[STRIPE-ACTIVATE] ✅ Subscription encontrada via customer: ${subsFromCustomer.data[0].id}`);
+              (session as any).subscription = subsFromCustomer.data[0];
+            } else {
+              console.warn(`[STRIPE-ACTIVATE] ⚠️ Nenhuma subscription ativa encontrada para customer ${fallbackCustomerId}`);
+            }
+          } catch (fallbackErr: any) {
+            console.error(`[STRIPE-ACTIVATE] Erro no fallback de subscription: ${fallbackErr.message}`);
+          }
+        }
+      }
 
       if (session.payment_status === 'paid' && session.subscription) {
         const subscription = session.subscription as Stripe.Subscription;
@@ -3497,14 +3525,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Atualizar o usuário no banco de dados
         console.log(`[STRIPE-ACTIVATE] Atualizando usuário ${user.id} no banco...`);
-        await storage.updateUser(user.id, {
+        const activationData: any = {
           planType: planType,
           uploadLimit: uploadLimit,
           subscriptionStatus: 'active',
           subscriptionStartDate: startDate,
           subscriptionEndDate: endDate,
           stripeSubscriptionId: subscription.id
-        } as any);
+        };
+        // Garantir que o stripeCustomerId seja salvo se ainda não estava no banco
+        if (!user.stripeCustomerId && sessionCustomerId) {
+          activationData.stripeCustomerId = sessionCustomerId;
+        }
+        await storage.updateUser(user.id, activationData);
         
         console.log(`[STRIPE-ACTIVATE] ✅ Usuário ${user.id} atualizado para plano ${planType} (${billingCycle}) via checkout-session endpoint`);
 
