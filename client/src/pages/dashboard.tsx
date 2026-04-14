@@ -1606,6 +1606,35 @@ export default function Dashboard() {
     document.documentElement.classList.toggle('dark', isDark);
   }, [theme]);
 
+  // Verifica se há uma sessão Stripe pendente de ativação (salva antes do redirect pro Stripe)
+  // Isso garante a ativação mesmo que o webhook falhe e o usuário tenha voltado sem estar logado
+  useEffect(() => {
+    if (!user) return;
+    const pendingSession = localStorage.getItem('pending_stripe_session');
+    if (!pendingSession) return;
+
+    const activatePendingSession = async () => {
+      try {
+        const response = await apiRequest("GET", `/api/stripe/checkout-session/${pendingSession}`);
+        const data = await response.json();
+        if (data.success) {
+          localStorage.removeItem('pending_stripe_session');
+          queryClient.invalidateQueries({ queryKey: ['/api/user'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/user/stats'] });
+          console.log('[Dashboard] Plano ativado via sessão pendente:', data.planType);
+        } else if (data.alreadyProcessed) {
+          // Já estava ativo — limpa a entrada pendente
+          localStorage.removeItem('pending_stripe_session');
+        }
+        // Se ainda não pago (unpaid/open), mantém no localStorage para tentar depois
+      } catch (err) {
+        console.warn('[Dashboard] Erro ao ativar sessão pendente:', err);
+      }
+    };
+
+    activatePendingSession();
+  }, [user]);
+
   // Toggle theme function
   const toggleTheme = () => {
     const newTheme = theme === 'light' ? 'dark' : 'light';

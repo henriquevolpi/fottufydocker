@@ -3788,6 +3788,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
       let event;
 
+      console.log(`[Stripe Webhook] Body type: ${typeof req.body} / isBuffer: ${Buffer.isBuffer(req.body)} / Content-Type: ${req.headers['content-type']}`);
+
       // Validate webhook signature if secret is configured
       if (webhookSecret) {
         const sig = req.headers['stripe-signature'];
@@ -3799,15 +3801,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           // req.body is raw buffer when using express.raw()
           const rawBody = Buffer.isBuffer(req.body) ? req.body : Buffer.from(JSON.stringify(req.body));
+          console.log(`[Stripe Webhook] rawBody length: ${rawBody.length}`);
           event = stripe.webhooks.constructEvent(rawBody, sig, webhookSecret);
           console.log("[Stripe Webhook] Assinatura validada com sucesso");
         } catch (err: any) {
           console.error("[Stripe Webhook] Erro na validação da assinatura:", err.message);
+          console.error("[Stripe Webhook] DICA: Verifique se STRIPE_WEBHOOK_SECRET no Render está correto e corresponde ao endpoint configurado no Stripe Dashboard");
           return res.status(400).json({ error: `Assinatura inválida: ${err.message}` });
         }
       } else {
-        // Fallback without signature validation (development only)
-        console.warn("[Stripe Webhook] ATENÇÃO: Webhook sem validação de assinatura!");
+        // STRIPE_WEBHOOK_SECRET não configurado — processando sem validação
+        console.warn("[Stripe Webhook] ATENÇÃO: STRIPE_WEBHOOK_SECRET não configurado! Configure no Render para segurança em produção.");
         event = Buffer.isBuffer(req.body) ? JSON.parse(req.body.toString()) : req.body;
       }
       
@@ -3826,6 +3830,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`[Stripe Webhook] Metadata:`, session.metadata);
         
         if (session.payment_status === 'paid' && session.mode === 'subscription') {
+          console.log(`[Stripe Webhook] Ativando plano - userId: ${session.metadata?.userId}, planType: ${session.metadata?.planType}`);
           const userId = parseInt(session.metadata?.userId || '0');
           const planType = session.metadata?.planType || 'basico';
           const billingCycle = session.metadata?.billingCycle || 'monthly';
@@ -3907,6 +3912,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             planType: planType,
             status: "success"
           });
+        } else {
+          console.warn(`[Stripe Webhook] checkout.session.completed não ativou plano - payment_status: ${event.data.object.payment_status}, mode: ${event.data.object.mode}`);
         }
       }
       

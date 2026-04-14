@@ -61,6 +61,11 @@ export default function SubscriptionPage() {
       const data = await response.json();
       
       if (data.url) {
+        // Salva session_id no localStorage para recuperar ativação mesmo se usuário
+        // voltar sem estar autenticado (o dashboard lê e ativa automaticamente)
+        if (data.sessionId) {
+          localStorage.setItem('pending_stripe_session', data.sessionId);
+        }
         window.location.href = data.url;
       } else {
         throw new Error("URL de checkout não retornada");

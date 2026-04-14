@@ -19,6 +19,7 @@ export default function SubscriptionSuccessPage() {
   const [status, setStatus] = useState<'loading' | 'success' | 'pending' | 'error'>('loading');
   const [planInfo, setPlanInfo] = useState<any>(null);
   const [retryCount, setRetryCount] = useState(0);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const MAX_AUTO_RETRIES = 24; // 24 x 5s = ~2 minutos máximo de polling
 
   useEffect(() => {
@@ -27,10 +28,20 @@ export default function SubscriptionSuccessPage() {
       const sessionId = params.get('session_id');
 
       if (!sessionId) {
+        // Verificar se há session_id salvo no localStorage (caso de retorno sem URL)
+        const savedSession = localStorage.getItem('pending_stripe_session');
+        if (savedSession) {
+          // Redirecionar para si mesmo com o session_id
+          setLocation(`/subscription/success?session_id=${savedSession}`);
+          return;
+        }
         console.log('[Success] Sem session_id, redirecionando para dashboard');
         setLocation('/dashboard');
         return;
       }
+
+      // Registrar o sessionId no estado para uso na UI
+      setCurrentSessionId(sessionId);
 
       // Parar de tentar após o limite de tentativas automáticas
       if (retryCount > 0 && retryCount >= MAX_AUTO_RETRIES) {
@@ -40,7 +51,9 @@ export default function SubscriptionSuccessPage() {
       }
 
       if (!user) {
-        console.log('[Success] Usuário não autenticado, mostrando tela de login');
+        // Salvar session_id no localStorage para ativar após o login
+        localStorage.setItem('pending_stripe_session', sessionId);
+        console.log('[Success] Usuário não autenticado — session_id salvo para ativar após login');
         setStatus('pending');
         return;
       }
@@ -54,6 +67,8 @@ export default function SubscriptionSuccessPage() {
         if (data.success) {
           setPlanInfo(data);
           setStatus('success');
+          // Limpa o localStorage após ativação bem-sucedida
+          localStorage.removeItem('pending_stripe_session');
           queryClient.invalidateQueries({ queryKey: ['/api/user'] });
         } else if (data.status === 'unpaid' || data.status === 'open') {
           setStatus('pending');
@@ -181,7 +196,12 @@ export default function SubscriptionSuccessPage() {
                   </>
                 ) : (
                   <>
-                    <Link href="/auth" className="flex-1">
+                    <Link
+                      href={currentSessionId
+                        ? `/auth?redirect=${encodeURIComponent(`/subscription/success?session_id=${currentSessionId}`)}`
+                        : '/auth'}
+                      className="flex-1"
+                    >
                       <Button className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:opacity-90 text-lg py-6">
                         <Camera className="mr-2 h-5 w-5" />
                         Fazer Login
