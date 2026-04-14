@@ -2179,6 +2179,8 @@ export default function Dashboard() {
         {user?.planType === 'free' && <PromotionalBanner />}
         
         <Statistics setLocation={setLocation} user={user} />
+
+        <MpConnect />
         
         {/* Meus Projetos Section - Youze Style */}
         <div className="mt-16">
@@ -2562,8 +2564,6 @@ export default function Dashboard() {
   </DialogFooter>
 </DialogContent>
 </Dialog>
-
-    <MpConnect />
 
     <div className="mt-8 mb-6 text-center">
       <p className="text-xs text-slate-400">

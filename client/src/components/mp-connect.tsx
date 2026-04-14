@@ -9,7 +9,7 @@ import {
   Star, BadgeCheck, Banknote, Clock
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 // ---------- Mock visual: o que o cliente vê ----------
 function ClientPaymentPreview() {
@@ -132,6 +132,8 @@ function MpPromoModal({ open, onClose, onConnect, connecting }: {
   return (
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
       <DialogContent className="max-w-2xl w-full p-0 overflow-hidden rounded-3xl border-0 shadow-2xl max-h-[92vh] overflow-y-auto">
+        <DialogTitle className="sr-only">Receber pagamentos via Mercado Pago</DialogTitle>
+        <DialogDescription className="sr-only">Conheça como integrar Pix e Cartão na sua galeria Fottufy</DialogDescription>
 
         {/* Header gradient */}
         <div className="relative bg-gradient-to-br from-[#009EE3] via-[#00b4f0] to-[#0078b0] p-6 pb-8">
@@ -303,8 +305,8 @@ export function MpConnect() {
         connecting={connecting}
       />
 
-      <div className="mt-10 mb-2 max-w-xl mx-auto">
-        {/* Se já conectado: card simples de status */}
+      <div className="max-w-xl mx-auto">
+        {/* Se já conectado: card de status com acesso ao modal */}
         {status?.connected ? (
           <div className="rounded-2xl border border-emerald-200 bg-emerald-50 shadow-sm p-5 flex items-center gap-4">
             <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center flex-shrink-0">
@@ -313,22 +315,32 @@ export function MpConnect() {
             <div className="flex-1 min-w-0">
               <p className="text-sm font-bold text-slate-800">Mercado Pago conectado</p>
               <p className="text-xs text-emerald-600 flex items-center gap-1 mt-0.5 font-medium">
-                <CheckCircle2 className="h-3.5 w-3.5" /> Seus clientes podem pagar via Pix e Cartão
+                <CheckCircle2 className="h-3.5 w-3.5" /> Clientes pagam via Pix e Cartão ao finalizar
               </p>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="rounded-xl text-xs border-red-200 text-red-500 hover:bg-red-50 hover:border-red-300 flex-shrink-0"
-              onClick={() => disconnectMutation.mutate()}
-              disabled={disconnectMutation.isPending}
-            >
-              {disconnectMutation.isPending ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <><Unlink className="h-3.5 w-3.5 mr-1" /> Desconectar</>
-              )}
-            </Button>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="rounded-xl text-xs text-slate-500 hover:text-slate-700"
+                onClick={() => setShowPromo(true)}
+              >
+                Como funciona
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="rounded-xl text-xs border-red-200 text-red-500 hover:bg-red-50 hover:border-red-300"
+                onClick={() => disconnectMutation.mutate()}
+                disabled={disconnectMutation.isPending}
+              >
+                {disconnectMutation.isPending ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <><Unlink className="h-3.5 w-3.5 mr-1" /> Desconectar</>
+                )}
+              </Button>
+            </div>
           </div>
         ) : isLoading ? (
           <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-5 flex items-center gap-4">
