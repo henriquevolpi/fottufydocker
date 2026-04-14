@@ -15,7 +15,7 @@ const MP_CLIENT_SECRET = process.env.MP_CLIENT_SECRET || "";
 const MP_REDIRECT_URI = process.env.MP_REDIRECT_URI || "";
 
 // Comissão da plataforma Fottufy sobre cada pagamento processado via MP
-const PLATFORM_FEE_RATE = 0.05; // 5%
+const PLATFORM_FEE_RATE = 0.03; // 3%
 const calcFee = (amount: number) => Math.round(amount * PLATFORM_FEE_RATE * 100) / 100;
 
 // Mapa temporário de state OAuth → userId (TTL 10 minutos)
