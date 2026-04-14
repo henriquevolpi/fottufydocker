@@ -3531,7 +3531,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           subscriptionStatus: 'active',
           subscriptionStartDate: startDate,
           subscriptionEndDate: endDate,
-          stripeSubscriptionId: subscription.id
+          stripeSubscriptionId: subscription.id,
+          billingPeriod: billingCycle
         };
         // Garantir que o stripeCustomerId seja salvo se ainda não estava no banco
         if (!user.stripeCustomerId && sessionCustomerId) {
@@ -3984,8 +3985,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
           }
 
+          // Extrair customerId da sessão para garantir que esteja salvo no banco
+          const sessionCustomerIdForWebhook = typeof session.customer === 'string'
+            ? session.customer
+            : (session.customer as any)?.id || '';
+
           // Atualizar o usuário
-          await storage.updateUser(userId, {
+          const webhookUpdatePayload: any = {
             planType: planType,
             uploadLimit: uploadLimit,
             subscriptionStatus: 'active',
@@ -3993,7 +3999,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             subscriptionEndDate: endDate,
             billingPeriod: billingCycle,
             stripeSubscriptionId: subscriptionId || (session.subscription as string)
-          } as any);
+          };
+          // Salvar stripeCustomerId se ainda não estava no banco
+          if (sessionCustomerIdForWebhook && !user.stripeCustomerId) {
+            webhookUpdatePayload.stripeCustomerId = sessionCustomerIdForWebhook;
+          }
+          await storage.updateUser(userId, webhookUpdatePayload);
           
           console.log(`[Stripe Webhook] Usuário ${userId} atualizado para plano ${planType} (${billingCycle})`);
           console.log("========== FIM WEBHOOK STRIPE ==========");
@@ -4172,15 +4183,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const subscriptionId = typeof invoice.subscription === 'string' ? invoice.subscription : (invoice.subscription as any)?.id;
             const periodEnd = new Date((invoice.lines?.data?.[0]?.period?.end || Date.now() / 1000) * 1000);
             
-            // Na primeira fatura, também salva o subscriptionId se ainda não estiver salvo
             const updatePayload: any = {
               subscriptionStatus: 'active',
               subscriptionEndDate: periodEnd,
               lastPaymentDate: new Date()
             };
+
+            // Na primeira fatura (subscriptionId ainda não salvo): também salva planType e uploadLimit
             if (subscriptionId && !user.stripeSubscriptionId) {
               updatePayload.stripeSubscriptionId = subscriptionId;
               console.log(`[Stripe Webhook] invoice.paid — salvando stripeSubscriptionId ${subscriptionId} para usuário ${user.id}`);
+
+              // Buscar metadata da subscription para obter planType correto
+              if (stripe) {
+                try {
+                  const stripeSub = await stripe.subscriptions.retrieve(subscriptionId);
+                  const subPlanType = stripeSub.metadata?.planType;
+                  const subBillingCycle = stripeSub.metadata?.billingCycle || 'monthly';
+                  const invoicePlanLimits: Record<string, number> = { 'basico': 6000, 'fotografo': 17000, 'estudio': 40000 };
+                  if (subPlanType && invoicePlanLimits[subPlanType]) {
+                    updatePayload.planType = subPlanType;
+                    updatePayload.uploadLimit = invoicePlanLimits[subPlanType];
+                    updatePayload.billingPeriod = subBillingCycle;
+                    updatePayload.subscriptionStartDate = new Date(stripeSub.current_period_start * 1000);
+                    console.log(`[Stripe Webhook] invoice.paid — planType ${subPlanType} obtido da subscription`);
+                  }
+                } catch (subErr: any) {
+                  console.warn(`[Stripe Webhook] invoice.paid — falha ao buscar subscription: ${subErr.message}`);
+                }
+              }
             }
 
             await storage.updateUser(user.id, updatePayload);
