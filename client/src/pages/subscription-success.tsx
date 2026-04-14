@@ -80,9 +80,21 @@ export default function SubscriptionSuccessPage() {
         } else if (data.status === 'unpaid' || data.status === 'open') {
           console.warn(`[STRIPE-SUCCESS] ⏳ Pagamento ainda não confirmado — status: ${data.status}`);
           setStatus('pending');
+        } else if (data.status === 'paid' && !data.success) {
+          // Race condition: Stripe marcou como 'paid' mas subscription ainda não está vinculada
+          // Acontece quando o usuário volta para a página de sucesso antes do Stripe finalizar
+          // Solução: tratar como 'pending' e continuar tentando (polling irá resolver)
+          console.warn(`[STRIPE-SUCCESS] ⏳ Race condition detectada: payment_status=paid mas subscription ainda não pronta — aguardando retry automático`);
+          setStatus('pending');
         } else {
-          console.error(`[STRIPE-SUCCESS] ❌ Resposta inesperada:`, data);
-          setStatus('error');
+          console.error(`[STRIPE-SUCCESS] ❌ Resposta inesperada (não é paid/unpaid/open):`, data);
+          // Só mostra erro real se já tentou muitas vezes
+          if (retryCount >= 3) {
+            setStatus('error');
+          } else {
+            console.warn(`[STRIPE-SUCCESS] Aguardando mais ${3 - retryCount} tentativas antes de mostrar erro`);
+            setStatus('pending');
+          }
         }
       } catch (error: any) {
         console.error(`%c[STRIPE-SUCCESS] ❌ Erro na chamada ao endpoint: ${error.message}`, 'color: red; font-weight: bold');
@@ -92,9 +104,21 @@ export default function SubscriptionSuccessPage() {
           setStatus('pending');
         } else if (error.message?.includes('403')) {
           console.error('[STRIPE-SUCCESS] → Erro 403: mismatch de userId ou customerId — verificar logs do servidor');
-          setStatus('error');
+          // Mesmo 403 pode ser transitório em condição de corrida — aguarda antes de mostrar erro
+          if (retryCount >= 3) {
+            setStatus('error');
+          } else {
+            console.warn(`[STRIPE-SUCCESS] 403 transitório? Aguardando mais ${3 - retryCount} tentativas`);
+            setStatus('pending');
+          }
         } else {
-          setStatus('error');
+          // Erros genéricos: retry antes de mostrar erro ao usuário
+          if (retryCount >= 5) {
+            setStatus('error');
+          } else {
+            console.warn(`[STRIPE-SUCCESS] Erro transitório, aguardando retry (tentativa ${retryCount + 1}/5)`);
+            setStatus('pending');
+          }
         }
       }
     };

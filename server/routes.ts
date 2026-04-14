@@ -3396,9 +3396,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       console.log(`[STRIPE-ACTIVATE] Buscando sessão no Stripe...`);
-      const session = await stripe.checkout.sessions.retrieve(sessionId, {
+
+      // Retry automático para condição de corrida: Stripe pode redirecionar o usuário
+      // de volta ANTES de vincular a subscription à sessão (race condition raro mas real)
+      let session = await stripe.checkout.sessions.retrieve(sessionId, {
         expand: ['subscription', 'customer']
       });
+
+      // Se pago mas sem subscription: aguarda até 3 tentativas com 1.5s de intervalo
+      if (session.payment_status === 'paid' && !session.subscription) {
+        console.warn(`[STRIPE-ACTIVATE] ⚠️ Race condition: payment_status=paid mas subscription=null — aguardando Stripe...`);
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          await new Promise(resolve => setTimeout(resolve, 1500));
+          session = await stripe.checkout.sessions.retrieve(sessionId, {
+            expand: ['subscription', 'customer']
+          });
+          console.log(`[STRIPE-ACTIVATE] Retry ${attempt}/3: subscription=${session.subscription ? 'ok' : 'null'}`);
+          if (session.subscription) break;
+        }
+      }
 
       console.log(`[STRIPE-ACTIVATE] Sessão recuperada:`);
       console.log(`[STRIPE-ACTIVATE]   status: ${session.status}`);
