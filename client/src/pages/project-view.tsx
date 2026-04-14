@@ -172,6 +172,24 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
     enabled: !!projectId,
   });
 
+  // Query: busca o último pagamento registrado do projeto no banco
+  // Permite restaurar QR code Pix pendente e mostrar botões de pagamento mesmo após refresh
+  const { data: projectPaymentData } = useQuery<{
+    payment: {
+      id: string;
+      status: string;
+      amount: number;
+      pixCopiaECola: string | null;
+      qrCodeBase64: string | null;
+    } | null;
+  }>({
+    queryKey: [`/api/mp/project-payment/${projectId}`],
+    enabled: !!projectId && isFinalized,
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+  });
+  const projectPayment = projectPaymentData?.payment ?? null;
+
   // Inicia cobrança Pix para fotos extras
   const handlePixPayment = async () => {
     if (!project) return;
@@ -957,6 +975,23 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
     }
   }, [finalizationSuccess, additionalPhotosCount, mpStatus?.acceptsPayment]);
 
+  // Restaura estado do pagamento após refresh de página
+  // Se havia um Pix pendente no banco → recarga QR code e retoma polling
+  // Se já estava aprovado → marca como confirmado sem precisar de nova consulta
+  useEffect(() => {
+    if (!projectPayment || pixStatus !== null) return;
+    if (projectPayment.status === "approved") {
+      setPixStatus("approved");
+    } else if (projectPayment.status === "pending" && projectPayment.pixCopiaECola) {
+      setPixInternalId(projectPayment.id);
+      setPixData({
+        qrCode: projectPayment.qrCodeBase64 || "",
+        copiaECola: projectPayment.pixCopiaECola,
+      });
+      setPixStatus("pending");
+    }
+  }, [projectPayment, pixStatus]);
+
   const formatCurrency = (cents: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cents / 100);
   };
@@ -1384,7 +1419,7 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
           </div>
         )}
 
-        {isFinalized && finalizationSuccess ? (
+        {isFinalized && (finalizationSuccess || (additionalPhotosCount > 0 && mpStatus?.acceptsPayment)) ? (
           <div className="bg-gradient-to-br from-emerald-50 to-green-50 border border-emerald-200 rounded-2xl p-6 sm:p-8 mb-8 shadow-lg shadow-green-500/10">
             <div className="flex flex-col items-center text-center mb-6">
               <div className="w-16 h-16 mb-4 bg-gradient-to-br from-emerald-500 to-green-500 rounded-2xl flex items-center justify-center shadow-lg shadow-green-500/30">
@@ -1407,7 +1442,7 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
                   </p>
                 </div>
 
-                {pixStatus === "approved" || cardPaymentReturn === "success" ? (
+                {pixStatus === "approved" || cardPaymentReturn === "success" || projectPayment?.status === "approved" ? (
                   <div className="flex items-center justify-center gap-2 py-3 text-emerald-700 font-bold">
                     <CheckCircle2 className="h-5 w-5" />
                     Pagamento confirmado!

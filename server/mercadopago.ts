@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
 import { db } from "./db";
 import { users, newProjects, mpPayments } from "@shared/schema";
-import { eq, isNotNull } from "drizzle-orm";
+import { eq, isNotNull, desc } from "drizzle-orm";
 import https from "https";
 import crypto from "crypto";
 
@@ -513,6 +513,32 @@ mpRouter.post("/api/mp/create-preference", async (req: Request, res: Response) =
     res.json({ initPoint: mpRes.init_point });
   } catch (e: any) {
     console.error("[MP create-preference] Erro:", e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/mp/project-payment/:projectId — retorna o último pagamento do projeto (persiste estado após refresh)
+mpRouter.get("/api/mp/project-payment/:projectId", async (req: Request, res: Response) => {
+  try {
+    const { projectId } = req.params;
+    if (!projectId) return res.status(400).json({ error: "projectId obrigatório." });
+
+    const [payment] = await db
+      .select({
+        id: mpPayments.id,
+        status: mpPayments.status,
+        amount: mpPayments.amount,
+        pixCopiaECola: mpPayments.pixCopiaECola,
+        qrCodeBase64: mpPayments.qrCodeBase64,
+        updatedAt: mpPayments.updatedAt,
+      })
+      .from(mpPayments)
+      .where(eq(mpPayments.projectId, projectId))
+      .orderBy(desc(mpPayments.createdAt))
+      .limit(1);
+
+    res.json({ payment: payment ?? null });
+  } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
 });
