@@ -16,7 +16,7 @@ function ClientPaymentPreview() {
   const [step, setStep] = useState(0);
 
   useEffect(() => {
-    const t = setInterval(() => setStep(s => (s + 1) % 3), 2200);
+    const t = setInterval(() => setStep(s => (s + 1) % 3), 3200);
     return () => clearInterval(t);
   }, []);
 
@@ -76,10 +76,13 @@ function ClientPaymentPreview() {
   ];
 
   return (
-    <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-4 w-full max-w-[220px] mx-auto min-h-[140px] flex flex-col justify-center">
-      {steps[step]}
+    <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-4 w-full max-w-[220px] mx-auto h-[190px] flex flex-col overflow-hidden">
+      {/* Área de conteúdo com tamanho fixo — não expande */}
+      <div className="flex-1 overflow-hidden flex flex-col justify-center">
+        {steps[step]}
+      </div>
       {/* dots */}
-      <div className="flex justify-center gap-1.5 mt-3">
+      <div className="flex justify-center gap-1.5 mt-2 shrink-0">
         {steps.map((_, i) => (
           <div key={i} className={`rounded-full transition-all duration-300 ${i === step ? 'w-4 h-1.5 bg-[#009EE3]' : 'w-1.5 h-1.5 bg-slate-200'}`} />
         ))}
