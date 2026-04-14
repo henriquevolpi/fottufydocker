@@ -20,11 +20,11 @@ function ClientPaymentPreview() {
     return () => clearInterval(t);
   }, []);
 
-  const steps = [
+  const stepContent = [
     // Step 0 — seleção finalizada
-    <div key="done" className="animate-in fade-in duration-500">
+    <div key="done">
       <div className="flex items-center gap-2 mb-3">
-        <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center">
+        <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
           <CheckCircle2 className="h-4 w-4 text-emerald-600" />
         </div>
         <div>
@@ -34,34 +34,36 @@ function ClientPaymentPreview() {
       </div>
       <div className="bg-amber-50 border border-amber-200 rounded-xl p-2.5 mb-2">
         <p className="text-[10px] font-bold text-amber-700 uppercase tracking-wide">Fotos extras selecionadas</p>
-        <p className="text-base font-black text-amber-800">+8 fotos · R$ 160,00</p>
+        <p className="text-sm font-black text-amber-800">+8 fotos · R$ 160,00</p>
       </div>
       <p className="text-[10px] text-slate-400 text-center">Escolha como pagar →</p>
     </div>,
 
     // Step 1 — opções de pagamento
-    <div key="pay" className="animate-in fade-in duration-500 space-y-2">
+    <div key="pay">
       <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Pagar R$ 160,00</p>
-      <button className="w-full flex items-center gap-2.5 p-2.5 rounded-xl bg-emerald-500 text-white">
-        <QrCode className="h-4 w-4 shrink-0" />
-        <div className="text-left">
-          <p className="text-[10px] font-black uppercase tracking-wider">Pix</p>
-          <p className="text-[9px] opacity-80">Aprovado na hora</p>
+      <div className="space-y-2">
+        <div className="w-full flex items-center gap-2.5 p-2.5 rounded-xl bg-emerald-500 text-white">
+          <QrCode className="h-4 w-4 shrink-0" />
+          <div className="text-left">
+            <p className="text-[10px] font-black uppercase tracking-wider">Pix</p>
+            <p className="text-[9px] opacity-80">Aprovado na hora</p>
+          </div>
+          <ArrowRight className="h-3.5 w-3.5 ml-auto" />
         </div>
-        <ArrowRight className="h-3.5 w-3.5 ml-auto" />
-      </button>
-      <button className="w-full flex items-center gap-2.5 p-2.5 rounded-xl bg-[#009EE3] text-white">
-        <CreditCard className="h-4 w-4 shrink-0" />
-        <div className="text-left">
-          <p className="text-[10px] font-black uppercase tracking-wider">Cartão</p>
-          <p className="text-[9px] opacity-80">Até 12x sem juros</p>
+        <div className="w-full flex items-center gap-2.5 p-2.5 rounded-xl bg-[#009EE3] text-white">
+          <CreditCard className="h-4 w-4 shrink-0" />
+          <div className="text-left">
+            <p className="text-[10px] font-black uppercase tracking-wider">Cartão</p>
+            <p className="text-[9px] opacity-80">Até 12x sem juros</p>
+          </div>
+          <ArrowRight className="h-3.5 w-3.5 ml-auto" />
         </div>
-        <ArrowRight className="h-3.5 w-3.5 ml-auto" />
-      </button>
+      </div>
     </div>,
 
     // Step 2 — pagamento confirmado
-    <div key="confirmed" className="animate-in fade-in duration-500 text-center">
+    <div key="confirmed" className="text-center">
       <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-2">
         <CheckCircle2 className="h-6 w-6 text-emerald-600" />
       </div>
@@ -70,20 +72,28 @@ function ClientPaymentPreview() {
       <p className="text-[10px] text-slate-400">na sua conta Mercado Pago</p>
       <div className="mt-2 flex items-center justify-center gap-1">
         <Smartphone className="h-3 w-3 text-slate-400" />
-        <p className="text-[9px] text-slate-400">Notificação enviada ao fotógrafo</p>
+        <p className="text-[9px] text-slate-400">Notificação ao fotógrafo</p>
       </div>
     </div>,
   ];
 
   return (
-    <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-4 w-full max-w-[220px] mx-auto h-[190px] flex flex-col overflow-hidden">
-      {/* Área de conteúdo com tamanho fixo — não expande */}
-      <div className="flex-1 overflow-hidden flex flex-col justify-center">
-        {steps[step]}
+    <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-4 w-[220px] flex flex-col" style={{ height: 200 }}>
+      {/* Container de altura fixa — todos os steps ficam em posição absoluta */}
+      <div className="relative flex-1 overflow-hidden">
+        {stepContent.map((content, i) => (
+          <div
+            key={i}
+            className="absolute inset-0 flex flex-col justify-center transition-opacity duration-500"
+            style={{ opacity: i === step ? 1 : 0, pointerEvents: i === step ? 'auto' : 'none' }}
+          >
+            {content}
+          </div>
+        ))}
       </div>
       {/* dots */}
       <div className="flex justify-center gap-1.5 mt-2 shrink-0">
-        {steps.map((_, i) => (
+        {stepContent.map((_, i) => (
           <div key={i} className={`rounded-full transition-all duration-300 ${i === step ? 'w-4 h-1.5 bg-[#009EE3]' : 'w-1.5 h-1.5 bg-slate-200'}`} />
         ))}
       </div>
