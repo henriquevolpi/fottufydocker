@@ -59,27 +59,40 @@ export default function SubscriptionSuccessPage() {
       }
 
       try {
-        console.log('[Success] Verificando sessão:', sessionId);
+        console.log(`%c[STRIPE-SUCCESS] ===== CHAMANDO ENDPOINT DE ATIVAÇÃO =====`, 'color: #6366f1; font-weight: bold');
+        console.log(`[STRIPE-SUCCESS] sessionId: ${sessionId}`);
+        console.log(`[STRIPE-SUCCESS] userId autenticado: ${user.id} (${user.email})`);
+        console.log(`[STRIPE-SUCCESS] retryCount: ${retryCount}`);
+
         const response = await apiRequest("GET", `/api/stripe/checkout-session/${sessionId}`);
         const data = await response.json();
-        console.log('[Success] Resposta da API:', data);
+
+        console.log(`%c[STRIPE-SUCCESS] Resposta da API (status HTTP ${response.status}):`, 'color: #6366f1');
+        console.log('[STRIPE-SUCCESS]', data);
 
         if (data.success) {
+          console.log(`%c[STRIPE-SUCCESS] ✅ PLANO ATIVADO: ${data.planType} (alreadyProcessed: ${data.alreadyProcessed})`, 'color: green; font-weight: bold');
           setPlanInfo(data);
           setStatus('success');
           // Limpa o localStorage após ativação bem-sucedida
           localStorage.removeItem('pending_stripe_session');
           queryClient.invalidateQueries({ queryKey: ['/api/user'] });
         } else if (data.status === 'unpaid' || data.status === 'open') {
+          console.warn(`[STRIPE-SUCCESS] ⏳ Pagamento ainda não confirmado — status: ${data.status}`);
           setStatus('pending');
         } else {
+          console.error(`[STRIPE-SUCCESS] ❌ Resposta inesperada:`, data);
           setStatus('error');
         }
       } catch (error: any) {
-        console.error("[Success] Erro ao verificar sessão:", error);
+        console.error(`%c[STRIPE-SUCCESS] ❌ Erro na chamada ao endpoint: ${error.message}`, 'color: red; font-weight: bold');
+        console.error('[STRIPE-SUCCESS] Detalhes:', error);
         if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
-          console.log('[Success] Erro 401, mostrando tela de login');
+          console.log('[STRIPE-SUCCESS] → Erro 401: usuário não autenticado — mostrando tela de login');
           setStatus('pending');
+        } else if (error.message?.includes('403')) {
+          console.error('[STRIPE-SUCCESS] → Erro 403: mismatch de userId ou customerId — verificar logs do servidor');
+          setStatus('error');
         } else {
           setStatus('error');
         }

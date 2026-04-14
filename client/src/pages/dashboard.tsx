@@ -1615,20 +1615,32 @@ export default function Dashboard() {
 
     const activatePendingSession = async () => {
       try {
+        console.log(`%c[STRIPE-DASHBOARD] ===== SESSÃO PENDENTE DETECTADA =====`, 'color: #f59e0b; font-weight: bold');
+        console.log(`[STRIPE-DASHBOARD] sessionId: ${pendingSession}`);
+        console.log(`[STRIPE-DASHBOARD] userId: ${user.id} (${user.email})`);
+        console.log(`[STRIPE-DASHBOARD] Chamando endpoint de ativação...`);
+
         const response = await apiRequest("GET", `/api/stripe/checkout-session/${pendingSession}`);
         const data = await response.json();
+
+        console.log(`%c[STRIPE-DASHBOARD] Resposta (HTTP ${response.status}):`, 'color: #f59e0b');
+        console.log('[STRIPE-DASHBOARD]', data);
+
         if (data.success) {
           localStorage.removeItem('pending_stripe_session');
           queryClient.invalidateQueries({ queryKey: ['/api/user'] });
           queryClient.invalidateQueries({ queryKey: ['/api/user/stats'] });
-          console.log('[Dashboard] Plano ativado via sessão pendente:', data.planType);
+          console.log(`%c[STRIPE-DASHBOARD] ✅ PLANO ATIVADO via localStorage: ${data.planType} (alreadyProcessed: ${data.alreadyProcessed})`, 'color: green; font-weight: bold');
         } else if (data.alreadyProcessed) {
           // Já estava ativo — limpa a entrada pendente
           localStorage.removeItem('pending_stripe_session');
+          console.log(`[STRIPE-DASHBOARD] ✅ Plano já estava ativo — localStorage limpo`);
+        } else {
+          console.warn(`[STRIPE-DASHBOARD] ⏳ Sessão ainda não paga — mantendo no localStorage para próxima tentativa (status: ${data.status})`);
         }
-        // Se ainda não pago (unpaid/open), mantém no localStorage para tentar depois
-      } catch (err) {
-        console.warn('[Dashboard] Erro ao ativar sessão pendente:', err);
+      } catch (err: any) {
+        console.error(`%c[STRIPE-DASHBOARD] ❌ Erro ao ativar sessão pendente: ${err.message}`, 'color: red; font-weight: bold');
+        console.error('[STRIPE-DASHBOARD] Detalhes:', err);
       }
     };
 

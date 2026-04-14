@@ -3351,7 +3351,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         locale: 'pt-BR'
       });
 
-      console.log(`Stripe Checkout Session criada: ${session.id} para usuário ${user.id} (${user.email})`);
+      console.log(`\n[STRIPE-CREATE] ===== SESSÃO DE CHECKOUT CRIADA =====`);
+      console.log(`[STRIPE-CREATE] sessionId: ${session.id}`);
+      console.log(`[STRIPE-CREATE] userId: ${user.id} (${user.email})`);
+      console.log(`[STRIPE-CREATE] planType: ${planType} | billingCycle: ${billingCycle || 'monthly'}`);
+      console.log(`[STRIPE-CREATE] priceId: ${derivedPriceId}`);
+      console.log(`[STRIPE-CREATE] stripeCustomerId: ${stripeCustomerId}`);
+      console.log(`[STRIPE-CREATE] metadata.userId salvo na sessão: ${session.metadata?.userId}`);
+      console.log(`[STRIPE-CREATE] metadata.userId salvo na subscription_data: ${user.id.toString()}`);
+      console.log(`[STRIPE-CREATE] success_url: ${session.success_url}`);
+      console.log(`[STRIPE-CREATE] ==========================================\n`);
 
       res.json({ 
         sessionId: session.id,
@@ -3372,34 +3381,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { sessionId } = req.params;
       const user = req.user;
 
+      console.log(`\n[STRIPE-ACTIVATE] ===== VERIFICANDO SESSÃO =====`);
+      console.log(`[STRIPE-ACTIVATE] sessionId: ${sessionId}`);
+      console.log(`[STRIPE-ACTIVATE] userId no request: ${user?.id} (${user?.email})`);
+
       if (!user) {
+        console.error(`[STRIPE-ACTIVATE] FALHA: Usuário não autenticado`);
         return res.status(401).json({ message: "Usuário não autenticado" });
       }
 
       if (!stripe) {
+        console.error(`[STRIPE-ACTIVATE] FALHA: Stripe não configurado (STRIPE_SECRET_KEY ausente?)`);
         return res.status(500).json({ message: "Stripe não configurado" });
       }
 
+      console.log(`[STRIPE-ACTIVATE] Buscando sessão no Stripe...`);
       const session = await stripe.checkout.sessions.retrieve(sessionId, {
         expand: ['subscription', 'customer']
       });
 
+      console.log(`[STRIPE-ACTIVATE] Sessão recuperada:`);
+      console.log(`[STRIPE-ACTIVATE]   status: ${session.status}`);
+      console.log(`[STRIPE-ACTIVATE]   payment_status: ${session.payment_status}`);
+      console.log(`[STRIPE-ACTIVATE]   mode: ${session.mode}`);
+      console.log(`[STRIPE-ACTIVATE]   metadata.userId: ${session.metadata?.userId}`);
+      console.log(`[STRIPE-ACTIVATE]   metadata.planType: ${session.metadata?.planType}`);
+      console.log(`[STRIPE-ACTIVATE]   customer: ${typeof session.customer === 'string' ? session.customer : (session.customer as any)?.id}`);
+      console.log(`[STRIPE-ACTIVATE]   subscription: ${typeof session.subscription === 'string' ? session.subscription : (session.subscription as any)?.id}`);
+
       // Validar que a sessão pertence ao usuário autenticado (dupla verificação: metadata + customer)
       const sessionUserId = parseInt(session.metadata?.userId || '0');
       if (sessionUserId !== user.id) {
-        console.warn(`Tentativa de acessar sessão de outro usuário: user ${user.id} tentou acessar sessão do user ${sessionUserId}`);
+        console.warn(`[STRIPE-ACTIVATE] FALHA: userId mismatch — sessão é do user ${sessionUserId}, mas quem acessa é user ${user.id}`);
         return res.status(403).json({ message: "Acesso negado" });
       }
+      console.log(`[STRIPE-ACTIVATE] userId validado: ${sessionUserId} ✓`);
 
       // Verificação adicional: customer da sessão deve corresponder ao customer do usuário
       const sessionCustomerId = typeof session.customer === 'string' 
         ? session.customer 
         : (session.customer as Stripe.Customer)?.id;
       
+      console.log(`[STRIPE-ACTIVATE] stripeCustomerId no DB: ${user.stripeCustomerId || '(não definido)'}`);
+      console.log(`[STRIPE-ACTIVATE] stripeCustomerId da sessão: ${sessionCustomerId || '(não definido)'}`);
       if (user.stripeCustomerId && sessionCustomerId && sessionCustomerId !== user.stripeCustomerId) {
-        console.warn(`Customer mismatch: user ${user.id} tem customerId ${user.stripeCustomerId} mas sessão é do customer ${sessionCustomerId}`);
+        console.warn(`[STRIPE-ACTIVATE] FALHA: customer mismatch — DB tem ${user.stripeCustomerId} mas sessão é do customer ${sessionCustomerId}`);
         return res.status(403).json({ message: "Acesso negado" });
       }
+      console.log(`[STRIPE-ACTIVATE] customer validado ✓`);
 
       if (session.payment_status === 'paid' && session.subscription) {
         const subscription = session.subscription as Stripe.Subscription;
@@ -3425,11 +3454,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const startDate = new Date(subscription.current_period_start * 1000);
         const endDate = new Date(subscription.current_period_end * 1000);
         
+        console.log(`[STRIPE-ACTIVATE] planType: ${planType} | billingCycle: ${billingCycle}`);
+        console.log(`[STRIPE-ACTIVATE] uploadLimit: ${uploadLimit}`);
+        console.log(`[STRIPE-ACTIVATE] subscriptionId: ${subscription.id}`);
+        console.log(`[STRIPE-ACTIVATE] período: ${startDate.toISOString()} → ${endDate.toISOString()}`);
+
         // Verificar se já foi atualizado (idempotência)
         const currentUser = await storage.getUser(user.id);
+        console.log(`[STRIPE-ACTIVATE] Estado atual do usuário no DB:`);
+        console.log(`[STRIPE-ACTIVATE]   subscriptionStatus: ${currentUser?.subscriptionStatus}`);
+        console.log(`[STRIPE-ACTIVATE]   stripeSubscriptionId: ${currentUser?.stripeSubscriptionId || '(não definido)'}`);
+        console.log(`[STRIPE-ACTIVATE]   planType: ${currentUser?.planType}`);
+
         if (currentUser?.stripeSubscriptionId === subscription.id && currentUser?.subscriptionStatus === 'active') {
           // Já foi atualizado, retornar sucesso sem modificar
-          console.log(`Sessão ${sessionId} já processada para usuário ${user.id}`);
+          console.log(`[STRIPE-ACTIVATE] ✅ Sessão ${sessionId} já processada — plano já está ativo (webhook ativou antes)`);
           return res.json({
             success: true,
             planType,
@@ -3441,6 +3480,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         // Atualizar o usuário no banco de dados
+        console.log(`[STRIPE-ACTIVATE] Atualizando usuário ${user.id} no banco...`);
         await storage.updateUser(user.id, {
           planType: planType,
           uploadLimit: uploadLimit,
@@ -3450,7 +3490,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           stripeSubscriptionId: subscription.id
         } as any);
         
-        console.log(`Usuário ${user.id} atualizado para plano ${planType} via Stripe Checkout (subscription: ${subscription.id})`);
+        console.log(`[STRIPE-ACTIVATE] ✅ Usuário ${user.id} atualizado para plano ${planType} (${billingCycle}) via checkout-session endpoint`);
 
         // ============ PROCESSAR INDICAÇÃO (REFERRAL) ============
         // Verificar se este usuário foi indicado e é a primeira compra
@@ -3502,13 +3542,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           referralProcessed
         });
       } else {
+        console.warn(`[STRIPE-ACTIVATE] ⚠️ Sessão não está paga:`);
+        console.warn(`[STRIPE-ACTIVATE]   payment_status: ${session.payment_status}`);
+        console.warn(`[STRIPE-ACTIVATE]   subscription presente: ${!!session.subscription}`);
         res.json({
           success: false,
           status: session.payment_status
         });
       }
     } catch (error: any) {
-      console.error("Erro ao verificar sessão:", error);
+      console.error(`[STRIPE-ACTIVATE] ❌ Erro ao verificar sessão: ${error.message}`);
+      console.error(`[STRIPE-ACTIVATE] Stack: ${error.stack}`);
       res.status(500).json({ message: "Erro ao verificar pagamento", error: error.message });
     }
   });
@@ -3919,13 +3963,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Processar eventos de customer.subscription.*
       if (event.type.startsWith('customer.subscription.')) {
-        console.log(`[Stripe Webhook] Processando evento de subscription: ${event.type}`);
-        
         const subscription = event.data.object;
         const userId = parseInt(subscription.metadata?.userId || '0');
+
+        console.log(`\n[STRIPE-WEBHOOK] ===== ${event.type} =====`);
+        console.log(`[STRIPE-WEBHOOK] subscriptionId: ${subscription.id}`);
+        console.log(`[STRIPE-WEBHOOK] subscription.status: ${subscription.status}`);
+        console.log(`[STRIPE-WEBHOOK] metadata.userId: ${subscription.metadata?.userId || '(AUSENTE!)'}`);
+        console.log(`[STRIPE-WEBHOOK] metadata.planType: ${subscription.metadata?.planType || '(AUSENTE!)'}`);
+        console.log(`[STRIPE-WEBHOOK] metadata.billingCycle: ${subscription.metadata?.billingCycle || '(AUSENTE!)'}`);
         
         if (!userId) {
-          console.warn("[Stripe Webhook] userId não encontrado nos metadata da subscription");
+          console.warn("[STRIPE-WEBHOOK] ⚠️ userId não encontrado nos metadata da subscription — não é possível ativar o plano");
           return res.json({ 
             message: "Subscription sem userId nos metadata",
             event: event.type,
@@ -3935,9 +3984,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         const user = await storage.getUser(userId);
         if (!user) {
-          console.error(`[Stripe Webhook] Usuário ${userId} não encontrado`);
+          console.error(`[STRIPE-WEBHOOK] ❌ Usuário ${userId} não encontrado no banco`);
           return res.status(404).json({ error: "Usuário não encontrado" });
         }
+
+        console.log(`[STRIPE-WEBHOOK] Usuário encontrado: ${user.email} | subscriptionStatus atual: ${user.subscriptionStatus} | stripeSubscriptionId atual: ${user.stripeSubscriptionId || '(não definido)'}`);
         
         // Mapa de limites de upload por plano
         const subPlanLimits: Record<string, number> = {
@@ -3949,6 +4000,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Processar conforme o tipo de evento
         if (event.type === 'customer.subscription.created') {
           // Ativação via subscription.created — net de segurança caso checkout.session.completed falhe
+          console.log(`[STRIPE-WEBHOOK] Processando subscription.created (status: ${subscription.status})`);
           if (subscription.status === 'active' || subscription.status === 'trialing') {
             const planType = subscription.metadata?.planType || user.planType || 'basico';
             const billingCycle = subscription.metadata?.billingCycle || 'monthly';
@@ -3967,10 +4019,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 billingPeriod: billingCycle,
                 stripeSubscriptionId: subscription.id
               } as any);
-              console.log(`[Stripe Webhook] subscription.created → plano ${planType} ativado para usuário ${userId}`);
+              console.log(`[STRIPE-WEBHOOK] ✅ subscription.created → plano ${planType} ativado para usuário ${userId}`);
             } else {
-              console.log(`[Stripe Webhook] subscription.created ignorado — usuário ${userId} já tem plano ativo`);
+              console.log(`[STRIPE-WEBHOOK] ℹ️ subscription.created ignorado — usuário ${userId} já tem plano ativo (stripeSubscriptionId: ${user.stripeSubscriptionId})`);
             }
+          } else {
+            console.warn(`[STRIPE-WEBHOOK] ⚠️ subscription.created com status não-ativo: ${subscription.status} — aguardando`);
           }
         } else if (event.type === 'customer.subscription.deleted') {
           // Antes de rebaixar, verificar se o usuário tem OUTRAS assinaturas ativas
