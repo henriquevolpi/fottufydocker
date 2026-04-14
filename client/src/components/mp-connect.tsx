@@ -154,10 +154,12 @@ function MpPromoModal({ open, onClose, onConnect, connecting }: {
             <X className="h-4 w-4 text-white" />
           </button>
 
-          {/* Badge novidade */}
-          <div className="inline-flex items-center gap-1.5 bg-white/20 backdrop-blur-sm text-white text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full mb-3">
-            <Star className="h-3 w-3 fill-white" />
-            Novidade Fottufy
+          {/* Badge parceria */}
+          <div className="inline-flex items-center gap-2 bg-white/15 backdrop-blur-sm border border-white/30 text-white text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full mb-4">
+            <span className="text-white font-black text-[11px]">Fottufy</span>
+            <span className="text-white/60 text-xs">×</span>
+            <SiMercadopago className="h-3.5 w-auto text-white" />
+            <span className="text-white/80 font-bold normal-case tracking-normal text-[10px]">Parceria oficial</span>
           </div>
 
           <div className="flex items-start gap-4">
