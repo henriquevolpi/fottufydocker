@@ -6,7 +6,7 @@ import { SiMercadopago } from "react-icons/si";
 import {
   CheckCircle2, Link2, Unlink, Loader2, X, Zap, TrendingUp,
   ShieldCheck, Smartphone, QrCode, CreditCard, ArrowRight,
-  Star, BadgeCheck, Banknote, Clock
+  Star, Banknote, Clock
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -55,7 +55,7 @@ function ClientPaymentPreview() {
           <CreditCard className="h-4 w-4 shrink-0" />
           <div className="text-left">
             <p className="text-[10px] font-black uppercase tracking-wider">Cartão</p>
-            <p className="text-[9px] opacity-80">Até 12x sem juros</p>
+            <p className="text-[9px] opacity-80">Até 12x</p>
           </div>
           <ArrowRight className="h-3.5 w-3.5 ml-auto" />
         </div>
@@ -226,10 +226,10 @@ function MpPromoModal({ open, onClose, onConnect, connecting }: {
           <div className="bg-gradient-to-br from-slate-50 to-blue-50 rounded-2xl border border-blue-100 p-5 flex flex-col sm:flex-row items-center gap-4">
             <div className="flex-1 text-center sm:text-left">
               <div className="flex items-center justify-center sm:justify-start gap-1.5 mb-1">
-                <BadgeCheck className="h-4 w-4 text-[#009EE3]" />
-                <p className="text-xs font-black text-[#009EE3] uppercase tracking-wider">Gratuito para fotógrafos</p>
+                <Zap className="h-4 w-4 text-amber-500" />
+                <p className="text-xs font-black text-amber-600 uppercase tracking-wider">Você fica com até 97% do valor</p>
               </div>
-              <p className="text-sm font-bold text-slate-700">Conecte sua conta Mercado Pago agora e comece a receber.</p>
+              <p className="text-sm font-bold text-slate-700">Conecte agora e comece a receber. As taxas padrão do Mercado Pago se aplicam normalmente — a Fottufy cobra <span className="text-[#009EE3]">apenas 3%</span> por venda realizada pelo site.</p>
             </div>
             <Button
               onClick={onConnect}
