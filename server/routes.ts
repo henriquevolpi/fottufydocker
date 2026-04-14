@@ -3475,7 +3475,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       if (session.payment_status === 'paid' && session.subscription) {
-        const subscription = session.subscription as Stripe.Subscription;
+        // Garantir que temos o objeto completo da subscription (não apenas o ID string)
+        let subscription: Stripe.Subscription;
+        if (typeof session.subscription === 'string') {
+          console.log(`[STRIPE-ACTIVATE] subscription retornou como string — buscando objeto completo no Stripe...`);
+          subscription = await stripe.subscriptions.retrieve(session.subscription);
+        } else {
+          subscription = session.subscription as Stripe.Subscription;
+          // Verificar se o objeto tem os campos necessários (current_period_start/end)
+          if (!subscription.current_period_start || !subscription.current_period_end) {
+            console.log(`[STRIPE-ACTIVATE] subscription sem datas — buscando objeto completo no Stripe...`);
+            subscription = await stripe.subscriptions.retrieve(subscription.id);
+          }
+        }
+
         const planType = session.metadata?.planType || 'basico';
         const billingCycle = session.metadata?.billingCycle || 'monthly';
 
@@ -3494,7 +3507,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         const uploadLimit = planLimits[planType] || 6000;
         
-        // Usar datas do Stripe (mais precisas)
+        // Usar datas reais do Stripe
         const startDate = new Date(subscription.current_period_start * 1000);
         const endDate = new Date(subscription.current_period_end * 1000);
         
