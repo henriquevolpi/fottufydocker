@@ -2109,11 +2109,6 @@ export default function Dashboard() {
               </Button>
               
               
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center shadow-lg">
-                <span className="text-white font-black text-lg">
-                  {user?.name ? user.name.charAt(0).toUpperCase() : "U"}
-                </span>
-              </div>
               
               <Button 
                 variant="ghost" 
