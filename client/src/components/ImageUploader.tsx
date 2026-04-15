@@ -331,7 +331,7 @@ export function ImageUploader({ projectId, onUploadSuccess }: ImageUploaderProps
     
     // Verificar arquivos acima de 2MB
     const oversizedFiles = filesArray.filter(file => file.size > MAX_FILE_SIZE);
-    const validFiles = filesArray.filter(file => file.size <= MAX_FILE_SIZE);
+    let validFiles = filesArray.filter(file => file.size <= MAX_FILE_SIZE);
     
     if (oversizedFiles.length > 0) {
       const fileNames = oversizedFiles.map(f => f.name).join(', ');
@@ -344,6 +344,32 @@ export function ImageUploader({ projectId, onUploadSuccess }: ImageUploaderProps
       if (validFiles.length === 0) {
         return;
       }
+    }
+
+    // Detectar duplicatas por nome comparando com as fotos já existentes no projeto
+    try {
+      const projectRes = await fetch(`/api/projects/${projectId}`, { credentials: 'include' });
+      if (projectRes.ok) {
+        const projectData = await projectRes.json();
+        const existingNames = new Set<string>();
+        if (projectData.photos && Array.isArray(projectData.photos)) {
+          (projectData.photos as any[]).forEach((p: any) => {
+            if (p.originalName) existingNames.add(p.originalName.toLowerCase());
+            if (p.filename) existingNames.add(p.filename.toLowerCase());
+          });
+        }
+        const duplicates = validFiles.filter(f => existingNames.has(f.name.toLowerCase()));
+        validFiles = validFiles.filter(f => !existingNames.has(f.name.toLowerCase()));
+        if (duplicates.length > 0) {
+          toast({
+            title: `${duplicates.length} foto(s) ignorada(s)`,
+            description: `Já exist${duplicates.length === 1 ? 'e' : 'em'} no projeto: ${duplicates.map(f => f.name).join(', ')}`,
+          });
+        }
+        if (validFiles.length === 0) return;
+      }
+    } catch {
+      // Se não conseguir verificar, prosseguir normalmente sem bloquear o upload
     }
 
     setLoading(true)
