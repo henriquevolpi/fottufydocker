@@ -833,7 +833,20 @@ function UploadModal({
       if (validFiles.length === 0) return;
     }
 
-    setSelectedFiles(prev => [...prev, ...validFiles]);
+    const existingNames = new Set(selectedFiles.map(f => f.name.toLowerCase()));
+    const duplicates = validFiles.filter(f => existingNames.has(f.name.toLowerCase()));
+    const newUnique = validFiles.filter(f => !existingNames.has(f.name.toLowerCase()));
+
+    if (duplicates.length > 0) {
+      toast({
+        title: `${duplicates.length} foto(s) ignorada(s)`,
+        description: `Já ${duplicates.length === 1 ? 'está' : 'estão'} na seleção: ${duplicates.map(f => f.name).join(', ')}`,
+      });
+    }
+
+    if (newUnique.length > 0) {
+      setSelectedFiles(prev => [...prev, ...newUnique]);
+    }
   };
 
   const removeFile = (index: number) => {
