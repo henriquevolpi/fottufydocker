@@ -92,7 +92,7 @@ export default function ProjectEdit() {
     
     // Verificar arquivos acima de 2MB
     const oversizedFiles = imageFiles.filter(file => file.size > MAX_FILE_SIZE);
-    const validFiles = imageFiles.filter(file => file.size <= MAX_FILE_SIZE);
+    let validFiles = imageFiles.filter(file => file.size <= MAX_FILE_SIZE);
     
     if (oversizedFiles.length > 0) {
       const fileNames = oversizedFiles.map(f => f.name).join(', ');
@@ -106,9 +106,33 @@ export default function ProjectEdit() {
         return;
       }
     }
-    
+
+    // Detectar duplicatas por nome (comparar com fotos já no projeto e já na fila de upload)
+    const existingNames = new Set<string>();
+    // Nomes já no projeto (salvo)
+    if (project?.photos && Array.isArray(project.photos)) {
+      (project.photos as any[]).forEach(p => {
+        if (p.originalName) existingNames.add(p.originalName.toLowerCase());
+        if (p.filename) existingNames.add(p.filename.toLowerCase());
+      });
+    }
+    // Nomes já na fila de upload atual
+    newPhotos.forEach(f => existingNames.add(f.name.toLowerCase()));
+
+    const duplicates = validFiles.filter(f => existingNames.has(f.name.toLowerCase()));
+    validFiles = validFiles.filter(f => !existingNames.has(f.name.toLowerCase()));
+
+    if (duplicates.length > 0) {
+      toast({
+        title: `${duplicates.length} foto(s) ignorada(s)`,
+        description: `Já exist${duplicates.length === 1 ? 'e' : 'em'} no projeto: ${duplicates.map(f => f.name).join(', ')}`,
+      });
+    }
+
+    if (validFiles.length === 0) return;
+
     setNewPhotos(prev => [...prev, ...validFiles]);
-  }, [toast]);
+  }, [toast, project, newPhotos]);
   
   // Configurar o dropzone
   const { getRootProps, getInputProps, isDragActive } = useDropzone({ 
