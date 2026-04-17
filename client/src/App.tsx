@@ -6,6 +6,7 @@ import React, { useEffect } from "react";
 import { ErrorBoundary } from "@/components/error-boundary";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/dashboard";
+import DashboardLuxe from "@/pages/dashboard-luxe";
 import Upload from "@/pages/upload";
 import Project from "@/pages/project";
 import ProjectView from "@/pages/project-view";
@@ -105,6 +106,7 @@ function Router() {
         {(params) => <CreatePassword token={params.token} />}
       </Route>
       <ProtectedRoute path="/dashboard" component={Dashboard} />
+      <ProtectedRoute path="/dashboard-luxe" component={DashboardLuxe} />
       <ProtectedRoute path="/upload" component={Upload} />
       <ProtectedRoute path="/project/:id" component={Project} />
       <ProtectedRoute path="/project/:id/edit" component={ProjectEdit} />
