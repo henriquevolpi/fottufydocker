@@ -16,9 +16,15 @@ import {
   Heart,
   MoreHorizontal,
   Folder,
-  CircleDot,
   Award,
   Zap,
+  LayoutGrid,
+  BarChart3,
+  Filter,
+  ArrowRight,
+  Download,
+  Share2,
+  CheckCircle2,
 } from "lucide-react";
 
 const projects = [
@@ -26,11 +32,11 @@ const projects = [
     id: 1,
     title: "Casamento Helena & Théo",
     client: "Família Marchetti",
-    date: "12 Abr 2026",
+    date: "12 Abr",
     photos: 842,
     selected: 64,
     status: "Em revisão",
-    accent: "#C9A961",
+    statusColor: "#FF9500",
     cover:
       "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1200&q=80",
     progress: 72,
@@ -39,11 +45,11 @@ const projects = [
     id: 2,
     title: "Editorial Maison Verão",
     client: "Maison Atelier",
-    date: "08 Abr 2026",
+    date: "08 Abr",
     photos: 318,
     selected: 42,
     status: "Finalizado",
-    accent: "#1F1F1F",
+    statusColor: "#00C16E",
     cover:
       "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=1200&q=80",
     progress: 100,
@@ -52,11 +58,11 @@ const projects = [
     id: 3,
     title: "Ensaio Família Bianchi",
     client: "Lucia Bianchi",
-    date: "02 Abr 2026",
+    date: "02 Abr",
     photos: 215,
     selected: 28,
     status: "Aguardando",
-    accent: "#7B6F5F",
+    statusColor: "#7C3AED",
     cover:
       "https://images.unsplash.com/photo-1542038784456-1ea8e935640e?auto=format&fit=crop&w=1200&q=80",
     progress: 18,
@@ -64,12 +70,12 @@ const projects = [
   {
     id: 4,
     title: "Corporativo Banca Sevilha",
-    client: "Banca Sevilha & Co.",
-    date: "29 Mar 2026",
+    client: "Banca Sevilha",
+    date: "29 Mar",
     photos: 124,
     selected: 31,
     status: "Finalizado",
-    accent: "#2A3F33",
+    statusColor: "#00C16E",
     cover:
       "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1200&q=80",
     progress: 100,
@@ -78,11 +84,11 @@ const projects = [
     id: 5,
     title: "Gastronomia Osteria Lua",
     client: "Osteria Lua",
-    date: "21 Mar 2026",
+    date: "21 Mar",
     photos: 96,
     selected: 18,
     status: "Em revisão",
-    accent: "#8B3A1F",
+    statusColor: "#FF9500",
     cover:
       "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?auto=format&fit=crop&w=1200&q=80",
     progress: 55,
@@ -90,12 +96,12 @@ const projects = [
   {
     id: 6,
     title: "Coleção Joalheria Aurum",
-    client: "Aurum Fine Jewelry",
-    date: "14 Mar 2026",
+    client: "Aurum Jewelry",
+    date: "14 Mar",
     photos: 76,
     selected: 24,
     status: "Finalizado",
-    accent: "#C9A961",
+    statusColor: "#00C16E",
     cover:
       "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?auto=format&fit=crop&w=1200&q=80",
     progress: 100,
@@ -103,107 +109,104 @@ const projects = [
 ];
 
 const activity = [
-  { who: "Família Marchetti", what: "selecionou 24 fotos", when: "há 4 min", color: "#C9A961" },
-  { who: "Maison Atelier", what: "aprovou a galeria", when: "há 1h", color: "#1F1F1F" },
-  { who: "Lucia Bianchi", what: "abriu a galeria", when: "há 3h", color: "#7B6F5F" },
-  { who: "Banca Sevilha", what: "fez download final", when: "há 6h", color: "#2A3F33" },
-  { who: "Osteria Lua", what: "comentou em 6 fotos", when: "ontem", color: "#8B3A1F" },
+  { who: "Família Marchetti", what: "selecionou 24 fotos", when: "4 min", avatar: "FM", color: "#7C3AED" },
+  { who: "Maison Atelier", what: "aprovou a galeria", when: "1h", avatar: "MA", color: "#00C16E" },
+  { who: "Lucia Bianchi", what: "abriu a galeria", when: "3h", avatar: "LB", color: "#FF9500" },
+  { who: "Banca Sevilha", what: "fez download final", when: "6h", avatar: "BS", color: "#FF3B5C" },
+  { who: "Osteria Lua", what: "comentou em 6 fotos", when: "1d", avatar: "OL", color: "#0EA5E9" },
 ];
+
+const chartData = [42, 58, 35, 72, 65, 88, 95, 78, 92, 110, 128, 142];
 
 export default function DashboardLuxe() {
   useEffect(() => {
     const link = document.createElement("link");
     link.rel = "stylesheet";
     link.href =
-      "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Inter:wght@300;400;500;600;700&display=swap";
+      "https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap";
     document.head.appendChild(link);
     return () => {
       document.head.removeChild(link);
     };
   }, []);
 
+  const maxChart = Math.max(...chartData);
+
   return (
     <div
-      className="min-h-screen w-full"
+      className="min-h-screen w-full bg-white"
       style={{
-        backgroundColor: "#F7F4EE",
-        fontFamily: "'Inter', system-ui, sans-serif",
-        color: "#1A1A1A",
+        fontFamily: "'Poppins', system-ui, sans-serif",
+        color: "#0A0A0A",
       }}
     >
-      {/* Subtle grain overlay */}
-      <div
-        className="pointer-events-none fixed inset-0 z-0 opacity-[0.035]"
-        style={{
-          backgroundImage:
-            "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")",
-        }}
-      />
-
-      <div className="relative z-10 flex min-h-screen">
+      <div className="flex min-h-screen">
         {/* Sidebar */}
-        <aside
-          className="hidden w-[260px] flex-shrink-0 flex-col justify-between border-r px-8 py-10 lg:flex"
-          style={{ borderColor: "rgba(26,26,26,0.08)" }}
-        >
+        <aside className="hidden w-[240px] flex-shrink-0 flex-col justify-between border-r border-zinc-100 bg-white px-5 py-6 lg:flex">
           <div>
             {/* Logo */}
-            <div className="mb-16 flex items-center gap-3">
+            <div className="mb-10 flex items-center gap-2.5 px-2">
               <div
-                className="flex h-10 w-10 items-center justify-center rounded-full"
-                style={{ backgroundColor: "#1A1A1A" }}
+                className="flex h-9 w-9 items-center justify-center rounded-xl"
+                style={{
+                  background:
+                    "linear-gradient(135deg, #7C3AED 0%, #A855F7 100%)",
+                }}
               >
-                <Sparkles className="h-4 w-4" style={{ color: "#C9A961" }} />
+                <Camera className="h-4 w-4 text-white" strokeWidth={2.5} />
               </div>
-              <div>
-                <div
-                  className="text-2xl leading-none"
-                  style={{
-                    fontFamily: "'Cormorant Garamond', serif",
-                    fontWeight: 500,
-                    letterSpacing: "0.02em",
-                  }}
-                >
-                  Fottufy
-                </div>
-                <div
-                  className="mt-1 text-[9px] uppercase tracking-[0.3em]"
-                  style={{ color: "#8A8174" }}
-                >
-                  Atelier
-                </div>
-              </div>
+              <span
+                className="text-[20px] tracking-tight"
+                style={{ fontWeight: 800, letterSpacing: "-0.02em" }}
+              >
+                Fottufy
+              </span>
             </div>
 
             {/* Nav */}
             <nav className="space-y-1">
               {[
-                { icon: Folder, label: "Estúdio", active: true },
-                { icon: ImageIcon, label: "Galerias", count: 24 },
+                { icon: LayoutGrid, label: "Início", active: true },
+                { icon: Folder, label: "Projetos", count: 24 },
                 { icon: Users, label: "Clientes", count: 18 },
+                { icon: ImageIcon, label: "Galerias" },
+                { icon: BarChart3, label: "Analytics" },
                 { icon: Calendar, label: "Agenda" },
-                { icon: TrendingUp, label: "Insights" },
               ].map((item) => (
                 <button
                   key={item.label}
-                  className="group flex w-full items-center justify-between rounded-lg px-4 py-3 text-left transition-all"
+                  className="group flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left transition-all"
                   style={{
-                    backgroundColor: item.active ? "#1A1A1A" : "transparent",
-                    color: item.active ? "#F7F4EE" : "#3A3A3A",
+                    backgroundColor: item.active ? "#F4F4F5" : "transparent",
+                    color: item.active ? "#0A0A0A" : "#52525B",
                   }}
                   data-testid={`luxe-nav-${item.label}`}
+                  onMouseEnter={(e) => {
+                    if (!item.active) e.currentTarget.style.backgroundColor = "#FAFAFA";
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!item.active) e.currentTarget.style.backgroundColor = "transparent";
+                  }}
                 >
                   <div className="flex items-center gap-3">
-                    <item.icon className="h-[15px] w-[15px]" strokeWidth={1.5} />
-                    <span className="text-[13px] font-normal tracking-wide">
+                    <item.icon
+                      className="h-[18px] w-[18px]"
+                      strokeWidth={item.active ? 2.5 : 2}
+                    />
+                    <span
+                      className="text-[14px]"
+                      style={{ fontWeight: item.active ? 600 : 500 }}
+                    >
                       {item.label}
                     </span>
                   </div>
                   {item.count && (
                     <span
-                      className="text-[10px] tabular-nums"
+                      className="rounded-md px-2 py-0.5 text-[11px] tabular-nums"
                       style={{
-                        color: item.active ? "#C9A961" : "#8A8174",
+                        backgroundColor: item.active ? "#0A0A0A" : "#F4F4F5",
+                        color: item.active ? "#FFFFFF" : "#71717A",
+                        fontWeight: 600,
                       }}
                     >
                       {item.count}
@@ -215,498 +218,529 @@ export default function DashboardLuxe() {
 
             {/* Plan card */}
             <div
-              className="mt-16 rounded-2xl border p-6"
+              className="mt-8 overflow-hidden rounded-2xl p-5"
               style={{
-                borderColor: "rgba(26,26,26,0.08)",
-                backgroundColor: "#FBFAF6",
+                background:
+                  "linear-gradient(135deg, #0A0A0A 0%, #18181B 100%)",
+                color: "#FFFFFF",
               }}
             >
-              <div className="flex items-center gap-2">
-                <Award className="h-3 w-3" style={{ color: "#C9A961" }} strokeWidth={2} />
+              <div className="flex items-center gap-1.5">
+                <Sparkles className="h-3 w-3" style={{ color: "#A855F7" }} strokeWidth={2.5} />
                 <span
-                  className="text-[9px] uppercase tracking-[0.3em]"
-                  style={{ color: "#8A8174" }}
+                  className="text-[10px] uppercase tracking-wider"
+                  style={{ color: "#A1A1AA", fontWeight: 600 }}
                 >
-                  Plano Atelier
+                  Plano Estúdio
                 </span>
               </div>
-              <div
-                className="mt-4 text-3xl"
-                style={{
-                  fontFamily: "'Cormorant Garamond', serif",
-                  fontWeight: 500,
-                }}
-              >
-                17.000
-              </div>
-              <div className="text-[11px]" style={{ color: "#6B6358" }}>
-                fotos do plano
-              </div>
-              <div className="mt-5">
-                <div
-                  className="h-[2px] w-full overflow-hidden rounded-full"
-                  style={{ backgroundColor: "rgba(26,26,26,0.06)" }}
+              <div className="mt-3 flex items-baseline gap-1">
+                <span
+                  className="text-3xl tabular-nums"
+                  style={{ fontWeight: 800, letterSpacing: "-0.03em" }}
                 >
+                  6.481
+                </span>
+                <span className="text-[12px]" style={{ color: "#71717A", fontWeight: 500 }}>
+                  / 17.000
+                </span>
+              </div>
+              <div className="mt-3">
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
                   <div
                     className="h-full rounded-full"
-                    style={{ width: "38%", backgroundColor: "#C9A961" }}
+                    style={{
+                      width: "38%",
+                      background:
+                        "linear-gradient(90deg, #7C3AED 0%, #A855F7 100%)",
+                    }}
                   />
                 </div>
-                <div
-                  className="mt-3 flex justify-between text-[10px] tabular-nums"
-                  style={{ color: "#8A8174" }}
-                >
-                  <span>6.481 usadas</span>
-                  <span>38%</span>
-                </div>
               </div>
+              <button
+                className="mt-4 w-full rounded-lg py-2 text-[12px]"
+                style={{
+                  backgroundColor: "#FFFFFF",
+                  color: "#0A0A0A",
+                  fontWeight: 600,
+                }}
+              >
+                Fazer upgrade
+              </button>
             </div>
           </div>
 
           {/* User */}
-          <div className="flex items-center gap-3 border-t pt-6" style={{ borderColor: "rgba(26,26,26,0.08)" }}>
+          <div className="flex items-center gap-2.5 rounded-xl px-2 py-2">
             <div
-              className="flex h-9 w-9 items-center justify-center rounded-full text-[11px]"
+              className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-[12px] text-white"
               style={{
                 background:
-                  "linear-gradient(135deg, #C9A961 0%, #8B7340 100%)",
-                color: "#1A1A1A",
-                fontFamily: "'Cormorant Garamond', serif",
-                fontWeight: 600,
+                  "linear-gradient(135deg, #FF3B5C 0%, #FF9500 100%)",
+                fontWeight: 700,
               }}
             >
               HF
             </div>
             <div className="flex-1 overflow-hidden">
-              <div className="truncate text-[12px] font-medium">Henrique Ferreira</div>
-              <div className="truncate text-[10px]" style={{ color: "#8A8174" }}>
-                Fotógrafo · São Paulo
+              <div className="truncate text-[13px]" style={{ fontWeight: 600 }}>
+                Henrique
+              </div>
+              <div className="truncate text-[11px]" style={{ color: "#71717A", fontWeight: 500 }}>
+                Fotógrafo Pro
               </div>
             </div>
-            <Settings className="h-4 w-4 cursor-pointer" strokeWidth={1.5} style={{ color: "#8A8174" }} />
+            <Settings className="h-4 w-4 cursor-pointer text-zinc-400" strokeWidth={2} />
           </div>
         </aside>
 
         {/* Main */}
         <main className="flex-1 overflow-x-hidden">
           {/* Top bar */}
-          <div
-            className="sticky top-0 z-30 flex items-center justify-between border-b px-6 py-5 backdrop-blur-xl lg:px-12"
-            style={{
-              borderColor: "rgba(26,26,26,0.06)",
-              backgroundColor: "rgba(247,244,238,0.85)",
-            }}
-          >
-            <div className="flex items-center gap-3">
-              <Search className="h-4 w-4" strokeWidth={1.5} style={{ color: "#8A8174" }} />
+          <div className="sticky top-0 z-30 flex items-center justify-between border-b border-zinc-100 bg-white/80 px-6 py-4 backdrop-blur-xl lg:px-10">
+            <div
+              className="flex items-center gap-2.5 rounded-xl bg-zinc-50 px-4 py-2.5"
+              style={{ width: "min(420px, 50vw)" }}
+            >
+              <Search className="h-[18px] w-[18px] text-zinc-400" strokeWidth={2} />
               <input
-                placeholder="Buscar projeto, cliente, galeria…"
-                className="w-[280px] border-none bg-transparent text-[13px] outline-none placeholder:text-[#8A8174] sm:w-[360px]"
-                style={{ color: "#1A1A1A" }}
+                placeholder="Buscar projeto, cliente ou galeria…"
+                className="flex-1 border-none bg-transparent text-[13px] outline-none placeholder:text-zinc-400"
+                style={{ fontWeight: 500 }}
               />
-            </div>
-            <div className="flex items-center gap-5">
-              <div
-                className="hidden items-center gap-2 rounded-full border px-3 py-1.5 sm:flex"
-                style={{ borderColor: "rgba(26,26,26,0.1)" }}
+              <kbd
+                className="hidden rounded-md border border-zinc-200 bg-white px-1.5 py-0.5 text-[10px] text-zinc-400 sm:block"
+                style={{ fontWeight: 600 }}
               >
-                <CircleDot className="h-3 w-3" strokeWidth={2} style={{ color: "#2A7F4F" }} />
-                <span className="text-[10px] uppercase tracking-[0.2em]" style={{ color: "#3A3A3A" }}>
-                  Online
-                </span>
-              </div>
-              <button className="relative">
-                <Bell className="h-[18px] w-[18px]" strokeWidth={1.5} style={{ color: "#3A3A3A" }} />
+                ⌘K
+              </kbd>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-50 transition-all hover:bg-zinc-100">
+                <Bell className="h-[18px] w-[18px] text-zinc-700" strokeWidth={2} />
                 <span
-                  className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full"
-                  style={{ backgroundColor: "#C9A961" }}
+                  className="absolute right-2 top-2 h-2 w-2 rounded-full ring-2 ring-zinc-50"
+                  style={{ backgroundColor: "#FF3B5C" }}
                 />
               </button>
               <button
-                className="flex items-center gap-2 rounded-full px-5 py-2.5 text-[12px] font-medium tracking-wide transition-all hover:opacity-90"
-                style={{ backgroundColor: "#1A1A1A", color: "#F7F4EE" }}
+                className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-[13px] text-white transition-all hover:opacity-90"
+                style={{
+                  background:
+                    "linear-gradient(135deg, #7C3AED 0%, #A855F7 100%)",
+                  fontWeight: 600,
+                  boxShadow: "0 4px 14px 0 rgba(124, 58, 237, 0.25)",
+                }}
                 data-testid="button-luxe-new-project"
               >
-                <Plus className="h-3.5 w-3.5" strokeWidth={2} />
-                Novo Projeto
+                <Plus className="h-4 w-4" strokeWidth={2.5} />
+                Novo projeto
               </button>
             </div>
           </div>
 
-          <div className="px-6 py-12 lg:px-12 lg:py-16">
-            {/* Hero / Greeting */}
-            <div className="mb-16 flex flex-col items-end justify-between gap-6 md:flex-row md:items-end">
-              <div>
-                <div
-                  className="mb-3 text-[11px] uppercase tracking-[0.4em]"
-                  style={{ color: "#8A8174" }}
+          <div className="px-6 py-8 lg:px-10 lg:py-10">
+            {/* Greeting */}
+            <div className="mb-8">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">👋</span>
+                <span
+                  className="text-[14px]"
+                  style={{ color: "#71717A", fontWeight: 500 }}
                 >
                   Sexta-feira, 17 de Abril
-                </div>
-                <h1
-                  className="text-[56px] leading-[0.95] md:text-[72px]"
-                  style={{
-                    fontFamily: "'Cormorant Garamond', serif",
-                    fontWeight: 400,
-                    letterSpacing: "-0.02em",
-                  }}
-                >
-                  Bom dia,
-                  <br />
-                  <span style={{ fontStyle: "italic", fontWeight: 500 }}>
-                    Henrique
-                  </span>
-                  <span style={{ color: "#C9A961" }}>.</span>
-                </h1>
-                <p
-                  className="mt-5 max-w-md text-[14px] leading-relaxed"
-                  style={{ color: "#5A5247" }}
-                >
-                  Você tem <span style={{ color: "#1A1A1A", fontWeight: 500 }}>3 galerias</span> aguardando
-                  revisão e <span style={{ color: "#1A1A1A", fontWeight: 500 }}>1 nova seleção</span> de cliente
-                  desde ontem.
-                </p>
+                </span>
               </div>
-
-              <div className="flex gap-8">
-                {[
-                  { label: "Receita do mês", value: "R$ 24.8k", trend: "+18%" },
-                  { label: "Galerias ativas", value: "12", trend: "+3" },
-                ].map((stat) => (
-                  <div key={stat.label} className="text-right">
-                    <div
-                      className="text-[10px] uppercase tracking-[0.3em]"
-                      style={{ color: "#8A8174" }}
-                    >
-                      {stat.label}
-                    </div>
-                    <div
-                      className="mt-2 text-4xl tabular-nums"
-                      style={{
-                        fontFamily: "'Cormorant Garamond', serif",
-                        fontWeight: 500,
-                      }}
-                    >
-                      {stat.value}
-                    </div>
-                    <div
-                      className="mt-1 inline-flex items-center gap-1 text-[10px]"
-                      style={{ color: "#2A7F4F" }}
-                    >
-                      <ArrowUpRight className="h-2.5 w-2.5" strokeWidth={2.5} />
-                      {stat.trend} vs. anterior
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <h1
+                className="mt-2 text-[36px] leading-tight md:text-[42px]"
+                style={{ fontWeight: 800, letterSpacing: "-0.03em" }}
+              >
+                Olá, Henrique 
+              </h1>
+              <p className="mt-1 text-[15px]" style={{ color: "#52525B", fontWeight: 500 }}>
+                Você tem{" "}
+                <span style={{ color: "#7C3AED", fontWeight: 700 }}>3 galerias</span>{" "}
+                aguardando revisão e{" "}
+                <span style={{ color: "#7C3AED", fontWeight: 700 }}>1 nova seleção</span>{" "}
+                de cliente.
+              </p>
             </div>
 
-            {/* Stats row */}
-            <div className="mb-20 grid grid-cols-2 gap-px overflow-hidden rounded-2xl md:grid-cols-4" style={{ backgroundColor: "rgba(26,26,26,0.08)" }}>
+            {/* Stats cards */}
+            <div className="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4">
               {[
-                { label: "Total de Fotos", value: "6.481", sub: "neste mês", icon: ImageIcon },
-                { label: "Selecionadas", value: "1.247", sub: "pelos clientes", icon: Heart },
-                { label: "Galerias Vistas", value: "8.392", sub: "visualizações", icon: Eye },
-                { label: "Tempo Médio", value: "4m 12s", sub: "por galeria", icon: Zap },
+                {
+                  label: "Total de fotos",
+                  value: "6.481",
+                  trend: "+12%",
+                  trendUp: true,
+                  icon: ImageIcon,
+                  bg: "#F5F3FF",
+                  fg: "#7C3AED",
+                },
+                {
+                  label: "Selecionadas",
+                  value: "1.247",
+                  trend: "+24%",
+                  trendUp: true,
+                  icon: Heart,
+                  bg: "#FFF1F2",
+                  fg: "#FF3B5C",
+                },
+                {
+                  label: "Visualizações",
+                  value: "8.392",
+                  trend: "+8%",
+                  trendUp: true,
+                  icon: Eye,
+                  bg: "#ECFDF5",
+                  fg: "#00C16E",
+                },
+                {
+                  label: "Receita do mês",
+                  value: "R$ 24,8k",
+                  trend: "+18%",
+                  trendUp: true,
+                  icon: TrendingUp,
+                  bg: "#FFF7ED",
+                  fg: "#FF9500",
+                },
               ].map((stat) => (
                 <div
                   key={stat.label}
-                  className="group relative bg-[#FBFAF6] px-7 py-8 transition-all hover:bg-[#F2EEE5]"
+                  className="rounded-2xl border border-zinc-100 bg-white p-5 transition-all hover:border-zinc-200 hover:shadow-sm"
                   data-testid={`luxe-stat-${stat.label}`}
                 >
                   <div className="flex items-start justify-between">
-                    <div>
-                      <div
-                        className="text-[10px] uppercase tracking-[0.25em]"
-                        style={{ color: "#8A8174" }}
-                      >
-                        {stat.label}
-                      </div>
-                      <div
-                        className="mt-3 text-[40px] leading-none tabular-nums"
-                        style={{
-                          fontFamily: "'Cormorant Garamond', serif",
-                          fontWeight: 400,
-                        }}
-                      >
-                        {stat.value}
-                      </div>
-                      <div className="mt-2 text-[11px]" style={{ color: "#6B6358" }}>
-                        {stat.sub}
-                      </div>
+                    <div
+                      className="flex h-10 w-10 items-center justify-center rounded-xl"
+                      style={{ backgroundColor: stat.bg }}
+                    >
+                      <stat.icon
+                        className="h-[18px] w-[18px]"
+                        style={{ color: stat.fg }}
+                        strokeWidth={2.5}
+                      />
                     </div>
-                    <stat.icon
-                      className="h-4 w-4 opacity-40 transition-opacity group-hover:opacity-100"
-                      strokeWidth={1.5}
-                      style={{ color: "#C9A961" }}
-                    />
+                    <span
+                      className="rounded-md px-1.5 py-0.5 text-[10px] tabular-nums"
+                      style={{
+                        backgroundColor: stat.trendUp ? "#ECFDF5" : "#FEF2F2",
+                        color: stat.trendUp ? "#00A65A" : "#DC2626",
+                        fontWeight: 700,
+                      }}
+                    >
+                      {stat.trend}
+                    </span>
+                  </div>
+                  <div
+                    className="mt-4 text-[28px] leading-none tabular-nums"
+                    style={{ fontWeight: 800, letterSpacing: "-0.02em" }}
+                  >
+                    {stat.value}
+                  </div>
+                  <div
+                    className="mt-1.5 text-[13px]"
+                    style={{ color: "#71717A", fontWeight: 500 }}
+                  >
+                    {stat.label}
                   </div>
                 </div>
               ))}
             </div>
 
-            {/* Featured project */}
-            <div className="mb-20">
-              <div className="mb-6 flex items-end justify-between">
-                <div>
-                  <div
-                    className="text-[10px] uppercase tracking-[0.4em]"
-                    style={{ color: "#8A8174" }}
-                  >
-                    Em destaque
-                  </div>
-                  <h2
-                    className="mt-2 text-3xl"
-                    style={{
-                      fontFamily: "'Cormorant Garamond', serif",
-                      fontWeight: 500,
-                    }}
-                  >
-                    Projeto da semana
-                  </h2>
-                </div>
-                <button
-                  className="flex items-center gap-1 text-[11px] uppercase tracking-[0.25em]"
-                  style={{ color: "#1A1A1A" }}
-                >
-                  Ver todos
-                  <ArrowUpRight className="h-3 w-3" strokeWidth={2} />
-                </button>
-              </div>
-
-              <div
-                className="relative h-[460px] overflow-hidden rounded-3xl"
-                style={{ backgroundColor: "#1A1A1A" }}
-              >
-                <div
-                  className="absolute inset-0 bg-cover bg-center"
-                  style={{
-                    backgroundImage: `url(${projects[0].cover})`,
-                  }}
-                />
-                <div
-                  className="absolute inset-0"
-                  style={{
-                    background:
-                      "linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0.85) 100%)",
-                  }}
-                />
-
-                <div className="relative flex h-full flex-col justify-between p-10 lg:p-14">
-                  <div className="flex justify-between">
-                    <span
-                      className="rounded-full border px-4 py-1.5 text-[10px] uppercase tracking-[0.3em] backdrop-blur-md"
-                      style={{
-                        borderColor: "rgba(247,244,238,0.3)",
-                        color: "#F7F4EE",
-                      }}
-                    >
-                      Em revisão
-                    </span>
-                    <button
-                      className="flex h-10 w-10 items-center justify-center rounded-full backdrop-blur-md"
-                      style={{
-                        backgroundColor: "rgba(247,244,238,0.15)",
-                        border: "1px solid rgba(247,244,238,0.2)",
-                      }}
-                    >
-                      <MoreHorizontal className="h-4 w-4" style={{ color: "#F7F4EE" }} />
-                    </button>
-                  </div>
-
+            {/* Chart + Quick actions row */}
+            <div className="mb-8 grid gap-4 lg:grid-cols-3">
+              {/* Chart */}
+              <div className="rounded-2xl border border-zinc-100 bg-white p-6 lg:col-span-2">
+                <div className="flex items-start justify-between">
                   <div>
-                    <div
-                      className="text-[11px] uppercase tracking-[0.35em]"
-                      style={{ color: "rgba(247,244,238,0.7)" }}
-                    >
-                      Família Marchetti · 12 Abril
-                    </div>
                     <h3
-                      className="mt-3 text-5xl leading-tight md:text-6xl"
-                      style={{
-                        fontFamily: "'Cormorant Garamond', serif",
-                        fontWeight: 400,
-                        color: "#F7F4EE",
-                        letterSpacing: "-0.01em",
-                      }}
+                      className="text-[18px]"
+                      style={{ fontWeight: 700, letterSpacing: "-0.01em" }}
                     >
-                      Casamento <em style={{ fontWeight: 500 }}>Helena & Théo</em>
+                      Atividade da galeria
                     </h3>
-
-                    <div className="mt-8 flex flex-wrap items-end justify-between gap-6">
-                      <div className="flex gap-10">
-                        {[
-                          { label: "Fotos", value: "842" },
-                          { label: "Selecionadas", value: "64" },
-                          { label: "Visualizações", value: "1.2k" },
-                        ].map((m) => (
-                          <div key={m.label}>
-                            <div
-                              className="text-[9px] uppercase tracking-[0.3em]"
-                              style={{ color: "rgba(247,244,238,0.6)" }}
-                            >
-                              {m.label}
-                            </div>
-                            <div
-                              className="mt-1 text-3xl tabular-nums"
-                              style={{
-                                fontFamily: "'Cormorant Garamond', serif",
-                                fontWeight: 400,
-                                color: "#F7F4EE",
-                              }}
-                            >
-                              {m.value}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-
-                      <button
-                        className="flex items-center gap-2 rounded-full px-6 py-3 text-[12px] font-medium"
-                        style={{ backgroundColor: "#F7F4EE", color: "#1A1A1A" }}
-                      >
-                        Abrir galeria
-                        <ChevronRight className="h-3.5 w-3.5" strokeWidth={2} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Project grid + activity */}
-            <div className="grid gap-12 lg:grid-cols-[1fr_320px]">
-              <div>
-                <div className="mb-8 flex items-end justify-between">
-                  <div>
-                    <div
-                      className="text-[10px] uppercase tracking-[0.4em]"
-                      style={{ color: "#8A8174" }}
+                    <p
+                      className="mt-1 text-[13px]"
+                      style={{ color: "#71717A", fontWeight: 500 }}
                     >
-                      Coleção
-                    </div>
-                    <h2
-                      className="mt-2 text-3xl"
-                      style={{
-                        fontFamily: "'Cormorant Garamond', serif",
-                        fontWeight: 500,
-                      }}
-                    >
-                      Projetos recentes
-                    </h2>
+                      Visualizações nos últimos 12 meses
+                    </p>
                   </div>
-                  <div className="hidden items-center gap-1 rounded-full border p-1 sm:flex" style={{ borderColor: "rgba(26,26,26,0.1)" }}>
-                    {["Todos", "Em revisão", "Finalizados"].map((tab, i) => (
+                  <div className="flex items-center gap-1 rounded-lg bg-zinc-50 p-1">
+                    {["12M", "30D", "7D"].map((p, i) => (
                       <button
-                        key={tab}
-                        className="rounded-full px-4 py-1.5 text-[11px] tracking-wide transition-all"
+                        key={p}
+                        className="rounded-md px-3 py-1 text-[11px] transition-all"
                         style={{
-                          backgroundColor: i === 0 ? "#1A1A1A" : "transparent",
-                          color: i === 0 ? "#F7F4EE" : "#5A5247",
+                          backgroundColor: i === 0 ? "#FFFFFF" : "transparent",
+                          color: i === 0 ? "#0A0A0A" : "#71717A",
+                          fontWeight: 600,
+                          boxShadow: i === 0 ? "0 1px 2px rgba(0,0,0,0.05)" : "none",
                         }}
                       >
-                        {tab}
+                        {p}
                       </button>
                     ))}
                   </div>
                 </div>
 
-                <div className="grid gap-6 sm:grid-cols-2">
-                  {projects.slice(1).map((p) => (
-                    <article
-                      key={p.id}
-                      className="group cursor-pointer"
-                      data-testid={`luxe-card-${p.id}`}
-                    >
-                      <div className="relative mb-5 aspect-[4/5] overflow-hidden rounded-2xl bg-[#1A1A1A]">
+                <div className="mt-6 flex items-baseline gap-3">
+                  <span
+                    className="text-[36px] leading-none tabular-nums"
+                    style={{ fontWeight: 800, letterSpacing: "-0.03em" }}
+                  >
+                    8.392
+                  </span>
+                  <span
+                    className="rounded-md px-2 py-0.5 text-[11px]"
+                    style={{
+                      backgroundColor: "#ECFDF5",
+                      color: "#00A65A",
+                      fontWeight: 700,
+                    }}
+                  >
+                    ↑ 18,2%
+                  </span>
+                  <span
+                    className="text-[12px]"
+                    style={{ color: "#71717A", fontWeight: 500 }}
+                  >
+                    vs. período anterior
+                  </span>
+                </div>
+
+                {/* Bar chart */}
+                <div className="mt-8 flex h-[160px] items-end gap-2">
+                  {chartData.map((v, i) => {
+                    const h = (v / maxChart) * 100;
+                    const isLast = i === chartData.length - 1;
+                    return (
+                      <div key={i} className="group flex flex-1 flex-col items-center gap-2">
                         <div
-                          className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
-                          style={{ backgroundImage: `url(${p.cover})` }}
-                        />
-                        <div
-                          className="absolute inset-0 opacity-0 transition-opacity group-hover:opacity-100"
+                          className="w-full rounded-t-md transition-all"
                           style={{
-                            background:
-                              "linear-gradient(180deg, transparent 50%, rgba(0,0,0,0.6) 100%)",
+                            height: `${h}%`,
+                            background: isLast
+                              ? "linear-gradient(180deg, #7C3AED 0%, #A855F7 100%)"
+                              : "linear-gradient(180deg, #F4F4F5 0%, #E4E4E7 100%)",
                           }}
                         />
+                        <span
+                          className="text-[10px] tabular-nums"
+                          style={{ color: isLast ? "#7C3AED" : "#A1A1AA", fontWeight: 600 }}
+                        >
+                          {["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"][i]}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
 
+              {/* Quick actions */}
+              <div className="rounded-2xl border border-zinc-100 bg-white p-6">
+                <h3
+                  className="text-[18px]"
+                  style={{ fontWeight: 700, letterSpacing: "-0.01em" }}
+                >
+                  Ações rápidas
+                </h3>
+                <p
+                  className="mt-1 text-[13px]"
+                  style={{ color: "#71717A", fontWeight: 500 }}
+                >
+                  Comece em um clique
+                </p>
+
+                <div className="mt-5 space-y-2">
+                  {[
+                    { icon: Plus, label: "Novo projeto", desc: "Criar galeria", color: "#7C3AED", bg: "#F5F3FF" },
+                    { icon: Share2, label: "Compartilhar link", desc: "Copiar URL pública", color: "#0EA5E9", bg: "#F0F9FF" },
+                    { icon: Download, label: "Exportar fotos", desc: "Download em lote", color: "#00C16E", bg: "#ECFDF5" },
+                  ].map((a) => (
+                    <button
+                      key={a.label}
+                      className="group flex w-full items-center gap-3 rounded-xl p-3 text-left transition-all hover:bg-zinc-50"
+                      data-testid={`luxe-quick-${a.label}`}
+                    >
+                      <div
+                        className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl"
+                        style={{ backgroundColor: a.bg }}
+                      >
+                        <a.icon
+                          className="h-[18px] w-[18px]"
+                          style={{ color: a.color }}
+                          strokeWidth={2.5}
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <div className="text-[13px]" style={{ fontWeight: 600 }}>
+                          {a.label}
+                        </div>
+                        <div
+                          className="text-[11px]"
+                          style={{ color: "#71717A", fontWeight: 500 }}
+                        >
+                          {a.desc}
+                        </div>
+                      </div>
+                      <ArrowRight
+                        className="h-4 w-4 text-zinc-300 transition-all group-hover:translate-x-0.5 group-hover:text-zinc-700"
+                        strokeWidth={2}
+                      />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Projects + Activity */}
+            <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+              {/* Projects */}
+              <div>
+                <div className="mb-5 flex items-center justify-between">
+                  <div>
+                    <h2
+                      className="text-[22px]"
+                      style={{ fontWeight: 700, letterSpacing: "-0.02em" }}
+                    >
+                      Projetos recentes
+                    </h2>
+                    <p
+                      className="mt-0.5 text-[13px]"
+                      style={{ color: "#71717A", fontWeight: 500 }}
+                    >
+                      24 projetos no total
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      className="flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-[12px] transition-all hover:bg-zinc-50"
+                      style={{ fontWeight: 600 }}
+                    >
+                      <Filter className="h-3.5 w-3.5" strokeWidth={2.5} />
+                      Filtrar
+                    </button>
+                    <button
+                      className="flex items-center gap-1 rounded-xl px-3 py-2 text-[12px]"
+                      style={{ color: "#7C3AED", fontWeight: 600 }}
+                    >
+                      Ver todos
+                      <ArrowUpRight className="h-3.5 w-3.5" strokeWidth={2.5} />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {projects.map((p) => (
+                    <article
+                      key={p.id}
+                      className="group cursor-pointer overflow-hidden rounded-2xl border border-zinc-100 bg-white transition-all hover:border-zinc-200 hover:shadow-lg hover:shadow-zinc-200/50"
+                      data-testid={`luxe-card-${p.id}`}
+                    >
+                      <div className="relative h-[180px] overflow-hidden bg-zinc-100">
+                        <div
+                          className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-105"
+                          style={{ backgroundImage: `url(${p.cover})` }}
+                        />
                         {/* status pill */}
-                        <div className="absolute left-4 top-4">
+                        <div className="absolute left-3 top-3">
                           <span
-                            className="rounded-full px-3 py-1 text-[9px] uppercase tracking-[0.25em] backdrop-blur-md"
-                            style={{
-                              backgroundColor: "rgba(247,244,238,0.9)",
-                              color: "#1A1A1A",
-                            }}
+                            className="flex items-center gap-1.5 rounded-full bg-white/95 px-2.5 py-1 text-[10px] backdrop-blur-md"
+                            style={{ color: "#0A0A0A", fontWeight: 700 }}
                           >
+                            <span
+                              className="h-1.5 w-1.5 rounded-full"
+                              style={{ backgroundColor: p.statusColor }}
+                            />
                             {p.status}
                           </span>
                         </div>
-
-                        {/* number */}
-                        <div className="absolute right-4 top-4">
-                          <div
-                            className="flex h-12 w-12 items-center justify-center rounded-full backdrop-blur-md"
-                            style={{
-                              backgroundColor: "rgba(26,26,26,0.4)",
-                              border: "1px solid rgba(247,244,238,0.2)",
-                            }}
-                          >
-                            <span
-                              className="text-lg tabular-nums"
-                              style={{
-                                fontFamily: "'Cormorant Garamond', serif",
-                                color: "#F7F4EE",
-                              }}
-                            >
-                              {String(p.id).padStart(2, "0")}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* progress bar bottom */}
-                        <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-black/20">
-                          <div
-                            className="h-full transition-all"
-                            style={{
-                              width: `${p.progress}%`,
-                              backgroundColor: p.accent,
-                            }}
-                          />
-                        </div>
+                        <button
+                          className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-white/95 backdrop-blur-md transition-all hover:bg-white"
+                        >
+                          <MoreHorizontal className="h-4 w-4 text-zinc-700" />
+                        </button>
                       </div>
 
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1">
-                          <div
-                            className="text-[10px] uppercase tracking-[0.3em]"
-                            style={{ color: "#8A8174" }}
-                          >
-                            {p.client} · {p.date}
-                          </div>
-                          <h3
-                            className="mt-2 text-[22px] leading-tight transition-colors group-hover:text-[#5A5247]"
-                            style={{
-                              fontFamily: "'Cormorant Garamond', serif",
-                              fontWeight: 500,
-                              letterSpacing: "-0.01em",
-                            }}
-                          >
-                            {p.title}
-                          </h3>
-                          <div className="mt-3 flex items-center gap-4 text-[11px]" style={{ color: "#6B6358" }}>
-                            <span className="tabular-nums">{p.photos} fotos</span>
-                            <span className="h-[3px] w-[3px] rounded-full" style={{ backgroundColor: "#C9A961" }} />
-                            <span className="tabular-nums">{p.selected} selecionadas</span>
+                      <div className="p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 overflow-hidden">
+                            <div
+                              className="text-[11px]"
+                              style={{ color: "#71717A", fontWeight: 600 }}
+                            >
+                              {p.client} · {p.date}
+                            </div>
+                            <h3
+                              className="mt-1 truncate text-[15px]"
+                              style={{
+                                fontWeight: 700,
+                                letterSpacing: "-0.01em",
+                              }}
+                            >
+                              {p.title}
+                            </h3>
                           </div>
                         </div>
 
-                        <div
-                          className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border transition-all group-hover:bg-[#1A1A1A] group-hover:text-[#F7F4EE]"
-                          style={{ borderColor: "rgba(26,26,26,0.15)", color: "#1A1A1A" }}
-                        >
-                          <ArrowUpRight className="h-3.5 w-3.5" strokeWidth={1.8} />
+                        {/* metrics */}
+                        <div className="mt-4 flex items-center gap-4">
+                          <div className="flex items-center gap-1.5">
+                            <ImageIcon
+                              className="h-3.5 w-3.5 text-zinc-400"
+                              strokeWidth={2.5}
+                            />
+                            <span
+                              className="text-[12px] tabular-nums"
+                              style={{ color: "#52525B", fontWeight: 600 }}
+                            >
+                              {p.photos}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <Heart
+                              className="h-3.5 w-3.5"
+                              style={{ color: "#FF3B5C" }}
+                              strokeWidth={2.5}
+                              fill="#FF3B5C"
+                            />
+                            <span
+                              className="text-[12px] tabular-nums"
+                              style={{ color: "#52525B", fontWeight: 600 }}
+                            >
+                              {p.selected}
+                            </span>
+                          </div>
+                          {p.progress === 100 && (
+                            <div className="ml-auto flex items-center gap-1">
+                              <CheckCircle2
+                                className="h-3.5 w-3.5"
+                                style={{ color: "#00C16E" }}
+                                strokeWidth={2.5}
+                              />
+                            </div>
+                          )}
+                        </div>
+
+                        {/* progress */}
+                        <div className="mt-3">
+                          <div className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-100">
+                            <div
+                              className="h-full rounded-full transition-all"
+                              style={{
+                                width: `${p.progress}%`,
+                                backgroundColor: p.statusColor,
+                              }}
+                            />
+                          </div>
+                          <div className="mt-1.5 flex justify-between text-[10px]" style={{ color: "#A1A1AA", fontWeight: 600 }}>
+                            <span>{p.progress}% completo</span>
+                            <span>{p.selected}/{p.photos}</span>
+                          </div>
                         </div>
                       </div>
                     </article>
@@ -714,38 +748,46 @@ export default function DashboardLuxe() {
                 </div>
               </div>
 
-              {/* Right column: activity + quick actions */}
-              <aside className="space-y-10">
+              {/* Right column */}
+              <aside className="space-y-6">
                 {/* Activity */}
-                <div>
-                  <div
-                    className="mb-6 text-[10px] uppercase tracking-[0.4em]"
-                    style={{ color: "#8A8174" }}
-                  >
-                    Atividade
+                <div className="rounded-2xl border border-zinc-100 bg-white p-5">
+                  <div className="flex items-center justify-between">
+                    <h3
+                      className="text-[15px]"
+                      style={{ fontWeight: 700, letterSpacing: "-0.01em" }}
+                    >
+                      Atividade
+                    </h3>
+                    <button
+                      className="text-[11px]"
+                      style={{ color: "#7C3AED", fontWeight: 600 }}
+                    >
+                      Ver tudo
+                    </button>
                   </div>
-                  <div className="space-y-5">
+
+                  <div className="mt-4 space-y-3">
                     {activity.map((item, i) => (
-                      <div key={i} className="flex gap-4">
-                        <div className="relative flex flex-col items-center pt-1.5">
-                          <div
-                            className="h-1.5 w-1.5 rounded-full"
-                            style={{ backgroundColor: item.color }}
-                          />
-                          {i < activity.length - 1 && (
-                            <div
-                              className="mt-2 w-px flex-1"
-                              style={{ backgroundColor: "rgba(26,26,26,0.08)", minHeight: "32px" }}
-                            />
-                          )}
+                      <div key={i} className="flex items-start gap-3">
+                        <div
+                          className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-[10px] text-white"
+                          style={{ backgroundColor: item.color, fontWeight: 700 }}
+                        >
+                          {item.avatar}
                         </div>
-                        <div className="flex-1 pb-2">
-                          <p className="text-[13px] leading-snug" style={{ color: "#1A1A1A" }}>
-                            <span style={{ fontWeight: 500 }}>{item.who}</span>{" "}
-                            <span style={{ color: "#5A5247" }}>{item.what}</span>
+                        <div className="flex-1">
+                          <p className="text-[13px] leading-snug" style={{ color: "#0A0A0A" }}>
+                            <span style={{ fontWeight: 700 }}>{item.who}</span>{" "}
+                            <span style={{ color: "#52525B", fontWeight: 500 }}>
+                              {item.what}
+                            </span>
                           </p>
-                          <p className="mt-1 text-[10px] uppercase tracking-[0.2em]" style={{ color: "#8A8174" }}>
-                            {item.when}
+                          <p
+                            className="mt-0.5 text-[11px]"
+                            style={{ color: "#A1A1AA", fontWeight: 600 }}
+                          >
+                            há {item.when}
                           </p>
                         </div>
                       </div>
@@ -753,78 +795,49 @@ export default function DashboardLuxe() {
                   </div>
                 </div>
 
-                {/* Quick actions / promo */}
+                {/* Promo card */}
                 <div
-                  className="relative overflow-hidden rounded-3xl p-8"
-                  style={{ backgroundColor: "#1A1A1A", color: "#F7F4EE" }}
+                  className="relative overflow-hidden rounded-2xl p-6 text-white"
+                  style={{
+                    background:
+                      "linear-gradient(135deg, #7C3AED 0%, #A855F7 60%, #EC4899 100%)",
+                  }}
                 >
                   <div
-                    className="absolute -right-12 -top-12 h-40 w-40 rounded-full opacity-30"
-                    style={{
-                      background:
-                        "radial-gradient(circle, #C9A961 0%, transparent 70%)",
-                    }}
+                    className="absolute -right-10 -top-10 h-32 w-32 rounded-full opacity-30"
+                    style={{ backgroundColor: "#FFFFFF" }}
                   />
-                  <Sparkles className="h-4 w-4" style={{ color: "#C9A961" }} strokeWidth={1.5} />
-                  <h3
-                    className="mt-5 text-2xl leading-tight"
-                    style={{
-                      fontFamily: "'Cormorant Garamond', serif",
-                      fontWeight: 500,
-                    }}
-                  >
-                    Portfólio público
-                  </h3>
-                  <p
-                    className="mt-2 text-[12px] leading-relaxed"
-                    style={{ color: "rgba(247,244,238,0.65)" }}
-                  >
-                    Sua vitrine recebeu 248 visitas esta semana. 4 novos contatos.
-                  </p>
-                  <button
-                    className="mt-6 flex items-center gap-2 text-[11px] uppercase tracking-[0.25em]"
-                    style={{ color: "#C9A961" }}
-                  >
-                    Editar portfólio
-                    <ArrowUpRight className="h-3 w-3" strokeWidth={2} />
-                  </button>
-                </div>
-
-                {/* Tip */}
-                <div
-                  className="rounded-2xl border p-6"
-                  style={{ borderColor: "rgba(26,26,26,0.08)", backgroundColor: "#FBFAF6" }}
-                >
                   <div
-                    className="text-[9px] uppercase tracking-[0.3em]"
-                    style={{ color: "#C9A961" }}
-                  >
-                    Dica do Atelier
+                    className="absolute -bottom-12 -left-8 h-32 w-32 rounded-full opacity-20"
+                    style={{ backgroundColor: "#FFFFFF" }}
+                  />
+
+                  <div className="relative">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm">
+                      <Sparkles className="h-4 w-4 text-white" strokeWidth={2.5} />
+                    </div>
+                    <h3
+                      className="mt-4 text-[20px] leading-tight"
+                      style={{ fontWeight: 800, letterSpacing: "-0.02em" }}
+                    >
+                      Portfólio Pro
+                    </h3>
+                    <p
+                      className="mt-1 text-[12px] leading-relaxed"
+                      style={{ color: "rgba(255,255,255,0.85)", fontWeight: 500 }}
+                    >
+                      Sua vitrine recebeu 248 visitas esta semana. 4 novos contatos.
+                    </p>
+                    <button
+                      className="mt-4 flex items-center gap-1.5 rounded-lg bg-white px-4 py-2 text-[12px]"
+                      style={{ color: "#7C3AED", fontWeight: 700 }}
+                    >
+                      Editar portfólio
+                      <ArrowRight className="h-3.5 w-3.5" strokeWidth={2.5} />
+                    </button>
                   </div>
-                  <p
-                    className="mt-3 text-[14px] leading-relaxed"
-                    style={{
-                      fontFamily: "'Cormorant Garamond', serif",
-                      fontStyle: "italic",
-                      color: "#3A3A3A",
-                    }}
-                  >
-                    "A entrega rápida é o novo luxo. Galerias enviadas em até 7 dias têm 3× mais aprovações imediatas."
-                  </p>
                 </div>
               </aside>
-            </div>
-
-            {/* Footer signature */}
-            <div
-              className="mt-24 flex items-center justify-between border-t pt-8 text-[10px] uppercase tracking-[0.3em]"
-              style={{ borderColor: "rgba(26,26,26,0.08)", color: "#8A8174" }}
-            >
-              <span>Fottufy Atelier · Edição 2026</span>
-              <div className="flex items-center gap-2">
-                <Camera className="h-3 w-3" strokeWidth={1.5} />
-                <span>Crafted with intention</span>
-              </div>
             </div>
           </div>
         </main>
