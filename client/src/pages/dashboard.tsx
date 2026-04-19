@@ -2034,7 +2034,9 @@ export default function Dashboard() {
 
   // Compute hero summary counts from existing projects state (read-only)
   const pendingReviewCount = projects.filter((p: any) => p?.status === 'pendente').length;
-  const newSelectionsCount = projects.filter((p: any) => p?.status === 'revisado').length;
+  const newSelectionsCount = projects.filter(
+    (p: any) => p?.status === 'finalizado' || p?.status === 'revisado' || p?.finalizado === true
+  ).length;
 
   // Format current date in Brazilian Portuguese
   const heroDateLabel = (() => {
