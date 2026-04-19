@@ -492,7 +492,7 @@ function ProjectCard({ project, onDelete, onViewComments }: { project: any, onDe
 
             <Button
               size="sm"
-              className="flex-1 text-xs font-bold text-white rounded-xl py-2.5 transition-all duration-200 hover:opacity-90 shadow-sm hover:shadow-md hover:shadow-blue-400/30 bg-gradient-to-r from-sky-400 to-blue-500"
+              className="flex-1 text-xs font-bold text-white rounded-xl py-2.5 transition-all duration-200 hover:bg-blue-600 shadow-sm bg-blue-500"
               onClick={(e) => { e.stopPropagation(); setShowClientLinkModal(true); }}
             >
               <LinkIcon className="h-3.5 w-3.5 mr-1.5 flex-shrink-0" />
