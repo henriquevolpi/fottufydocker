@@ -444,7 +444,7 @@ function ProjectCard({ project, onDelete, onViewComments }: { project: any, onDe
             {(project.finalizado || project.status === 'finalizado') && (
               <button
                 onClick={handleViewSelections}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-300 rounded-lg transition-colors border border-emerald-100 dark:border-emerald-800"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-bold text-white bg-emerald-500 hover:bg-emerald-600 rounded-lg transition-colors shadow-sm"
               >
                 <FileText className="h-3.5 w-3.5" />
                 Ver Seleções
