@@ -1018,7 +1018,7 @@ function UploadModal({
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen && isUploading) return; onClose(); }}>
-      <DialogContent className="w-[calc(100%-2rem)] sm:max-w-[700px] max-h-[90vh] overflow-y-auto mx-auto bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-2xl rounded-3xl">
+      <DialogContent className="w-[calc(100%-2rem)] sm:max-w-[700px] max-h-[90vh] overflow-y-auto overflow-x-hidden mx-auto bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-2xl rounded-3xl">
         <DialogHeader className="pb-6">
           <span className="inline-block px-4 py-2 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-full text-[10px] font-black uppercase tracking-widest mb-4 w-fit">
             ✨ Nova Galeria
