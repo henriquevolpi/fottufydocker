@@ -210,8 +210,13 @@ function PhotoPoolDemo() {
         </div>
       </div>
 
+      {/* Brand promise */}
+      <p className="mt-8 text-center text-base sm:text-lg font-semibold max-w-2xl mx-auto leading-relaxed bg-gradient-to-r from-blue-400 via-sky-500 to-cyan-500 bg-clip-text text-transparent">
+        A Fottufy não te limita como outras plataformas — te deixamos livre para trabalhar com folga.
+      </p>
+
       {/* Key insight */}
-      <div className="mt-8 flex items-start gap-3 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-2xl px-5 py-4 max-w-2xl mx-auto">
+      <div className="mt-6 flex items-start gap-3 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-2xl px-5 py-4 max-w-2xl mx-auto">
         <RefreshCw className="h-5 w-5 text-emerald-600 flex-shrink-0 mt-0.5" />
         <div>
           <p className="font-semibold text-emerald-800 text-sm">Limite reutilizável, não descartável</p>
