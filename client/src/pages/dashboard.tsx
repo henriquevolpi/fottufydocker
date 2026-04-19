@@ -1032,7 +1032,7 @@ function UploadModal({
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 p-1">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 p-1 w-full min-w-0">
             <FormField
               control={form.control}
               name="projectName"
@@ -1179,7 +1179,7 @@ function UploadModal({
             </div>
 
             {selectedFiles.length > 0 && (
-              <div className="mt-6">
+              <div className="mt-6 w-full min-w-0">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
                     <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
@@ -1191,7 +1191,7 @@ function UploadModal({
                     Pronto
                   </span>
                 </div>
-                <div className="border border-slate-100 dark:border-slate-800 rounded-2xl max-h-[240px] overflow-y-auto bg-slate-50 dark:bg-slate-800/50">
+                <div className="border border-slate-100 dark:border-slate-800 rounded-2xl max-h-[240px] overflow-y-auto overflow-x-hidden w-full bg-slate-50 dark:bg-slate-800/50">
                   {selectedFiles.slice(0, 30).map((file, index) => (
                     <div
                       key={index}
