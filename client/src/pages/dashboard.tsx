@@ -1195,13 +1195,13 @@ function UploadModal({
                   {selectedFiles.slice(0, 30).map((file, index) => (
                     <div
                       key={index}
-                      className="flex items-center justify-between py-3 px-4 border-b border-slate-100 dark:border-slate-700/50 last:border-b-0 hover:bg-purple-50/50 dark:hover:bg-purple-900/10 transition-all group"
+                      className="flex items-center justify-between py-3 px-4 border-b border-slate-100 dark:border-slate-700/50 last:border-b-0 hover:bg-purple-50/50 dark:hover:bg-purple-900/10 transition-all group min-w-0"
                     >
-                      <div className="flex items-center space-x-3 overflow-hidden">
+                      <div className="flex items-center space-x-3 min-w-0 flex-1 overflow-hidden">
                         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-purple-500/10">
                           <Camera className="h-5 w-5 text-white" />
                         </div>
-                        <div className="overflow-hidden">
+                        <div className="min-w-0 flex-1 overflow-hidden">
                           <p className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate">{file.name}</p>
                           <p className="text-xs text-slate-400">{(file.size / 1024 / 1024).toFixed(1)} MB</p>
                         </div>
