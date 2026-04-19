@@ -2222,14 +2222,14 @@ export default function Dashboard() {
               ) : (
                 <>
                   Você tem{' '}
-                  <span className="text-purple-600 dark:text-purple-400" style={{ fontWeight: 700 }}>
+                  <span className="text-blue-500 dark:text-blue-400" style={{ fontWeight: 700 }}>
                     {pendingReviewCount} {pendingReviewCount === 1 ? 'galeria' : 'galerias'}
                   </span>{' '}
                   aguardando revisão
                   {newSelectionsCount > 0 && (
                     <>
                       {' '}e{' '}
-                      <span className="text-purple-600 dark:text-purple-400" style={{ fontWeight: 700 }}>
+                      <span className="text-blue-500 dark:text-blue-400" style={{ fontWeight: 700 }}>
                         {newSelectionsCount} {newSelectionsCount === 1 ? 'nova seleção' : 'novas seleções'}
                       </span>{' '}
                       de cliente
