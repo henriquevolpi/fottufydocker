@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Redirect, Link, useSearch } from "wouter";
 import { 
@@ -15,7 +15,11 @@ import {
   Clock,
   HeartHandshake,
   AlertCircle,
-  QrCode
+  QrCode,
+  Lightbulb,
+  RefreshCw,
+  Upload,
+  Trash2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,6 +27,202 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+
+const POOL_TOTAL = 17000;
+const POOL_USED_DEMO = 5000;
+
+function PhotoPoolDemo() {
+  const [displayCount, setDisplayCount] = useState(POOL_TOTAL);
+  const [step, setStep] = useState(0);
+  const [cycle, setCycle] = useState(0);
+  const animRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  function safeTimeout(fn: () => void, delay: number) {
+    const id = setTimeout(fn, delay);
+    timeoutsRef.current.push(id);
+  }
+
+  function animateTo(from: number, to: number, durationMs: number, onDone?: () => void) {
+    if (animRef.current) clearInterval(animRef.current);
+    const TICKS = Math.max(Math.floor(durationMs / 20), 1);
+    const delta = (to - from) / TICKS;
+    let tick = 0;
+    animRef.current = setInterval(() => {
+      tick++;
+      const val = tick >= TICKS ? to : Math.round(from + delta * tick);
+      setDisplayCount(val);
+      if (tick >= TICKS) {
+        clearInterval(animRef.current!);
+        animRef.current = null;
+        onDone?.();
+      }
+    }, 20);
+  }
+
+  useEffect(() => {
+    timeoutsRef.current.forEach(clearTimeout);
+    timeoutsRef.current = [];
+    if (animRef.current) clearInterval(animRef.current);
+
+    setDisplayCount(POOL_TOTAL);
+    setStep(0);
+
+    safeTimeout(() => {
+      setStep(1);
+      animateTo(POOL_TOTAL, POOL_TOTAL - POOL_USED_DEMO, 1400, () => {
+        safeTimeout(() => {
+          setStep(2);
+          animateTo(POOL_TOTAL - POOL_USED_DEMO, POOL_TOTAL, 1100, () => {
+            safeTimeout(() => {
+              setStep(3);
+              safeTimeout(() => setCycle(c => c + 1), 2200);
+            }, 200);
+          });
+        }, 2800);
+      });
+    }, 2600);
+
+    return () => {
+      timeoutsRef.current.forEach(clearTimeout);
+      if (animRef.current) clearInterval(animRef.current);
+    };
+  }, [cycle]);
+
+  const usedCount = POOL_TOTAL - displayCount;
+  const availablePercent = (displayCount / POOL_TOTAL) * 100;
+
+  const stepConfig = [
+    {
+      icon: <CheckCircle className="h-4 w-4" />,
+      label: "Contratou o plano",
+      detail: "17.000 fotos disponíveis",
+      colors: { ring: "bg-blue-500", text: "text-blue-600", bg: "bg-blue-50" },
+    },
+    {
+      icon: <Upload className="h-4 w-4" />,
+      label: "Enviou 5.000 fotos",
+      detail: "12.000 fotos disponíveis",
+      colors: { ring: "bg-orange-500", text: "text-orange-600", bg: "bg-orange-50" },
+    },
+    {
+      icon: <Trash2 className="h-4 w-4" />,
+      label: "Apagou o projeto",
+      detail: "17.000 de volta!",
+      colors: { ring: "bg-emerald-500", text: "text-emerald-600", bg: "bg-emerald-50" },
+    },
+  ];
+
+  const currentMessage = () => {
+    if (step === 0) return { text: "Capacidade total disponível — pronto para começar", color: "bg-blue-50 text-blue-800 border border-blue-100" };
+    if (step === 1) return { text: "Fotos em projetos ativos são contadas no limite...", color: "bg-orange-50 text-orange-800 border border-orange-100" };
+    if (step >= 2) return { text: "✨ Projeto apagado — limite restaurado na hora!", color: "bg-emerald-50 text-emerald-800 border border-emerald-100" };
+    return { text: "", color: "" };
+  };
+
+  const barColor = step >= 2
+    ? "bg-gradient-to-r from-emerald-400 to-emerald-500"
+    : step === 1
+    ? "bg-gradient-to-r from-blue-500 to-cyan-500"
+    : "bg-gradient-to-r from-blue-500 to-cyan-500";
+
+  const counterColor = step >= 2 ? "text-emerald-600" : step === 1 ? "text-orange-500" : "text-blue-600";
+
+  const msg = currentMessage();
+
+  return (
+    <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-6 sm:p-10 mb-16">
+      <div className="text-center mb-8">
+        <div className="inline-flex items-center gap-2 bg-amber-50 text-amber-700 px-4 py-2 rounded-full text-sm font-semibold mb-4 border border-amber-100">
+          <Lightbulb className="h-4 w-4" />
+          Como funciona o seu limite
+        </div>
+        <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
+          Seu limite é <span className="bg-gradient-to-r from-emerald-500 to-teal-500 bg-clip-text text-transparent">reutilizável</span>
+        </h2>
+        <p className="text-gray-500 max-w-xl mx-auto text-sm sm:text-base">
+          Não é um consumo mensal que acaba. Ao apagar um projeto, as fotos voltam imediatamente para o seu saldo.
+        </p>
+      </div>
+
+      {/* Step timeline */}
+      <div className="flex items-start justify-center mb-10 max-w-2xl mx-auto">
+        {stepConfig.map((s, i) => {
+          const isActive = step > i || (step === i);
+          const isDone = step > i;
+          return (
+            <React.Fragment key={i}>
+              <div className={`flex flex-col items-center flex-1 transition-all duration-500 ${isActive ? "opacity-100" : "opacity-30"}`}>
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold transition-all duration-500 shadow-md ${isActive ? s.colors.ring : "bg-gray-300"} ${isDone && i === 2 ? "scale-110 shadow-emerald-200" : ""}`}>
+                  {s.icon}
+                </div>
+                <p className={`text-xs font-semibold mt-2 text-center max-w-[88px] leading-tight ${isActive ? s.colors.text : "text-gray-400"}`}>{s.label}</p>
+                <p className="text-[10px] text-gray-400 text-center max-w-[88px] mt-0.5 leading-tight">{s.detail}</p>
+              </div>
+              {i < 2 && (
+                <div className="flex items-center mt-4 flex-shrink-0 w-6 sm:w-10">
+                  <div className={`h-0.5 w-full transition-all duration-700 ${step > i ? "bg-blue-400" : "bg-gray-200"}`} />
+                </div>
+              )}
+            </React.Fragment>
+          );
+        })}
+      </div>
+
+      {/* Visual pool / counter */}
+      <div className="max-w-lg mx-auto">
+        {/* Big number */}
+        <div className="text-center mb-4">
+          <span className={`text-6xl font-extrabold tabular-nums tracking-tight transition-colors duration-300 ${counterColor}`}>
+            {displayCount.toLocaleString("pt-BR")}
+          </span>
+          <p className="text-gray-500 font-medium mt-1 text-sm">fotos disponíveis</p>
+        </div>
+
+        {/* Tank bar */}
+        <div className="relative h-10 bg-gray-100 rounded-2xl overflow-hidden shadow-inner">
+          <div
+            className={`absolute left-0 top-0 h-full rounded-2xl transition-all duration-700 ease-in-out ${barColor} ${step >= 2 ? "shadow-lg shadow-emerald-200/60" : ""}`}
+            style={{ width: `${availablePercent}%` }}
+          />
+          {/* Shine overlay */}
+          <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent rounded-2xl pointer-events-none" />
+          {/* Label inside bar */}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="text-xs font-bold text-white/90 drop-shadow">
+              {availablePercent.toFixed(0)}% disponível
+            </span>
+          </div>
+        </div>
+
+        {/* Bar sub-labels */}
+        <div className="flex justify-between text-xs mt-2 px-1">
+          <span className="font-medium text-gray-500">0</span>
+          <span className={`font-semibold transition-colors duration-300 ${usedCount > 0 ? "text-orange-500" : "text-gray-400"}`}>
+            {usedCount > 0 ? `${usedCount.toLocaleString("pt-BR")} em uso` : "Nenhuma em uso"}
+          </span>
+          <span className="font-medium text-gray-500">{POOL_TOTAL.toLocaleString("pt-BR")}</span>
+        </div>
+
+        {/* Status message */}
+        <div className={`mt-5 rounded-xl px-5 py-3 text-center text-sm font-semibold transition-all duration-500 ${msg.color}`}>
+          {msg.text}
+        </div>
+      </div>
+
+      {/* Key insight */}
+      <div className="mt-8 flex items-start gap-3 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-2xl px-5 py-4 max-w-2xl mx-auto">
+        <RefreshCw className="h-5 w-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+        <div>
+          <p className="font-semibold text-emerald-800 text-sm">Limite reutilizável, não descartável</p>
+          <p className="text-emerald-700 text-sm mt-0.5 leading-relaxed">
+            Pense como um armazém: ao apagar um projeto, o espaço volta para você usar em novos clientes. Sem surpresas, sem desperdício.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function SubscriptionPage() {
   const { user, isLoading } = useAuth();
@@ -373,6 +573,9 @@ export default function SubscriptionPage() {
           ))}
         </div>
         
+        {/* How quota works animation */}
+        <PhotoPoolDemo />
+
         {/* Features Grid */}
         <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-8 mb-16">
           <div className="text-center mb-12">
