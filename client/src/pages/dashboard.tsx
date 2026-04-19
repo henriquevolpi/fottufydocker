@@ -1495,7 +1495,7 @@ function Statistics({ setLocation, user }: { setLocation: (path: string) => void
             <CardContent className="p-3 sm:p-6">
               {/* Header: ícone + info — vertical no mobile, horizontal no sm+ */}
               <div className="flex flex-col sm:flex-row items-center sm:gap-4 mb-2 sm:mb-4">
-                <div className={`w-8 h-8 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform mb-1 sm:mb-0 ${planInfo.planType !== 'free' ? 'bg-gradient-to-br from-slate-700 to-slate-900 shadow-lg shadow-slate-500/30' : 'bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/20'}`}>
+                <div className={`w-8 h-8 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform mb-1 sm:mb-0 ${planInfo.planType !== 'free' ? 'bg-gradient-to-br from-blue-500 to-cyan-500 shadow-lg shadow-blue-500/30' : 'bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/20'}`}>
                   {planInfo.planType !== 'free' ? (
                     <Crown className="h-4 w-4 sm:h-7 sm:w-7 text-white" />
                   ) : (
@@ -1506,7 +1506,7 @@ function Statistics({ setLocation, user }: { setLocation: (path: string) => void
                   <p className="text-[8px] sm:text-xs font-black text-slate-400 uppercase tracking-widest">Plano</p>
                   {planInfo.planType !== 'free' ? (
                     <div className="flex items-center justify-center sm:justify-start gap-1.5 flex-wrap">
-                      <span className="text-sm sm:text-lg font-black text-transparent bg-clip-text bg-gradient-to-r from-slate-800 to-slate-600 dark:from-white dark:to-slate-300 tracking-tight leading-tight">
+                      <span className="text-sm sm:text-lg font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-500 via-blue-600 to-cyan-500 tracking-tight leading-tight">
                         {planInfo.planType === 'basic' || planInfo.planType === 'basic_v2' ? 'Básico' :
                          planInfo.planType === 'standard' || planInfo.planType === 'standard_v2' ? 'Fotógrafo' :
                          planInfo.planType === 'professional' || planInfo.planType === 'professional_v2' ? 'Estúdio' :
@@ -1525,13 +1525,13 @@ function Statistics({ setLocation, user }: { setLocation: (path: string) => void
               <div className="space-y-1.5">
                 <div className="flex justify-between items-center">
                   <span className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider">Uso</span>
-                  <span className="text-xs sm:text-sm font-black text-purple-600 bg-purple-100 px-2 sm:px-3 py-0.5 rounded-full">
+                  <span className="text-xs sm:text-sm font-black text-blue-600 bg-blue-50 px-2 sm:px-3 py-0.5 rounded-full">
                     {planInfo.usedUploads}/{planInfo.planType === "unlimited" ? "∞" : planInfo.uploadLimit}
                   </span>
                 </div>
                 <div className="w-full h-1.5 sm:h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-gradient-to-r from-purple-500 to-fuchsia-500 rounded-full transition-all duration-500"
+                    className="h-full bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full transition-all duration-500"
                     style={{ width: planInfo.planType === "unlimited" ? "0%" : `${planInfo.percentageUsed}%` }}
                   />
                 </div>
