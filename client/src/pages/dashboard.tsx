@@ -2246,23 +2246,20 @@ export default function Dashboard() {
         {/* Aviso de novidades - Youze Style */}
         {user?.planType !== 'free' && (
         <div className="mt-0 mb-4 sm:mb-8 relative overflow-hidden">
-          <div className="relative bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 rounded-2xl sm:rounded-3xl p-3 sm:p-6 shadow-xl sm:shadow-2xl shadow-purple-500/20">
-            <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
-            <div className="absolute bottom-0 left-0 w-32 h-32 bg-pink-400/20 rounded-full blur-2xl"></div>
-            
+          <div className="relative bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-3xl p-3 sm:p-6 shadow-sm">
             <div className="relative flex flex-row items-center gap-3 sm:gap-6">
-              <div className="w-10 h-10 sm:w-16 sm:h-16 bg-white/20 backdrop-blur-sm rounded-xl sm:rounded-2xl flex items-center justify-center shrink-0">
-                <svg className="w-5 h-5 sm:w-8 sm:h-8 text-white" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <div className="w-10 h-10 sm:w-16 sm:h-16 bg-purple-50 dark:bg-purple-900/20 rounded-xl sm:rounded-2xl flex items-center justify-center shrink-0">
+                <svg className="w-5 h-5 sm:w-8 sm:h-8 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                 </svg>
               </div>
               <div className="text-left flex-1 min-w-0">
-                <p className="font-black text-sm sm:text-2xl text-white uppercase tracking-tight mb-0.5 sm:mb-2">Recomende a Fottufy a um amigo querido ❤️</p>
-                <p className="font-light text-purple-100 text-xs sm:text-base leading-relaxed line-clamp-2 sm:line-clamp-none">+1.000 fotos extras no seu pacote por indicação!</p>
+                <p className="font-bold text-sm sm:text-xl text-slate-900 dark:text-white tracking-tight mb-0.5 sm:mb-1">Recomende a Fottufy a um amigo querido ❤️</p>
+                <p className="font-medium text-slate-500 dark:text-slate-400 text-xs sm:text-sm leading-relaxed line-clamp-2 sm:line-clamp-none">+1.000 fotos extras no seu pacote por indicação!</p>
               </div>
               <button 
                 onClick={handleOpenReferralModal}
-                className="shrink-0 bg-white text-purple-700 font-black text-[10px] sm:text-xs tracking-widest uppercase px-4 sm:px-6 py-2.5 sm:py-4 rounded-xl sm:rounded-2xl shadow-xl hover:scale-105 transition-transform"
+                className="shrink-0 bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold text-[10px] sm:text-xs tracking-wider uppercase px-4 sm:px-6 py-2.5 sm:py-3.5 rounded-xl hover:opacity-90 transition-opacity"
               >
                indicar 
               </button>
