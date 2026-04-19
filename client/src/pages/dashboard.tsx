@@ -2206,9 +2206,9 @@ export default function Dashboard() {
               </h1>
 
               {(user as any)?.isAmbassador && (
-                <div className="flex items-center gap-1.5 px-3 py-1 bg-gradient-to-r from-amber-100 to-yellow-100 dark:from-amber-900/30 dark:to-yellow-900/30 rounded-full border border-amber-300 dark:border-amber-700">
-                  <Award className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                  <span className="text-xs font-bold text-amber-700 dark:text-amber-300">Embaixador Fottufy</span>
+                <div className="flex items-center gap-1.5 px-3 py-1 bg-gradient-to-r from-amber-400 to-amber-600 rounded-full shadow-sm shadow-amber-400/30">
+                  <Award className="h-4 w-4 text-white" />
+                  <span className="text-xs font-bold text-white">Embaixador Fottufy</span>
                 </div>
               )}
             </div>
