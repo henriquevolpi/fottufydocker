@@ -302,32 +302,25 @@ function ProjectCard({ project, onDelete, onViewComments }: { project: any, onDe
   const handleDeleteProject = async () => {
     try {
       setIsDeleting(true);
-      
-      // Immediately call the parent component's delete handler for optimistic UI update
-      if (onDelete) {
-        onDelete(project.id);
-      }
-      
-      // Close the modal immediately
       setShowDeleteConfirm(false);
-      
-      // Show informative message about deletion process
-      const photoCount = project?.photos?.length || project?.fotos || 0;
-      toast({
-        title: "Projeto deletado!",
-        description: `Aguarde alguns minutos enquanto removemos todos os ${photoCount} arquivos do servidor.`,
-        duration: 8000, // Show for 8 seconds
-      });
-      
+
+      const response = await apiRequest('DELETE', `/api/projects/${project.id}`);
+      if (!response.ok) throw new Error('Failed to delete project');
+
+      // Invalidate only stats — projects list stays managed by local state
+      queryClient.invalidateQueries({ queryKey: ["/api/user/stats"] });
+
+      // Remove card from parent list
+      if (onDelete) onDelete(project.id);
+
     } catch (error) {
       console.error('Error deleting project:', error);
+      setIsDeleting(false);
       toast({
-        title: "Erro ao deletar",
-        description: "Não foi possível deletar o projeto. Tente novamente.",
+        title: "Erro ao excluir",
+        description: "Não foi possível excluir o projeto. Tente novamente.",
         variant: "destructive"
       });
-    } finally {
-      setIsDeleting(false);
     }
   };
 
@@ -369,6 +362,15 @@ function ProjectCard({ project, onDelete, onViewComments }: { project: any, onDe
       <div className="absolute -inset-0.5 bg-gradient-to-br from-sky-400 to-blue-500 rounded-2xl blur opacity-0 group-hover:opacity-20 transition-opacity duration-500" />
 
       <Card className="relative overflow-hidden bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5 rounded-2xl">
+
+        {/* ── Deleting overlay ── */}
+        {isDeleting && (
+          <div className="absolute inset-0 z-10 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm flex flex-col items-center justify-center gap-3 rounded-2xl">
+            <Loader2 className="h-8 w-8 text-blue-500 animate-spin" />
+            <p className="text-sm font-bold text-slate-600 dark:text-slate-300">Excluindo projeto...</p>
+            <p className="text-xs text-slate-400">Removendo fotos do servidor</p>
+          </div>
+        )}
 
         {/* ── Header ── */}
         <div className="px-4 pt-4 pb-3 flex items-start justify-between gap-3">
@@ -1772,7 +1774,7 @@ export default function Dashboard() {
       setFilteredProjects([]);
       setIsLoading(false);
     }
-  }, [toast, user]);
+  }, [toast, user?.id]);
   
   const handleLogout = () => {
     // First remove user data from localStorage
@@ -1793,78 +1795,25 @@ export default function Dashboard() {
     setLocation("/auth");
   };
   
-  // Handler for project deletion
+  // Handler for project deletion — called by the card after API success
   const handleDeleteProject = (id: number) => {
-    // Find the project to be deleted to get its photo count
-    const projectToDelete = projects.find(project => project.id === id);
-    const photoCount = projectToDelete?.fotos || projectToDelete?.photos?.length || 0;
-    
-    // OPTIMISTIC UPDATE: Remove project from UI immediately
+    // Remove from local state (API call and error handling are done inside the card)
     setProjects(prevProjects => prevProjects.filter(project => project.id !== id));
     setFilteredProjects(prevProjects => prevProjects.filter(project => project.id !== id));
-    
-    // Update user-specific localStorage to reflect deletion immediately
+
+    // Sync localStorage
     try {
       if (user && user.id) {
         const storageKey = `projects_user_${user.id}`;
-        const storedProjects = localStorage.getItem(storageKey);
-        if (storedProjects) {
-          const parsedProjects = JSON.parse(storedProjects);
-          const updatedProjects = parsedProjects.filter((p: any) => p.id !== id);
-          localStorage.setItem(storageKey, JSON.stringify(updatedProjects));
+        const stored = localStorage.getItem(storageKey);
+        if (stored) {
+          const updated = JSON.parse(stored).filter((p: any) => p.id !== id);
+          localStorage.setItem(storageKey, JSON.stringify(updated));
         }
       }
-    } catch (storageError) {
-      console.error('Error updating localStorage:', storageError);
+    } catch (e) {
+      console.error('Error updating localStorage after delete:', e);
     }
-    
-    // Make API call to delete the project in the background
-    apiRequest('DELETE', `/api/projects/${id}`)
-    .then(response => {
-      if (response.ok) {
-        return response.json();
-      }
-      throw new Error('Failed to delete project');
-    })
-    .then(data => {
-      console.log('Project deleted successfully on server:', data);
-      
-      // Refresh the user data and stats to update the upload count
-      import('@/lib/queryClient').then(({ queryClient }) => {
-        queryClient.invalidateQueries({ queryKey: ["/api/user"] });
-        queryClient.invalidateQueries({ queryKey: ["/api/user/stats"] });
-      });
-    })
-    .catch(error => {
-      console.error('Error deleting project on server:', error);
-      
-      // ROLLBACK: If server deletion fails, restore the project to the UI
-      if (projectToDelete) {
-        setProjects(prevProjects => [...prevProjects, projectToDelete]);
-        setFilteredProjects(prevProjects => [...prevProjects, projectToDelete]);
-        
-        // Restore to localStorage as well
-        try {
-          if (user && user.id) {
-            const storageKey = `projects_user_${user.id}`;
-            const storedProjects = localStorage.getItem(storageKey);
-            if (storedProjects) {
-              const parsedProjects = JSON.parse(storedProjects);
-              const updatedProjects = [...parsedProjects, projectToDelete];
-              localStorage.setItem(storageKey, JSON.stringify(updatedProjects));
-            }
-          }
-        } catch (storageError) {
-          console.error('Error restoring localStorage:', storageError);
-        }
-        
-        toast({
-          title: "Erro ao deletar",
-          description: "Não foi possível deletar o projeto no servidor. O projeto foi restaurado.",
-          variant: "destructive",
-        });
-      }
-    });
   };
   
   // Handler for project creation
