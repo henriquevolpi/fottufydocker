@@ -214,30 +214,6 @@ const PROJETOS_EXEMPLO = [
   }
 ];
 
-// Derives a consistent gradient from the project name (pure CSS, zero cost)
-function getProjectGradient(name: string): { from: string; via: string; to: string; shadow: string } {
-  let hash = 0;
-  const str = name || 'default';
-  for (let i = 0; i < str.length; i++) {
-    hash = str.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const palettes = [
-    { from: 'from-blue-500',    via: 'via-blue-600',    to: 'to-cyan-400',    shadow: 'shadow-blue-500/30' },
-    { from: 'from-purple-500',  via: 'via-violet-600',  to: 'to-fuchsia-500', shadow: 'shadow-purple-500/30' },
-    { from: 'from-emerald-500', via: 'via-teal-500',    to: 'to-cyan-500',    shadow: 'shadow-emerald-500/30' },
-    { from: 'from-rose-500',    via: 'via-pink-500',    to: 'to-fuchsia-500', shadow: 'shadow-rose-500/30' },
-    { from: 'from-amber-500',   via: 'via-orange-500',  to: 'to-red-400',     shadow: 'shadow-amber-500/30' },
-    { from: 'from-indigo-500',  via: 'via-blue-600',    to: 'to-sky-400',     shadow: 'shadow-indigo-500/30' },
-    { from: 'from-teal-500',    via: 'via-emerald-500', to: 'to-green-400',   shadow: 'shadow-teal-500/30' },
-    { from: 'from-sky-500',     via: 'via-blue-500',    to: 'to-indigo-500',  shadow: 'shadow-sky-500/30' },
-    { from: 'from-violet-500',  via: 'via-purple-600',  to: 'to-pink-500',    shadow: 'shadow-violet-500/30' },
-    { from: 'from-green-500',   via: 'via-emerald-500', to: 'to-teal-400',    shadow: 'shadow-green-500/30' },
-    { from: 'from-fuchsia-500', via: 'via-pink-500',    to: 'to-rose-400',    shadow: 'shadow-fuchsia-500/30' },
-    { from: 'from-cyan-500',    via: 'via-sky-500',     to: 'to-blue-500',    shadow: 'shadow-cyan-500/30' },
-  ];
-  return palettes[Math.abs(hash) % palettes.length];
-}
-
 // Component for project cards
 function ProjectCard({ project, onDelete, onViewComments }: { project: any, onDelete?: (id: number) => void, onViewComments?: (id: string) => void }) {
   // Note: We're using parameter renaming (projeto: project) to transition from Portuguese to English
@@ -387,53 +363,38 @@ function ProjectCard({ project, onDelete, onViewComments }: { project: any, onDe
     }
   };
   
-  const gradient = getProjectGradient(project?.name || project?.nome || '');
-
   return (
     <div className="relative group">
       {/* Glow on hover */}
-      <div className={`absolute -inset-0.5 bg-gradient-to-br ${gradient.from} ${gradient.to} rounded-2xl blur opacity-0 group-hover:opacity-25 transition-opacity duration-500`} />
+      <div className="absolute -inset-0.5 bg-gradient-to-br from-sky-400 to-blue-500 rounded-2xl blur opacity-0 group-hover:opacity-20 transition-opacity duration-500" />
 
       <Card className="relative overflow-hidden bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5 rounded-2xl">
 
-        {/* ── Banner gradient ── */}
-        <div className={`relative h-28 bg-gradient-to-br ${gradient.from} ${gradient.via} ${gradient.to}`}>
-          {/* Dot-pattern texture */}
-          <div
-            className="absolute inset-0 opacity-[0.12]"
-            style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '18px 18px' }}
-          />
-          {/* Bottom scrim for text legibility */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
-
-          {/* Status badge — top right */}
-          <div className="absolute top-3 right-3">
-            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest backdrop-blur-sm border border-white/20 ${
-              status === 'pendente' || status === 'pending'
-                ? 'bg-yellow-400/90 text-yellow-900'
-                : status === 'revisado' || status === 'reviewed'
-                ? 'bg-blue-400/90 text-white'
-                : status === 'finalizado' || status === 'completed' || status === 'Completed'
-                ? 'bg-emerald-400/90 text-white'
-                : 'bg-white/30 text-white'
-            }`}>
-              {getStatusDisplayName(status)}
-            </span>
-          </div>
-
-          {/* Project name + client — overlaid on bottom of banner */}
-          <div className="absolute bottom-0 left-0 right-0 px-4 pb-3 pt-8">
-            <h3 className="text-white font-black text-base leading-tight truncate drop-shadow-sm">
+        {/* ── Header ── */}
+        <div className="px-4 pt-4 pb-3 flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <h3 className="text-base font-black text-slate-900 dark:text-white leading-tight truncate">
               {project?.name || project?.nome || 'Sem título'}
             </h3>
-            <p className="text-white/70 text-xs font-medium truncate mt-0.5">
+            <p className="text-xs font-medium text-slate-400 dark:text-slate-500 truncate mt-0.5">
               {project?.clientName || project?.cliente || '—'}
             </p>
           </div>
+          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shrink-0 ${
+            status === 'pendente' || status === 'pending'
+              ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
+              : status === 'revisado' || status === 'reviewed'
+              ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+              : status === 'finalizado' || status === 'completed' || status === 'Completed'
+              ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+              : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+          }`}>
+            {getStatusDisplayName(status)}
+          </span>
         </div>
 
         {/* ── Body ── */}
-        <CardContent className="px-4 pt-3 pb-4">
+        <CardContent className="px-4 pt-0 pb-4">
           {/* Date */}
           <div className="flex items-center gap-1.5 mb-3">
             <Calendar className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
@@ -445,7 +406,7 @@ function ProjectCard({ project, onDelete, onViewComments }: { project: any, onDe
           {/* Stats */}
           <div className="grid grid-cols-2 gap-2 mb-3">
             <div className="bg-slate-50 dark:bg-slate-800/70 rounded-xl p-3 flex items-center gap-2.5">
-              <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${gradient.from} ${gradient.to} flex items-center justify-center flex-shrink-0 shadow-sm`}>
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-sky-400 to-blue-500 flex items-center justify-center flex-shrink-0 shadow-sm shadow-blue-400/30">
                 <Camera className="h-4 w-4 text-white" />
               </div>
               <div>
@@ -456,7 +417,7 @@ function ProjectCard({ project, onDelete, onViewComments }: { project: any, onDe
               </div>
             </div>
             <div className="bg-slate-50 dark:bg-slate-800/70 rounded-xl p-3 flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-slate-500 to-slate-700 dark:from-slate-600 dark:to-slate-800 flex items-center justify-center flex-shrink-0 shadow-sm">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center flex-shrink-0 shadow-sm shadow-blue-500/30">
                 <Check className="h-4 w-4 text-white" />
               </div>
               <div>
@@ -531,7 +492,7 @@ function ProjectCard({ project, onDelete, onViewComments }: { project: any, onDe
 
             <Button
               size="sm"
-              className={`flex-1 text-xs font-bold text-white rounded-xl py-2.5 transition-all duration-200 hover:opacity-90 shadow-sm hover:shadow-md bg-gradient-to-r ${gradient.from} ${gradient.via} ${gradient.to}`}
+              className="flex-1 text-xs font-bold text-white rounded-xl py-2.5 transition-all duration-200 hover:opacity-90 shadow-sm hover:shadow-md hover:shadow-blue-400/30 bg-gradient-to-r from-sky-400 to-blue-500"
               onClick={(e) => { e.stopPropagation(); setShowClientLinkModal(true); }}
             >
               <LinkIcon className="h-3.5 w-3.5 mr-1.5 flex-shrink-0" />
