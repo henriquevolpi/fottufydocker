@@ -2286,10 +2286,21 @@ export default function Dashboard() {
               <span className="inline-block px-4 py-2 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-full text-xs font-black uppercase tracking-widest mb-4">
                 📁 Galeria
               </span>
-              <h2 className="text-4xl sm:text-5xl font-black tracking-tight text-slate-900 dark:text-white uppercase">
-                Meus <span className="bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">Projetos</span>
+              <h2
+                className="text-4xl sm:text-5xl tracking-tight"
+                style={{ fontFamily: "'Poppins', system-ui, sans-serif", fontWeight: 800, letterSpacing: '-0.03em' }}
+              >
+                <span className="text-slate-900 dark:text-white">Meus </span>
+                <span className="bg-gradient-to-r from-blue-500 via-blue-600 to-cyan-500 bg-clip-text text-transparent">
+                  Projetos
+                </span>
               </h2>
-              <p className="text-lg text-slate-500 dark:text-slate-400 font-light mt-2">Gerencie suas galerias com elegância profissional</p>
+              <p
+                className="text-base sm:text-lg text-slate-500 dark:text-slate-400 mt-2"
+                style={{ fontFamily: "'Poppins', system-ui, sans-serif", fontWeight: 500 }}
+              >
+                Gerencie suas galerias com elegância profissional
+              </p>
             </div>
             
             <div className="flex items-center w-full sm:w-auto gap-4">
