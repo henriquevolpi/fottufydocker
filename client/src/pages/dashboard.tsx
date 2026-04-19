@@ -2083,6 +2083,34 @@ export default function Dashboard() {
     setFilteredProjects(filtered);
   }, [currentTab, searchQuery, projects]);
   
+  // Load Poppins font for modern hero
+  useEffect(() => {
+    const linkId = 'fottufy-poppins-font';
+    if (document.getElementById(linkId)) return;
+    const link = document.createElement('link');
+    link.id = linkId;
+    link.rel = 'stylesheet';
+    link.href = 'https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&display=swap';
+    document.head.appendChild(link);
+  }, []);
+
+  // Compute hero summary counts from existing projects state (read-only)
+  const pendingReviewCount = projects.filter((p: any) => p?.status === 'pendente').length;
+  const newSelectionsCount = projects.filter((p: any) => p?.status === 'revisado').length;
+
+  // Format current date in Brazilian Portuguese
+  const heroDateLabel = (() => {
+    try {
+      return new Intl.DateTimeFormat('pt-BR', {
+        weekday: 'long',
+        day: '2-digit',
+        month: 'long',
+      }).format(new Date());
+    } catch {
+      return '';
+    }
+  })();
+
   return (
     <div className="min-h-screen bg-white dark:bg-slate-950 overflow-x-hidden">
       {/* Background Decorative Shapes - Youze Style */}
@@ -2145,50 +2173,67 @@ export default function Dashboard() {
         </div>
       </header>
       
-      {/* Hero Banner - Youze Premium Style */}
-      <div className="relative overflow-hidden py-4 sm:py-8 bg-gradient-to-br from-white via-slate-50/50 to-purple-50/30 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+      {/* Hero Banner - Modern App Style */}
+      <div className="relative overflow-hidden py-8 sm:py-12 bg-gradient-to-br from-white via-slate-50/50 to-purple-50/30 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
         <div className="absolute top-0 right-0 w-[60%] h-[60%] bg-purple-100/30 dark:bg-purple-900/10 rounded-full blur-[100px] pointer-events-none"></div>
         <div className="absolute bottom-0 left-0 w-[40%] h-[40%] bg-blue-100/30 dark:bg-blue-900/10 rounded-full blur-[80px] pointer-events-none"></div>
-        
+
         <div className="relative container mx-auto px-4 sm:px-6">
-          <div className="max-w-4xl mx-auto text-center">
-            <div className="flex items-center justify-center gap-3 sm:gap-6 mb-2 sm:mb-6">
-              <img
-                src={fottufinhopng}
-                alt="Fottufinho Mascote"
-                className="w-12 h-12 sm:w-20 sm:h-20"
-              />
-              
-              <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black tracking-tight leading-none uppercase">
-                <span className="text-slate-900 dark:text-white">
-                  Olá, 
+          <div style={{ fontFamily: "'Poppins', system-ui, sans-serif" }}>
+            {heroDateLabel && (
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-xl sm:text-2xl">👋</span>
+                <span
+                  className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 capitalize"
+                  style={{ fontWeight: 500 }}
+                >
+                  {heroDateLabel}
                 </span>
-                <span className="bg-gradient-to-r from-purple-600 via-blue-600 to-purple-600 bg-clip-text text-transparent">
-                  {user?.name?.split(' ')[0] || 'Fotógrafo'}
-                </span>
+              </div>
+            )}
+
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1
+                className="text-3xl sm:text-4xl lg:text-5xl text-slate-900 dark:text-white"
+                style={{ fontWeight: 800, letterSpacing: '-0.03em' }}
+              >
+                Olá, {user?.name?.split(' ')[0] || 'Fotógrafo'}
               </h1>
-              
+
               {(user as any)?.isAmbassador && (
-                <div className="flex items-center gap-1.5 mt-2 px-3 py-1 bg-gradient-to-r from-amber-100 to-yellow-100 dark:from-amber-900/30 dark:to-yellow-900/30 rounded-full border border-amber-300 dark:border-amber-700">
+                <div className="flex items-center gap-1.5 px-3 py-1 bg-gradient-to-r from-amber-100 to-yellow-100 dark:from-amber-900/30 dark:to-yellow-900/30 rounded-full border border-amber-300 dark:border-amber-700">
                   <Award className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                   <span className="text-xs font-bold text-amber-700 dark:text-amber-300">Embaixador Fottufy</span>
                 </div>
               )}
             </div>
-            
-            <p className="hidden sm:block text-lg sm:text-xl text-slate-500 dark:text-slate-400 font-light max-w-2xl mx-auto leading-relaxed">
-              Sua plataforma de elite para gerenciar projetos fotográficos.
-            </p>
-            
-            {/* Mobile New Project Button removed visually */}
-            {/* <Button
-              onClick={() => setUploadModalOpen(true)}
-              size="lg"
-              className="sm:hidden mt-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-black text-xs tracking-widest uppercase rounded-xl px-6 py-5 shadow-xl shadow-purple-500/20 transform transition-all hover:scale-105"
+
+            <p
+              className="mt-2 text-sm sm:text-base text-slate-500 dark:text-slate-400 max-w-2xl"
+              style={{ fontWeight: 500 }}
             >
-              <PlusCircle className="h-5 w-5 mr-2" />
-              Novo Projeto
-            </Button> */}
+              {pendingReviewCount === 0 && newSelectionsCount === 0 ? (
+                <>Tudo em ordem por aqui. Que tal criar um novo projeto?</>
+              ) : (
+                <>
+                  Você tem{' '}
+                  <span className="text-purple-600 dark:text-purple-400" style={{ fontWeight: 700 }}>
+                    {pendingReviewCount} {pendingReviewCount === 1 ? 'galeria' : 'galerias'}
+                  </span>{' '}
+                  aguardando revisão
+                  {newSelectionsCount > 0 && (
+                    <>
+                      {' '}e{' '}
+                      <span className="text-purple-600 dark:text-purple-400" style={{ fontWeight: 700 }}>
+                        {newSelectionsCount} {newSelectionsCount === 1 ? 'nova seleção' : 'novas seleções'}
+                      </span>{' '}
+                      de cliente
+                    </>
+                  )}
+                  .
+                </>
+              )}
+            </p>
           </div>
         </div>
       </div>
