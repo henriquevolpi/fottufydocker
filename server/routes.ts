@@ -1957,7 +1957,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalUploadUsageMB,
         planInfo: {
           name: user.planType || 'basic',
-          uploadLimit: user.uploadLimit || 1000,
+          uploadLimit: (user.uploadLimit || 1000) + (user.bonusPhotos || 0), // Include referral bonus
           usedUploads: realCurrentPhotoCount // Use real current count instead of stored value
         }
       };

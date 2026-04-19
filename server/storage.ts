@@ -1542,7 +1542,8 @@ export class DatabaseStorage implements IStorage {
         return true;
       }
       
-      const uploadLimit = user.uploadLimit || 0;
+      // Effective limit = plan limit + bonus photos earned via referrals
+      const uploadLimit = (user.uploadLimit || 0) + (user.bonusPhotos || 0);
 
       // Contar fotos reais V1 (projects.photos[]) + V2 (photos table) diretamente
       // para evitar usar user.usedUploads que pode estar defasado
