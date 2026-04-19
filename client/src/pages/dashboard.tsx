@@ -214,6 +214,30 @@ const PROJETOS_EXEMPLO = [
   }
 ];
 
+// Derives a consistent gradient from the project name (pure CSS, zero cost)
+function getProjectGradient(name: string): { from: string; via: string; to: string; shadow: string } {
+  let hash = 0;
+  const str = name || 'default';
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const palettes = [
+    { from: 'from-blue-500',    via: 'via-blue-600',    to: 'to-cyan-400',    shadow: 'shadow-blue-500/30' },
+    { from: 'from-purple-500',  via: 'via-violet-600',  to: 'to-fuchsia-500', shadow: 'shadow-purple-500/30' },
+    { from: 'from-emerald-500', via: 'via-teal-500',    to: 'to-cyan-500',    shadow: 'shadow-emerald-500/30' },
+    { from: 'from-rose-500',    via: 'via-pink-500',    to: 'to-fuchsia-500', shadow: 'shadow-rose-500/30' },
+    { from: 'from-amber-500',   via: 'via-orange-500',  to: 'to-red-400',     shadow: 'shadow-amber-500/30' },
+    { from: 'from-indigo-500',  via: 'via-blue-600',    to: 'to-sky-400',     shadow: 'shadow-indigo-500/30' },
+    { from: 'from-teal-500',    via: 'via-emerald-500', to: 'to-green-400',   shadow: 'shadow-teal-500/30' },
+    { from: 'from-sky-500',     via: 'via-blue-500',    to: 'to-indigo-500',  shadow: 'shadow-sky-500/30' },
+    { from: 'from-violet-500',  via: 'via-purple-600',  to: 'to-pink-500',    shadow: 'shadow-violet-500/30' },
+    { from: 'from-green-500',   via: 'via-emerald-500', to: 'to-teal-400',    shadow: 'shadow-green-500/30' },
+    { from: 'from-fuchsia-500', via: 'via-pink-500',    to: 'to-rose-400',    shadow: 'shadow-fuchsia-500/30' },
+    { from: 'from-cyan-500',    via: 'via-sky-500',     to: 'to-blue-500',    shadow: 'shadow-cyan-500/30' },
+  ];
+  return palettes[Math.abs(hash) % palettes.length];
+}
+
 // Component for project cards
 function ProjectCard({ project, onDelete, onViewComments }: { project: any, onDelete?: (id: number) => void, onViewComments?: (id: string) => void }) {
   // Note: We're using parameter renaming (projeto: project) to transition from Portuguese to English
@@ -363,154 +387,158 @@ function ProjectCard({ project, onDelete, onViewComments }: { project: any, onDe
     }
   };
   
+  const gradient = getProjectGradient(project?.name || project?.nome || '');
+
   return (
-        <div className="relative group">
-          <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-blue-500/10 rounded-3xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-          <Card className="relative overflow-hidden bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] rounded-3xl">
-      <CardHeader className="p-6 pb-4">
-        <div className="flex justify-between items-start gap-4">
-          <div className="flex-1 min-w-0">
-            <CardTitle className="text-xl font-black text-slate-900 dark:text-white mb-1 leading-tight truncate">{project?.name || project?.nome || "Untitled Project"}</CardTitle>
-            <CardDescription className="text-slate-500 dark:text-slate-400 font-medium text-sm truncate">{project?.clientName || project?.cliente || "Unknown Client"}</CardDescription>
+    <div className="relative group">
+      {/* Glow on hover */}
+      <div className={`absolute -inset-0.5 bg-gradient-to-br ${gradient.from} ${gradient.to} rounded-2xl blur opacity-0 group-hover:opacity-25 transition-opacity duration-500`} />
+
+      <Card className="relative overflow-hidden bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5 rounded-2xl">
+
+        {/* ── Banner gradient ── */}
+        <div className={`relative h-28 bg-gradient-to-br ${gradient.from} ${gradient.via} ${gradient.to}`}>
+          {/* Dot-pattern texture */}
+          <div
+            className="absolute inset-0 opacity-[0.12]"
+            style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '18px 18px' }}
+          />
+          {/* Bottom scrim for text legibility */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
+
+          {/* Status badge — top right */}
+          <div className="absolute top-3 right-3">
+            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest backdrop-blur-sm border border-white/20 ${
+              status === 'pendente' || status === 'pending'
+                ? 'bg-yellow-400/90 text-yellow-900'
+                : status === 'revisado' || status === 'reviewed'
+                ? 'bg-blue-400/90 text-white'
+                : status === 'finalizado' || status === 'completed' || status === 'Completed'
+                ? 'bg-emerald-400/90 text-white'
+                : 'bg-white/30 text-white'
+            }`}>
+              {getStatusDisplayName(status)}
+            </span>
           </div>
-          <Badge className={`${getStatusColor(status)} rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border-0 shadow-sm shrink-0`}>
-            {getStatusDisplayName(status)}
-          </Badge>
+
+          {/* Project name + client — overlaid on bottom of banner */}
+          <div className="absolute bottom-0 left-0 right-0 px-4 pb-3 pt-8">
+            <h3 className="text-white font-black text-base leading-tight truncate drop-shadow-sm">
+              {project?.name || project?.nome || 'Sem título'}
+            </h3>
+            <p className="text-white/70 text-xs font-medium truncate mt-0.5">
+              {project?.clientName || project?.cliente || '—'}
+            </p>
+          </div>
         </div>
-      </CardHeader>
-      <CardContent className="px-6 pb-4">
-        <div className="flex items-center text-sm text-slate-500 dark:text-slate-400 mb-4">
-          <div className="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mr-3">
-            <Calendar className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+
+        {/* ── Body ── */}
+        <CardContent className="px-4 pt-3 pb-4">
+          {/* Date */}
+          <div className="flex items-center gap-1.5 mb-3">
+            <Calendar className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+              {formatDate(project?.data || new Date().toISOString())}
+            </span>
           </div>
-          <span className="font-bold text-slate-700 dark:text-slate-300">{formatDate(project?.data || new Date().toISOString())}</span>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="flex items-center text-sm bg-slate-50 dark:bg-slate-800 rounded-2xl p-4">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center mr-3 shadow-lg shadow-blue-500/20">
-              <Camera className="h-5 w-5 text-white" />
+
+          {/* Stats */}
+          <div className="grid grid-cols-2 gap-2 mb-3">
+            <div className="bg-slate-50 dark:bg-slate-800/70 rounded-xl p-3 flex items-center gap-2.5">
+              <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${gradient.from} ${gradient.to} flex items-center justify-center flex-shrink-0 shadow-sm`}>
+                <Camera className="h-4 w-4 text-white" />
+              </div>
+              <div>
+                <div className="text-xl font-black text-slate-900 dark:text-white leading-none">
+                  {project?.photos?.length || project?.fotos || 0}
+                </div>
+                <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">fotos</div>
+              </div>
             </div>
-            <div>
-              <div className="text-2xl font-black text-slate-900 dark:text-white">{project?.photos?.length || project?.fotos || 0}</div>
-              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">fotos</div>
+            <div className="bg-slate-50 dark:bg-slate-800/70 rounded-xl p-3 flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-slate-500 to-slate-700 dark:from-slate-600 dark:to-slate-800 flex items-center justify-center flex-shrink-0 shadow-sm">
+                <Check className="h-4 w-4 text-white" />
+              </div>
+              <div>
+                <div className="text-xl font-black text-slate-900 dark:text-white leading-none">
+                  {project?.selectedPhotos?.length || project?.selecionadas || 0}
+                </div>
+                <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">seleções</div>
+              </div>
             </div>
           </div>
-          <div className="flex items-center text-sm bg-slate-50 dark:bg-slate-800 rounded-2xl p-4">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-fuchsia-600 flex items-center justify-center mr-3 shadow-lg shadow-purple-500/20">
-              <Check className="h-5 w-5 text-white" />
-            </div>
-            <div>
-              <div className="text-2xl font-black text-slate-900 dark:text-white">{project?.selectedPhotos?.length || project?.selecionadas || 0}</div>
-              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">selecionadas</div>
-            </div>
-          </div>
-        </div>
-      </CardContent>
-      <CardFooter className="p-6 pt-4 flex flex-col gap-4">
-        <div className="flex flex-wrap gap-2 w-full">
-          {/* Comments button */}
-          <Button 
-            variant="ghost" 
-            size="sm"
-            className="text-xs text-purple-700 bg-purple-50 hover:bg-purple-100 hover:text-purple-800 rounded-xl px-4 py-2.5 font-semibold transition-all duration-200 border border-purple-100"
-            onClick={(e) => {
-              e.stopPropagation();
-              onViewComments?.(project.id);
-            }}
-          >
-            <MessageCircle className="h-4 w-4 mr-2" />
-            Comentários
-          </Button>
-          
-          {/* View selections button — só para projetos finalizados */}
-          {(project.finalizado || project.status === 'finalizado') && (
-            <Button 
-              variant="ghost" 
-              size="sm"
-              className="text-xs text-emerald-700 bg-emerald-50 hover:bg-emerald-100 hover:text-emerald-800 rounded-xl px-4 py-2.5 font-semibold transition-all duration-200 border border-emerald-100"
-              onClick={handleViewSelections}
+
+          {/* Secondary actions */}
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            <button
+              onClick={(e) => { e.stopPropagation(); onViewComments?.(project.id); }}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 dark:bg-purple-900/30 dark:text-purple-300 rounded-lg transition-colors border border-purple-100 dark:border-purple-800"
             >
-              <FileText className="h-4 w-4 mr-2" />
-              Ver Seleções
-            </Button>
-          )}
-          
-          {/* Watermark toggle button */}
-          <Button 
-            variant="ghost" 
-            size="sm"
-            className={`text-xs rounded-xl px-4 py-2.5 font-semibold transition-all duration-200 border ${project.showWatermark !== false 
-              ? 'text-blue-700 bg-blue-50 hover:bg-blue-100 hover:text-blue-800 border-blue-100' 
-              : 'text-slate-600 bg-slate-50 hover:bg-slate-100 hover:text-slate-700 border-slate-200'
-            }`}
-            onClick={handleToggleWatermark}
-            disabled={isTogglingWatermark}
-            title={`Marca d'água ${project.showWatermark !== false ? 'ativada' : 'desativada'}`}
-          >
-            {isTogglingWatermark ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Processando...
-              </>
-            ) : (
-              <>
-                {project.showWatermark !== false ? (
-                  <Shield className="h-4 w-4 mr-2" />
-                ) : (
-                  <ShieldOff className="h-4 w-4 mr-2" />
-                )}
-                Marca d'água
-              </>
+              <MessageCircle className="h-3.5 w-3.5" />
+              Comentários
+            </button>
+
+            {(project.finalizado || project.status === 'finalizado') && (
+              <button
+                onClick={handleViewSelections}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-300 rounded-lg transition-colors border border-emerald-100 dark:border-emerald-800"
+              >
+                <FileText className="h-3.5 w-3.5" />
+                Ver Seleções
+              </button>
             )}
-          </Button>
-          
-          {/* Delete project button */}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-xs text-red-600 bg-red-50 hover:bg-red-100 hover:text-red-700 rounded-lg px-2 py-1.5 font-medium transition-all duration-200 border border-red-100"
-            onClick={() => setShowDeleteConfirm(true)}
-            aria-label="Excluir projeto"
-          >
-            <X className="h-3 w-3 mr-1" />
-            Excluir
-          </Button>
-        </div>
-        
-        <div className="flex gap-3 w-full">
-          <Button 
-            variant="outline" 
-            size="sm"
-            className="flex-1 text-xs sm:text-sm font-semibold text-slate-700 dark:text-gray-200 border-slate-200 dark:border-gray-600 hover:bg-slate-50 dark:hover:bg-gray-700 hover:border-slate-300 dark:hover:border-gray-500 rounded-xl py-2.5 px-2 sm:px-3 transition-all duration-200 min-w-0"
-            onClick={() => setLocation(`/project/${project.id}`)}
-          >
-            <ArrowUpRight className="h-4 w-4 mr-1 sm:mr-2 flex-shrink-0" />
-            <span className="hidden sm:inline">Ver Detalhes</span>
-            <span className="sm:hidden">Detalhes</span>
-          </Button>
-          
-          <Button
-            size="sm"
-            className={`
-              flex-1 text-xs sm:text-sm font-semibold text-white shadow-lg
-              bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600
-              hover:from-blue-700 hover:via-indigo-700 hover:to-purple-700
-              hover:scale-105 hover:shadow-xl
-              rounded-xl py-2.5 px-2 sm:px-3 transition-all duration-300 
-              border border-blue-500/20
-              min-w-0 truncate
-            `}
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowClientLinkModal(true);
-            }}
-          >
-            <LinkIcon className="h-4 w-4 mr-1 sm:mr-2 flex-shrink-0" />
-            <span className="hidden sm:inline">Link do Cliente</span>
-            <span className="sm:hidden">Link</span>
-          </Button>
-        </div>
-      </CardFooter>
+
+            <button
+              onClick={handleToggleWatermark}
+              disabled={isTogglingWatermark}
+              title={`Marca d'água ${project.showWatermark !== false ? 'ativada' : 'desativada'}`}
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-semibold rounded-lg transition-colors border ${
+                project.showWatermark !== false
+                  ? 'text-blue-700 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-300 border-blue-100 dark:border-blue-800'
+                  : 'text-slate-600 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:text-slate-400 border-slate-200 dark:border-slate-700'
+              }`}
+            >
+              {isTogglingWatermark
+                ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                : project.showWatermark !== false
+                  ? <Shield className="h-3.5 w-3.5" />
+                  : <ShieldOff className="h-3.5 w-3.5" />
+              }
+              Marca d'água
+            </button>
+
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              aria-label="Excluir projeto"
+              className="inline-flex items-center gap-1 px-2 py-1.5 text-[11px] font-semibold text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+            >
+              <X className="h-3.5 w-3.5" />
+              Excluir
+            </button>
+          </div>
+
+          {/* Primary CTAs */}
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1 text-xs font-semibold text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl py-2.5 transition-all"
+              onClick={() => setLocation(`/project/${project.id}`)}
+            >
+              <ArrowUpRight className="h-3.5 w-3.5 mr-1.5 flex-shrink-0" />
+              Ver Detalhes
+            </Button>
+
+            <Button
+              size="sm"
+              className={`flex-1 text-xs font-bold text-white rounded-xl py-2.5 transition-all duration-200 hover:opacity-90 shadow-sm hover:shadow-md bg-gradient-to-r ${gradient.from} ${gradient.via} ${gradient.to}`}
+              onClick={(e) => { e.stopPropagation(); setShowClientLinkModal(true); }}
+            >
+              <LinkIcon className="h-3.5 w-3.5 mr-1.5 flex-shrink-0" />
+              Link do Cliente
+            </Button>
+          </div>
+        </CardContent>
       
       {/* Delete confirmation modal */}
       <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
