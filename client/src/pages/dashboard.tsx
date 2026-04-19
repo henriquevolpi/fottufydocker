@@ -2127,6 +2127,11 @@ export default function Dashboard() {
               <span className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter">
                 Fottufy
               </span>
+              <img
+                src={fottufinhopng}
+                alt="Fottufinho"
+                className="w-9 h-9 sm:w-10 sm:h-10"
+              />
             </div>
             
             <div className="flex items-center gap-4">
