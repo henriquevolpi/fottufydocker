@@ -2196,10 +2196,13 @@ export default function Dashboard() {
 
             <div className="flex items-center gap-3 flex-wrap">
               <h1
-                className="text-3xl sm:text-4xl lg:text-5xl text-slate-900 dark:text-white"
+                className="text-3xl sm:text-4xl lg:text-5xl"
                 style={{ fontWeight: 800, letterSpacing: '-0.03em' }}
               >
-                Olá, {user?.name?.split(' ')[0] || 'Fotógrafo'}
+                <span className="text-slate-900 dark:text-white">Olá, </span>
+                <span className="bg-gradient-to-r from-blue-500 via-blue-600 to-cyan-500 bg-clip-text text-transparent">
+                  {user?.name?.split(' ')[0] || 'Fotógrafo'}
+                </span>
               </h1>
 
               {(user as any)?.isAmbassador && (
