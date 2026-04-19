@@ -29,7 +29,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 
 const POOL_TOTAL = 17000;
-const POOL_USED_DEMO = 5000;
+const POOL_USED_DEMO = 2000;
 
 function PhotoPoolDemo() {
   const [displayCount, setDisplayCount] = useState(POOL_TOTAL);
@@ -101,8 +101,8 @@ function PhotoPoolDemo() {
     },
     {
       icon: <Upload className="h-4 w-4" />,
-      label: "Enviou 5.000 fotos",
-      detail: "12.000 fotos disponíveis",
+      label: "Enviou 2.000 fotos",
+      detail: "15.000 fotos disponíveis",
       colors: { ring: "bg-orange-500", text: "text-orange-600", bg: "bg-orange-50" },
     },
     {
