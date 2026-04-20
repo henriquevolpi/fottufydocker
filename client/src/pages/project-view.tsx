@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { getPhotoUrl, getImageUrl } from "@/lib/imageUtils";
-import { WatermarkOverlay } from "@/components/WatermarkOverlay";
+import { CanvasPhoto } from "@/components/CanvasPhoto";
 import { VirtualizedPhotoGrid } from "@/components/VirtualizedPhotoGrid";
 import { useDeviceCapabilities } from "@/hooks/useVirtualization";
 import { Input } from "@/components/ui/input";
@@ -1765,48 +1765,29 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
           onClick={() => setImageModalOpen(false)}
         >
           <div className="relative max-w-[95vw] max-h-[95vh]" onClick={(e) => e.stopPropagation()}>
-            {/* Imagem com watermark */}
-            <WatermarkOverlay 
-              enabled={project.showWatermark === true} 
-              className="relative"
-            >
-              <img
-                src={
-                  project.photos[currentPhotoIndex].url && 
-                  !project.photos[currentPhotoIndex].url.includes('project-photos') 
-                    ? project.photos[currentPhotoIndex].url 
-                    : `https://cdn.fottufy.com/${project.photos[currentPhotoIndex].filename}`
-                }
-                alt="Foto do projeto"
-                className="max-w-full max-h-full w-auto h-auto object-contain rounded-xl"
-                style={{ maxWidth: '95vw', maxHeight: '95vh' }}
-                loading="eager"
-                onLoad={(e) => {
-                  const img = e.currentTarget;
-                  if (img.dataset.retryCount) {
-                    delete img.dataset.retryCount;
-                  }
-                }}
-                onError={(e) => {
-                  const img = e.currentTarget;
-                  if (!img.dataset.retryCount) {
-                    img.dataset.retryCount = '1';
-                    const originalSrc = img.src;
-                    if (originalSrc.includes('cdn.fottufy.com')) {
-                      img.src = originalSrc.replace('cdn.fottufy.com', 'cdn2.fottufy.com');
-                      return;
-                    }
-                  } else if (img.dataset.retryCount === '1') {
-                    img.dataset.retryCount = '2';
-                    img.src = '/placeholder.jpg';
-                    return;
-                  }
-                  img.style.display = "none";
-                  console.error("Imagem não pode ser carregada:", img.src);
-                }}
-                onContextMenu={e => e.preventDefault()}
-              />
-            </WatermarkOverlay>
+            {/* Imagem com canvas — protege contra salvamento no mobile */}
+            {(() => {
+              const photo = project.photos[currentPhotoIndex];
+              const primarySrc = photo.url && !photo.url.includes('project-photos')
+                ? photo.url
+                : `https://cdn.fottufy.com/${photo.filename}`;
+              const fallbacks = [
+                primarySrc.includes('cdn.fottufy.com')
+                  ? primarySrc.replace('cdn.fottufy.com', 'cdn2.fottufy.com')
+                  : `https://cdn2.fottufy.com/${photo.filename}`,
+                '/placeholder.jpg',
+              ];
+              return (
+                <CanvasPhoto
+                  key={photo.id ?? currentPhotoIndex}
+                  src={primarySrc}
+                  fallbackSrcs={fallbacks}
+                  watermark={project.showWatermark === true}
+                  fit="contain"
+                  className="rounded-xl"
+                />
+              );
+            })()}
             
             {/* Botão X - Youze Style */}
             <button

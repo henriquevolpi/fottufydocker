@@ -2,7 +2,7 @@ import React, { memo, useCallback, useState, useRef, useEffect } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { WatermarkOverlay } from "./WatermarkOverlay";
+import { CanvasPhoto } from "./CanvasPhoto";
 import { 
   Check, 
   Loader2,
@@ -161,52 +161,40 @@ export const PhotoCard = memo(function PhotoCard({
         containIntrinsicSize: '0 400px'
       }}
     >
-      <div className="relative h-64 bg-slate-100">
+      <div className="relative h-64 bg-slate-100 group cursor-zoom-in">
         {isVisible ? (
-          <WatermarkOverlay 
-            enabled={showWatermark} 
-            className="absolute inset-0 w-full h-full cursor-zoom-in group"
-          >
-            <div 
-              className="w-full h-full"
-              onClick={handleImageClick}
-            >
-              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-black/40 rounded-full p-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-20">
-                <Maximize className="h-6 w-6 text-white drop-shadow-lg" />
+          <>
+            {isProcessing && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-100 z-10">
+                <Loader2 className="h-8 w-8 text-purple-400 animate-spin" />
+                <span className="text-xs text-slate-400 mt-2">Processando...</span>
               </div>
-              
-              {isProcessing && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-100 z-10">
-                  <Loader2 className="h-8 w-8 text-purple-400 animate-spin" />
-                  <span className="text-xs text-slate-400 mt-2">Processando...</span>
-                </div>
-              )}
+            )}
 
-              {!isProcessing && !imageLoaded && !imageError && (
-                <div className="absolute inset-0 flex items-center justify-center bg-slate-100">
-                  <div className="animate-pulse">
-                    <ImageIcon className="h-10 w-10 text-slate-300" />
-                  </div>
+            {!isProcessing && !imageLoaded && !imageError && (
+              <div className="absolute inset-0 flex items-center justify-center bg-slate-100 z-10">
+                <div className="animate-pulse">
+                  <ImageIcon className="h-10 w-10 text-slate-300" />
                 </div>
-              )}
-              
-              {!isProcessing && (
-                <img
-                  src={imageUrl}
-                  alt="Photo"
-                  className={`w-full h-full object-cover transition-opacity duration-300 ${
-                    imageLoaded ? 'opacity-100' : 'opacity-0'
-                  }`}
-                  loading="lazy"
-                  decoding="async"
-                  onLoad={handleImageLoad}
-                  onError={handleImageError}
-                  onContextMenu={e => e.preventDefault()}
-                  title="Clique para ampliar"
-                />
-              )}
+              </div>
+            )}
+
+            {!isProcessing && (
+              <CanvasPhoto
+                src={imageUrl}
+                watermark={showWatermark}
+                fit="cover"
+                onClick={handleImageClick}
+                onLoad={handleImageLoad}
+                onError={handleImageError}
+                title="Clique para ampliar"
+              />
+            )}
+
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-black/40 rounded-full p-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-20 pointer-events-none">
+              <Maximize className="h-6 w-6 text-white drop-shadow-lg" />
             </div>
-          </WatermarkOverlay>
+          </>
         ) : (
           <div className="absolute inset-0 flex items-center justify-center bg-slate-100">
             <ImageIcon className="h-10 w-10 text-slate-200" />
