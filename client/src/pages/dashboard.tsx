@@ -2123,7 +2123,10 @@ export default function Dashboard() {
         <div className="relative container mx-auto px-4 sm:px-6">
           <div style={{ fontFamily: "'Poppins', system-ui, sans-serif" }}>
             {heroDateLabel && (
-              <div className="flex items-center gap-2 mb-2">
+              <div
+                className="flex items-center gap-2 mb-2 animate-in fade-in-0 slide-in-from-bottom-3 duration-500 [animation-fill-mode:both]"
+                style={{ animationDelay: '0ms' }}
+              >
                 <span className="text-xl sm:text-2xl">👋</span>
                 <span
                   className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 capitalize"
@@ -2134,7 +2137,10 @@ export default function Dashboard() {
               </div>
             )}
 
-            <div className="flex items-center gap-3 flex-wrap">
+            <div
+              className="flex items-center gap-3 flex-wrap animate-in fade-in-0 slide-in-from-bottom-4 duration-500 [animation-fill-mode:both]"
+              style={{ animationDelay: '120ms' }}
+            >
               <h1
                 className="text-3xl sm:text-4xl lg:text-5xl"
                 style={{ fontWeight: 800, letterSpacing: '-0.03em' }}
@@ -2146,7 +2152,10 @@ export default function Dashboard() {
               </h1>
 
               {(user as any)?.isAmbassador && (
-                <div className="flex items-center gap-1.5 px-3 py-1 bg-gradient-to-r from-amber-400 to-amber-600 rounded-full shadow-sm shadow-amber-400/30">
+                <div
+                  className="flex items-center gap-1.5 px-3 py-1 bg-gradient-to-r from-amber-400 to-amber-600 rounded-full shadow-sm shadow-amber-400/30 animate-in fade-in-0 zoom-in-90 duration-400 [animation-fill-mode:both]"
+                  style={{ animationDelay: '280ms' }}
+                >
                   <Award className="h-4 w-4 text-white" />
                   <span className="text-xs font-bold text-white">Embaixador Fottufy</span>
                 </div>
@@ -2154,8 +2163,8 @@ export default function Dashboard() {
             </div>
 
             <p
-              className="mt-2 text-sm sm:text-base text-slate-500 dark:text-slate-400 max-w-2xl"
-              style={{ fontWeight: 500 }}
+              className="mt-2 text-sm sm:text-base text-slate-500 dark:text-slate-400 max-w-2xl animate-in fade-in-0 slide-in-from-bottom-3 duration-500 [animation-fill-mode:both]"
+              style={{ fontWeight: 500, animationDelay: '230ms' }}
             >
               {pendingReviewCount === 0 && newSelectionsCount === 0 ? (
                 <>Tudo em ordem por aqui. Que tal criar um novo projeto?</>
