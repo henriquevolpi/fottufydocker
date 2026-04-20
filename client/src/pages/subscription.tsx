@@ -233,7 +233,34 @@ export default function SubscriptionPage() {
   const { user, isLoading } = useAuth();
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("monthly");
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+  const [loadingCancel, setLoadingCancel] = useState(false);
   const { toast } = useToast();
+
+  const hasActiveStripeSubscription =
+    user?.planType !== 'free' &&
+    (user as any)?.subscriptionStatus === 'active' &&
+    !!(user as any)?.stripeCustomerId;
+
+  const handleCancelSubscription = async () => {
+    setLoadingCancel(true);
+    try {
+      const response = await apiRequest("POST", "/api/stripe/create-portal-session", {});
+      const data = await response.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error("URL do portal não retornada");
+      }
+    } catch (error: any) {
+      toast({
+        title: "Não foi possível abrir o portal",
+        description: error.message || "Tente novamente em alguns instantes",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingCancel(false);
+    }
+  };
   
   // Verificar se voltou do checkout cancelado
   const searchParams = new URLSearchParams(window.location.search);
@@ -658,29 +685,60 @@ export default function SubscriptionPage() {
           </div>
         </div>
         
-        {/* Final CTA */}
-        <div className="text-center bg-gradient-to-r from-blue-600 to-purple-600 rounded-3xl p-12 text-white">
-          <h2 className="text-3xl font-bold mb-4">
-            Pronto para revolucionar seu trabalho?
-          </h2>
-          <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
-            Junte-se a milhares de fotógrafos que já escolheram a Fottufy para 
-            entregar fotos de forma profissional e eficiente.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button 
-              size="lg"
-              className="bg-white text-blue-600 hover:bg-gray-100 px-8 py-6 text-lg font-semibold rounded-xl"
-              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+        {/* Final CTA — condicional por tipo de usuário */}
+        {hasActiveStripeSubscription ? (
+          <div className="text-center bg-gradient-to-r from-slate-800 to-slate-900 rounded-3xl p-10 sm:p-12">
+            <div className="text-4xl mb-4">💙</div>
+            <h2 className="text-2xl sm:text-3xl font-bold mb-3 text-white">
+              Você faz parte da família Fottufy
+            </h2>
+            <p className="text-slate-300 text-base sm:text-lg mb-2 max-w-xl mx-auto leading-relaxed">
+              Sentiremos muito a sua falta. Você tem entregado um trabalho incrível aos seus clientes — 
+              esperamos que fique mais um tempo com a gente.
+            </p>
+            <p className="text-slate-400 text-sm mb-8">
+              Se precisar de ajuda ou tiver alguma dúvida, fale com nosso suporte antes de cancelar.
+            </p>
+            <Button
+              variant="outline"
+              onClick={handleCancelSubscription}
+              disabled={loadingCancel}
+              className="border-slate-500 text-slate-300 hover:bg-slate-700 hover:text-white hover:border-slate-400 px-8 py-3 rounded-xl transition-all"
             >
-              <Camera className="mr-2 h-5 w-5" />
-              Ver Planos
+              {loadingCancel ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Abrindo portal...
+                </>
+              ) : (
+                "Cancelar minha assinatura"
+              )}
             </Button>
           </div>
-          <p className="text-blue-200 text-sm mt-6">
-            Todos os planos • Cancele quando quiser • Suporte incluído
-          </p>
-        </div>
+        ) : (
+          <div className="text-center bg-gradient-to-r from-blue-600 to-purple-600 rounded-3xl p-12 text-white">
+            <h2 className="text-3xl font-bold mb-4">
+              Pronto para revolucionar seu trabalho?
+            </h2>
+            <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
+              Junte-se a milhares de fotógrafos que já escolheram a Fottufy para 
+              entregar fotos de forma profissional e eficiente.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Button 
+                size="lg"
+                className="bg-white text-blue-600 hover:bg-gray-100 px-8 py-6 text-lg font-semibold rounded-xl"
+                onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+              >
+                <Camera className="mr-2 h-5 w-5" />
+                Ver Planos
+              </Button>
+            </div>
+            <p className="text-blue-200 text-sm mt-6">
+              Todos os planos • Cancele quando quiser • Suporte incluído
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -3397,6 +3397,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Rota para criar sessão do Billing Portal (cancelamento / gerenciamento de assinatura)
+  app.post("/api/stripe/create-portal-session", authenticate, async (req: Request, res: Response) => {
+    try {
+      const user = req.user;
+      if (!user) return res.status(401).json({ message: "Usuário não autenticado" });
+      if (!stripe) return res.status(500).json({ message: "Stripe não configurado" });
+      if (!user.stripeCustomerId) {
+        return res.status(400).json({ message: "Usuário não possui assinatura ativa no Stripe" });
+      }
+
+      const session = await stripe.billingPortal.sessions.create({
+        customer: user.stripeCustomerId,
+        return_url: `${req.headers.origin || 'https://' + req.headers.host}/subscription`,
+      });
+
+      return res.json({ url: session.url });
+    } catch (error: any) {
+      console.error("Erro ao criar sessão do Billing Portal:", error);
+      return res.status(500).json({ message: error.message || "Erro ao abrir portal de gerenciamento" });
+    }
+  });
+
   // Rota para verificar status da sessão de checkout (após redirecionamento de sucesso)
   app.get("/api/stripe/checkout-session/:sessionId", authenticate, async (req: Request, res: Response) => {
     try {
