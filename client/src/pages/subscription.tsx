@@ -703,7 +703,7 @@ export default function SubscriptionPage() {
               variant="outline"
               onClick={handleCancelSubscription}
               disabled={loadingCancel}
-              className="border-slate-500 text-slate-300 hover:bg-slate-700 hover:text-white hover:border-slate-400 px-8 py-3 rounded-xl transition-all"
+              className="border-slate-500 text-red-400 hover:bg-slate-700 hover:text-red-300 hover:border-slate-400 px-8 py-3 rounded-xl transition-all"
             >
               {loadingCancel ? (
                 <>
