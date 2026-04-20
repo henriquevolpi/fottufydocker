@@ -541,64 +541,96 @@ function ProjectCard({ project, onDelete, onViewComments }: { project: any, onDe
       
       {/* View selections modal */}
       <Dialog open={showSelectionsModal} onOpenChange={setShowSelectionsModal}>
-        <DialogContent className="w-[calc(100%-2rem)] sm:max-w-[900px] mx-auto max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-              <DialogTitle
-                className="text-3xl font-extrabold bg-gradient-to-r from-blue-500 via-purple-500 via-pink-500 to-orange-500 bg-clip-text text-transparent"
-              >
-                Fotos Selecionadas - {modalProject?.name || modalProject?.nome || 'Sem título'}
+        <DialogContent className="w-[calc(100%-1.5rem)] sm:max-w-[860px] mx-auto max-h-[88vh] overflow-y-auto p-0 gap-0 rounded-2xl border-0 shadow-2xl">
+          {/* Header gradient */}
+          <div className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-t-2xl px-6 pt-7 pb-6 overflow-hidden">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute bottom-0 left-0 w-48 h-48 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none" />
+            <div className="relative">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="h-1.5 w-6 rounded-full bg-gradient-to-r from-blue-500 to-cyan-400" />
+                <span className="text-xs font-semibold text-slate-400 uppercase tracking-widest" style={{ fontFamily: "'Poppins', sans-serif" }}>
+                  Seleção do Cliente
+                </span>
+              </div>
+              <DialogTitle className="text-2xl sm:text-3xl font-extrabold text-white leading-tight mb-1" style={{ fontFamily: "'Poppins', sans-serif", letterSpacing: '-0.02em' }}>
+                {modalProject?.name || modalProject?.nome || 'Sem título'}
               </DialogTitle>
-              <DialogDescription className="text-base mt-1">
-              O cliente selecionou {modalProject?.selectedPhotos?.length || modalProject?.selecionadas || 0} de {modalProject?.photos?.length || modalProject?.fotos || 0} fotos.
-            </DialogDescription>
-          </DialogHeader>
+              <DialogDescription className="text-slate-400 text-sm font-medium" style={{ fontFamily: "'Poppins', sans-serif" }}>
+                O cliente escolheu{' '}
+                <span className="text-blue-400 font-bold">
+                  {modalProject?.selectedPhotos?.length || modalProject?.selecionadas || 0} fotos
+                </span>
+                {' '}de um total de{' '}
+                <span className="text-slate-300 font-semibold">
+                  {modalProject?.photos?.length || modalProject?.fotos || 0}
+                </span>
+              </DialogDescription>
 
-          {/* Resumo financeiro para o fotógrafo — visível apenas quando há pacote com limite definido */}
-          {(() => {
-            const included = Number(modalProject?.includedPhotos || 0);
-            const selected = Number(modalProject?.selectedPhotos?.length || modalProject?.selecionadas || 0);
-            const pricePerExtra = Number(modalProject?.additionalPhotoPrice || 0);
-            if (included <= 0) return null;
-            const extras = Math.max(0, selected - included);
-            const totalExtra = extras * pricePerExtra;
-            return (
-              <div className={`rounded-xl px-4 py-3 text-sm flex flex-wrap gap-x-6 gap-y-1 items-center border ${extras > 0 ? 'bg-amber-50 border-amber-200 text-amber-900' : 'bg-green-50 border-green-200 text-green-900'}`}>
-                <span>📷 <strong>{selected}</strong> de <strong>{included}</strong> fotos incluídas no pacote</span>
-                {extras > 0 && (
-                  <>
-                    <span>➕ <strong>{extras}</strong> foto{extras !== 1 ? 's' : ''} {extras !== 1 ? 'adicionais' : 'adicional'}</span>
-                    {pricePerExtra > 0 && (
-                      <span className="font-bold">
-                        💰 Valor adicional: R$ {(totalExtra / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              {/* Stats chips */}
+              {(() => {
+                const included = Number(modalProject?.includedPhotos || 0);
+                const selected = Number(modalProject?.selectedPhotos?.length || modalProject?.selecionadas || 0);
+                const pricePerExtra = Number(modalProject?.additionalPhotoPrice || 0);
+                if (included <= 0) return null;
+                const extras = Math.max(0, selected - included);
+                const totalExtra = extras * pricePerExtra;
+                return (
+                  <div className="flex flex-wrap gap-2 mt-4">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 text-white text-xs font-semibold backdrop-blur-sm border border-white/10">
+                      📦 {included} incluídas no pacote
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-500/20 text-blue-300 text-xs font-semibold border border-blue-500/30">
+                      ✅ {selected} selecionadas
+                    </span>
+                    {extras > 0 ? (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/20 text-amber-300 text-xs font-semibold border border-amber-500/30">
+                        ➕ {extras} extra{extras !== 1 ? 's' : ''}
+                        {pricePerExtra > 0 && ` · R$ ${(totalExtra / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-semibold border border-emerald-500/30">
+                        ✨ Dentro do pacote
                       </span>
                     )}
-                  </>
-                )}
-                {extras === 0 && <span>✅ Dentro do pacote contratado</span>}
-              </div>
-            );
-          })()}
-          
-          {(() => {
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+
+          {/* Body */}
+          <div className="bg-white px-6 py-6 rounded-b-2xl" style={{ fontFamily: "'Poppins', sans-serif" }}>
+            {(() => {
               if (!modalProject?.photos || modalProject.photos.length === 0) {
-                return <p className="text-gray-500 text-center my-4">Nenhuma foto encontrada</p>;
+                return (
+                  <div className="text-center py-10">
+                    <div className="text-4xl mb-3">📂</div>
+                    <p className="text-slate-500 font-medium">Nenhuma foto encontrada neste projeto</p>
+                  </div>
+                );
               }
-              
+
               let selectedPhotos: any[] = [];
               selectedPhotos = modalProject.photos.filter((photo: any) => photo.selected === true);
               if (selectedPhotos.length === 0 && modalProject.selectedPhotos && modalProject.selectedPhotos.length > 0) {
-                selectedPhotos = modalProject.photos.filter((photo: any) => 
+                selectedPhotos = modalProject.photos.filter((photo: any) =>
                   modalProject.selectedPhotos.includes(photo.id)
                 );
               }
               if (selectedPhotos.length === 0 && modalProject.status === 'completed') {
-                selectedPhotos = modalProject.photos.filter((photo: any) => 
+                selectedPhotos = modalProject.photos.filter((photo: any) =>
                   photo.selected === true || photo.selected === 1 || photo.selected === "1"
                 );
               }
-              
+
               if (selectedPhotos.length === 0) {
-                return <p className="text-gray-500 text-center my-4">Nenhuma foto selecionada pelo cliente</p>;
+                return (
+                  <div className="text-center py-10">
+                    <div className="text-4xl mb-3">🖼️</div>
+                    <p className="text-slate-500 font-medium">Nenhuma foto selecionada pelo cliente ainda</p>
+                  </div>
+                );
               }
 
               const namesWithoutExt = selectedPhotos.map((photo: any) => {
@@ -624,46 +656,66 @@ function ProjectCard({ project, onDelete, onViewComments }: { project: any, onDe
                   } else {
                     await navigator.clipboard.writeText(text);
                   }
-                  toast({ title: "Copiado!", description: `Formato ${label} copiado para a área de transferência.` });
+                  toast({ title: "✅ Copiado!", description: `Formato ${label} copiado para a área de transferência.` });
                 } catch {
-                  toast({ title: "Erro ao copiar", description: "Não foi possível copiar. Selecione o texto manualmente.", variant: "destructive" });
+                  toast({ title: "Erro ao copiar", description: "Selecione o texto manualmente.", variant: "destructive" });
                 }
               };
 
               return (
-                <div className="my-4 space-y-4">
-                  <div className="border rounded-lg p-3 sm:p-4 bg-gray-50">
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-sm font-bold text-gray-900">Adobe Lightroom <span className="font-normal text-gray-500 text-xs">(Filtro de biblioteca &gt; Texto &gt; Nome do arquivo &gt; Contém)</span></p>
-                      <Button size="sm" variant="outline" className="shrink-0 ml-2 text-xs" onClick={() => copyToClipboard(lightroomText, 'Lightroom')}>
-                        <Copy className="h-3 w-3 mr-1" /> Copiar
-                      </Button>
+                <div className="space-y-4">
+                  <p className="text-xs text-slate-400 font-medium uppercase tracking-widest mb-1">Formatos para filtrar no editor</p>
+
+                  {/* Lightroom block */}
+                  <div className="rounded-xl border border-slate-200 overflow-hidden">
+                    <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-200">
+                      <div>
+                        <p className="text-sm font-bold text-slate-800">Adobe Lightroom</p>
+                        <p className="text-xs text-slate-400 mt-0.5">Filtro de biblioteca › Texto › Nome do arquivo › Contém</p>
+                      </div>
+                      <button
+                        onClick={() => copyToClipboard(lightroomText, 'Lightroom')}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-xs font-semibold transition-colors shrink-0 ml-3"
+                      >
+                        <Copy className="h-3 w-3" /> Copiar
+                      </button>
                     </div>
-                    <div className="bg-blue-50 border border-blue-200 rounded p-2 sm:p-3 max-h-24 overflow-y-auto">
-                      <p className="text-xs sm:text-sm font-mono text-gray-800 break-all select-all">{lightroomText}</p>
+                    <div className="bg-slate-900 px-4 py-3 max-h-28 overflow-y-auto">
+                      <p className="text-xs sm:text-sm font-mono text-emerald-400 break-all select-all leading-relaxed">{lightroomText}</p>
                     </div>
                   </div>
 
-                  <div className="border rounded-lg p-3 sm:p-4 bg-gray-50">
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-sm font-bold text-gray-900">Windows Explorer <span className="font-normal text-gray-500 text-xs">(busca de arquivos)</span></p>
-                      <Button size="sm" variant="outline" className="shrink-0 ml-2 text-xs" onClick={() => copyToClipboard(windowsText, 'Windows')}>
-                        <Copy className="h-3 w-3 mr-1" /> Copiar
-                      </Button>
+                  {/* Windows block */}
+                  <div className="rounded-xl border border-slate-200 overflow-hidden">
+                    <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-200">
+                      <div>
+                        <p className="text-sm font-bold text-slate-800">Windows Explorer</p>
+                        <p className="text-xs text-slate-400 mt-0.5">Busca de arquivos no explorador</p>
+                      </div>
+                      <button
+                        onClick={() => copyToClipboard(windowsText, 'Windows')}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-800 text-white text-xs font-semibold transition-colors shrink-0 ml-3"
+                      >
+                        <Copy className="h-3 w-3" /> Copiar
+                      </button>
                     </div>
-                    <div className="bg-gray-100 border border-gray-200 rounded p-2 sm:p-3 max-h-24 overflow-y-auto">
-                      <p className="text-xs sm:text-sm font-mono text-gray-800 break-all select-all">{windowsText}</p>
+                    <div className="bg-slate-900 px-4 py-3 max-h-28 overflow-y-auto">
+                      <p className="text-xs sm:text-sm font-mono text-sky-400 break-all select-all leading-relaxed">{windowsText}</p>
                     </div>
                   </div>
                 </div>
               );
-          })()}
-          
-          <DialogFooter className="mt-4">
-            <Button onClick={() => setShowSelectionsModal(false)} className="w-full sm:w-auto">
-              Fechar
-            </Button>
-          </DialogFooter>
+            })()}
+
+            <div className="mt-6 pt-4 border-t border-slate-100">
+              <button
+                onClick={() => setShowSelectionsModal(false)}
+                className="w-full py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-sm transition-colors"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
       
