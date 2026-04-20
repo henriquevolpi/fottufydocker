@@ -584,8 +584,8 @@ function ProjectCard({ project, onDelete, onViewComments }: { project: any, onDe
                       ✅ {selected} selecionadas
                     </span>
                     {extras > 0 ? (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/20 text-amber-300 text-xs font-semibold border border-amber-500/30">
-                        ➕ {extras} extra{extras !== 1 ? 's' : ''}
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-400 text-amber-950 text-xs font-bold border border-amber-300">
+                        + {extras} extra{extras !== 1 ? 's' : ''}
                         {pricePerExtra > 0 && ` · R$ ${(totalExtra / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
                       </span>
                     ) : (
@@ -680,8 +680,8 @@ function ProjectCard({ project, onDelete, onViewComments }: { project: any, onDe
                         <Copy className="h-3 w-3" /> Copiar
                       </button>
                     </div>
-                    <div className="bg-slate-900 px-4 py-3 max-h-28 overflow-y-auto">
-                      <p className="text-xs sm:text-sm font-mono text-emerald-400 break-all select-all leading-relaxed">{lightroomText}</p>
+                    <div className="bg-slate-100 px-4 py-3 max-h-28 overflow-y-auto">
+                      <p className="text-xs sm:text-sm font-mono text-slate-800 break-all select-all leading-relaxed">{lightroomText}</p>
                     </div>
                   </div>
 
@@ -699,8 +699,8 @@ function ProjectCard({ project, onDelete, onViewComments }: { project: any, onDe
                         <Copy className="h-3 w-3" /> Copiar
                       </button>
                     </div>
-                    <div className="bg-slate-900 px-4 py-3 max-h-28 overflow-y-auto">
-                      <p className="text-xs sm:text-sm font-mono text-sky-400 break-all select-all leading-relaxed">{windowsText}</p>
+                    <div className="bg-slate-100 px-4 py-3 max-h-28 overflow-y-auto">
+                      <p className="text-xs sm:text-sm font-mono text-slate-800 break-all select-all leading-relaxed">{windowsText}</p>
                     </div>
                   </div>
                 </div>
