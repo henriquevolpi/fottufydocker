@@ -1,0 +1,121 @@
+Region: us-west1]
+=========================
+Using Detected Dockerfile
+=========================
+
+context: m316-MljV
+
+internal
+load build definition from Dockerfile
+0ms
+
+internal
+load metadata for docker.io/library/node:18-alpine
+527ms
+
+internal
+load .dockerignore
+0ms
+
+base
+FROM docker.io/library/node:18-alpine@sha256:8d6421d663b4c28fd3ebc498332f249011d118945588d0a35cb9bc4b8ca09d9e
+8ms
+
+internal
+load build context
+0ms
+
+base
+RUN apk add --no-cache     python3     make     g++     cairo-dev     jpeg-dev     pango-dev     musl-dev     giflib-dev     pixman-dev     pangomm-dev     libjpeg-turbo-dev     freetype-dev
+8s
+OK: 383 MiB in 166 packages
+
+base
+WORKDIR /app
+231ms
+
+base
+COPY package*.json ./
+33ms
+
+base
+RUN npm ci --only=production && npm cache clean --force
+24s
+npm warn using --force Recommended protections disabled.
+
+base
+COPY . .
+472ms
+
+build
+RUN npm ci
+25s
+Run `npm audit` for details.
+
+build
+RUN npm run build
+17s
+⚡ Done in 46ms
+
+production
+COPY --from=build /app/dist ./dist
+71ms
+
+production
+COPY --from=build /app/server ./server
+31ms
+
+production
+COPY --from=build /app/shared ./shared
+68ms
+
+production
+COPY --from=build /app/public ./public
+40ms
+
+production
+COPY --from=build /app/migrations ./migrations
+38ms
+
+production
+COPY --from=build /app/drizzle.config.ts ./
+28ms
+
+production
+COPY --from=build /app/tsconfig.json ./
+26ms
+
+production
+RUN addgroup -g 1001 -S nodejs
+123ms
+
+production
+RUN adduser -S nextjs -u 1001
+132ms
+
+production
+RUN chown -R nextjs:nodejs /app
+44s
+
+auth
+sharing credentials for production-us-west2.railway-registry.com
+0ms
+
+importing to docker
+26s
+Build time: 225.95 seconds
+ 
+====================
+Starting Healthcheck
+====================
+Path: /health
+Retry window: 2m0s
+ 
+Attempt #1 failed with service unavailable. Continuing to retry for 1m49s
+Attempt #2 failed with service unavailable. Continuing to retry for 1m38s
+Attempt #3 failed with service unavailable. Continuing to retry for 1m26s
+Attempt #4 failed with service unavailable. Continuing to retry for 1m12s
+Attempt #5 failed with service unavailable. Continuing to retry for 54s
+Attempt #6 failed with service unavailable. Continuing to retry for 28s
+ 
+1/1 replicas never became healthy!
