@@ -4,6 +4,10 @@ import { setupVite, serveStatic, log } from "./vite";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 import { nanoid } from "nanoid";
 import { testConnection, pool, startDbHealthCheck } from "./db";
 import { storage as dbStorage } from "./storage";
@@ -348,7 +352,7 @@ app.use((req, res, next) => {
   } else {
     // Integração com serveStatic para melhorar o suporte a rotas SPA
     // em ambientes de produção
-    const staticMiddleware = express.static(path.resolve(import.meta.dirname, 'public'), {
+    const staticMiddleware = express.static(path.resolve(__dirname, 'public'), {
       index: false, // Não servir index.html automaticamente
       setHeaders: (res, filepath) => {
         // Definir cabeçalhos apropriados para cada tipo de arquivo
@@ -387,7 +391,7 @@ app.use((req, res, next) => {
       
       // Servir o index.html para todas as outras rotas (SPA)
       res.setHeader('Content-Type', 'text/html; charset=UTF-8');
-      res.sendFile(path.resolve(import.meta.dirname, 'public', 'index.html'));
+      res.sendFile(path.resolve(__dirname, 'public', 'index.html'));
     });
   }
 
