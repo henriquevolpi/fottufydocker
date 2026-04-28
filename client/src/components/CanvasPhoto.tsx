@@ -60,25 +60,52 @@ export const CanvasPhoto = memo(function CanvasPhoto({
     const allSrcs = [src, ...fallbackSrcs];
     let urlIdx = 0;
     let cancelled = false;
+    let resizeObserver: ResizeObserver | null = null;
 
     const img = new window.Image();
 
-    const tryDraw = () => {
+    const performDraw = () => {
       if (cancelled) return;
 
       const wrapper = wrapperRef.current;
       const ctx = canvas.getContext('2d');
-      if (!ctx) return;
+      if (!ctx || img.naturalWidth === 0) return;
 
       if (fit === 'cover') {
-        const cw = wrapper?.offsetWidth ?? img.naturalWidth;
-        const ch = wrapper?.offsetHeight ?? img.naturalHeight;
-        canvas.width = cw;
-        canvas.height = ch;
-        const scale = Math.max(cw / img.naturalWidth, ch / img.naturalHeight);
-        const dx = (cw - img.naturalWidth * scale) / 2;
-        const dy = (ch - img.naturalHeight * scale) / 2;
-        ctx.drawImage(img, dx, dy, img.naturalWidth * scale, img.naturalHeight * scale);
+        const cw = wrapper?.offsetWidth ?? 0;
+        const ch = wrapper?.offsetHeight ?? 0;
+
+        // Guard: if layout hasn't resolved yet on mobile, wait via ResizeObserver
+        if ((cw === 0 || ch === 0) && wrapper) {
+          if (typeof ResizeObserver !== 'undefined') {
+            resizeObserver?.disconnect();
+            resizeObserver = new ResizeObserver(() => {
+              if (cancelled) { resizeObserver?.disconnect(); return; }
+              const w = wrapper.offsetWidth;
+              const h = wrapper.offsetHeight;
+              if (w > 0 && h > 0) {
+                resizeObserver?.disconnect();
+                resizeObserver = null;
+                performDraw();
+              }
+            });
+            resizeObserver.observe(wrapper);
+            return;
+          }
+          // Fallback when ResizeObserver not available: use natural image dimensions
+          canvas.width = img.naturalWidth;
+          canvas.height = img.naturalHeight;
+          ctx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight);
+        } else {
+          const finalW = cw || img.naturalWidth;
+          const finalH = ch || img.naturalHeight;
+          canvas.width = finalW;
+          canvas.height = finalH;
+          const scale = Math.max(finalW / img.naturalWidth, finalH / img.naturalHeight);
+          const dx = (finalW - img.naturalWidth * scale) / 2;
+          const dy = (finalH - img.naturalHeight * scale) / 2;
+          ctx.drawImage(img, dx, dy, img.naturalWidth * scale, img.naturalHeight * scale);
+        }
       } else {
         const maxW = window.innerWidth * 0.92;
         const maxH = window.innerHeight * 0.88;
@@ -96,7 +123,7 @@ export const CanvasPhoto = memo(function CanvasPhoto({
       onLoad?.();
     };
 
-    img.onload = tryDraw;
+    img.onload = performDraw;
 
     img.onerror = () => {
       if (cancelled) return;
@@ -112,6 +139,8 @@ export const CanvasPhoto = memo(function CanvasPhoto({
 
     return () => {
       cancelled = true;
+      resizeObserver?.disconnect();
+      resizeObserver = null;
     };
   }, [src, watermark, fit]);
 

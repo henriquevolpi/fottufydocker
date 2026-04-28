@@ -155,11 +155,7 @@ export const PhotoCard = memo(function PhotoCard({
       className={`overflow-hidden group transition-shadow duration-300 rounded-2xl border-0 shadow-md ${
         isFinalized ? 'opacity-80' : 'hover:shadow-xl'
       } ${isSelected ? 'ring-2 ring-purple-500 shadow-lg shadow-purple-500/20' : ''}`}
-      style={{ 
-        contain: 'layout style paint',
-        contentVisibility: 'auto',
-        containIntrinsicSize: '0 400px'
-      }}
+      style={{ contain: 'style paint' }}
     >
       <div className="relative h-64 bg-slate-100 group cursor-zoom-in">
         {isVisible ? (
