@@ -27,7 +27,7 @@ Preferred communication style: Simple, everyday language.
 - **File Storage**: Cloudflare R2 (S3-compatible) for primary photo storage.
 - **Subscription Management**: Supports free, basic, standard, and professional plans with plan-based upload quotas. Hotmart offers are managed dynamically via an admin panel using a `hotmart_offers` table. An automatic downgrade system is in place for expired subscriptions.
 - **Email System**: Resend API for transactional emails (welcome, password reset, subscription notifications) using HTML templates.
-- **Deployment**: Primarily on Render.com, with Docker support for containerization and specific configurations for Railway.
+- **Deployment**: Runs on Replit. Build: `npm run build`, Run: `node ./dist/index.cjs`. Dev: `npm run dev` (port 5000).
 
 ### Feature Specifications
 - **Authentication**: Secure registration, login, and password reset workflows, with webhook integration to BotConversa for CRM.

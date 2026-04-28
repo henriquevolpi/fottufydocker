@@ -255,11 +255,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.status(200).json({ status: "ok", ts: Date.now() });
   });
 
-  // Inicializar Stripe
+  // Inicializar Stripe (lazy - only fails when payment routes are actually called)
   if (!process.env.STRIPE_SECRET_KEY) {
     console.warn('Chave secreta do Stripe não encontrada. As funcionalidades de pagamento não funcionarão corretamente.');
   }
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '');
+  const getStripe = (): Stripe => {
+    if (!process.env.STRIPE_SECRET_KEY) {
+      throw new Error('STRIPE_SECRET_KEY não está configurada. Configure esta variável de ambiente para usar pagamentos.');
+    }
+    return new Stripe(process.env.STRIPE_SECRET_KEY);
+  };
+  const stripe = new Proxy({} as Stripe, {
+    get(_target, prop) {
+      return (getStripe() as any)[prop];
+    }
+  });
   
   // ==================== Cloudflare R2 Upload Routes ====================
 

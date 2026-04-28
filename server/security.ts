@@ -21,9 +21,9 @@ export const securityHeaders = helmet({
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       imgSrc: ["'self'", "data:", "https:", "blob:"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://js.stripe.com"], // Stripe support
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://js.stripe.com", "https://replit.com"], // Stripe + Replit support
       connectSrc: ["'self'", "https:", "wss:", "ws:", "https://api.stripe.com"], // Stripe API
-      frameSrc: ["'self'", "https://js.stripe.com", "https://hooks.stripe.com"], // Stripe frames
+      frameSrc: ["'self'", "https://js.stripe.com", "https://hooks.stripe.com", "https://replit.com"], // Stripe + Replit frames
       objectSrc: ["'none'"],
       mediaSrc: ["'self'", "https:", "blob:"],
       manifestSrc: ["'self'"],
@@ -193,8 +193,11 @@ export const corsConfig = {
       return callback(null, true);
     }
 
-    // Permitir qualquer subdomínio de railway.app
+    // Permitir qualquer subdomínio de railway.app ou replit.app/replit.dev
     if (origin.endsWith('.railway.app') || origin.endsWith('.up.railway.app')) {
+      return callback(null, true);
+    }
+    if (origin.endsWith('.replit.app') || origin.endsWith('.replit.dev') || origin.endsWith('.repl.co')) {
       return callback(null, true);
     }
     

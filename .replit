@@ -9,7 +9,7 @@ packages = ["zip", "lsof", "zulu11", "imagemagick", "jq"]
 [deployment]
 deploymentTarget = "autoscale"
 build = ["npm", "run", "build"]
-run = ["npm", "run", "start"]
+run = ["node", "./dist/index.cjs"]
 
 [[ports]]
 localPort = 3000
@@ -39,15 +39,13 @@ author = "agent"
 agentRequireRestartOnSave = false
 
 [[workflows.workflow.tasks]]
-task = "packager.installForAll"
-
-[[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "npm run dev"
 waitForPort = 5000
 
 [agent]
 integrations = ["javascript_stripe:1.0.0"]
+stack = "FULLSTACK_JS"
 
 [userenv]
 
