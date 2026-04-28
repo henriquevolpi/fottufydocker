@@ -3,6 +3,8 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import multer from "multer";
 import path from "path";
+import { dirname } from "path";
+import { fileURLToPath } from "url";
 import fs from "fs";
 import { fileURLToPath } from "url";
 
@@ -33,6 +35,10 @@ import {
 import dotenv from "dotenv";
 // Carregar variáveis de ambiente do arquivo .env
 dotenv.config();
+
+// Compatibilidade com Node < 21 (import.meta.dirname não existe antes do Node 21.2)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // Habilitar garbage collection manual se não estiver disponível
 if (!global.gc) {

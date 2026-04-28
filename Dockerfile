@@ -1,5 +1,5 @@
 # Multi-stage build para Node.js + React (Vite) no Railway
-FROM node:18-alpine AS deps
+FROM node:20-alpine AS deps
 
 # Dependências nativas necessárias para sharp e outros pacotes nativos
 RUN apk add --no-cache \
@@ -30,7 +30,7 @@ COPY . .
 RUN npm run build
 
 # ---- Production Stage ----
-FROM node:18-alpine AS production
+FROM node:20-alpine AS production
 
 # Dependências nativas para produção (sharp, etc.)
 RUN apk add --no-cache \
