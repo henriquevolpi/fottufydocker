@@ -2,7 +2,8 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
-import { deleteFileFromR2, r2Upload } from "./r2";
+import { deleteFileFromR2, r2Upload, r2Client, BUCKET_NAME } from "./r2";
+import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { 
   insertUserSchema, 
   insertProjectSchema, 
@@ -254,7 +255,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '');
   
   // ==================== Cloudflare R2 Upload Routes ====================
-  
+
+  // Proxy autenticado para arquivos R2 — contorna o CDN quando o acesso público falha
+  app.get("/api/r2-proxy/:filename", async (req: Request, res: Response) => {
+    try {
+      const { filename } = req.params;
+      if (!filename || filename.includes('/') || filename.includes('..') || filename.includes('\0')) {
+        return res.status(400).json({ message: 'Nome de arquivo inválido' });
+      }
+      const command = new GetObjectCommand({ Bucket: BUCKET_NAME, Key: filename });
+      const r2Response = await r2Client.send(command);
+      if (!r2Response.Body) {
+        return res.status(404).json({ message: 'Foto não encontrada no storage' });
+      }
+      res.setHeader('Content-Type', r2Response.ContentType || 'image/jpeg');
+      res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
+      if (r2Response.ContentLength) {
+        res.setHeader('Content-Length', r2Response.ContentLength);
+      }
+      const { Readable } = await import('stream');
+      const stream = r2Response.Body as any;
+      if (typeof stream.pipe === 'function') {
+        stream.pipe(res);
+      } else {
+        const readable = Readable.from(stream as any);
+        readable.pipe(res);
+      }
+    } catch (error: any) {
+      if (error.$metadata?.httpStatusCode === 404 || error.name === 'NoSuchKey') {
+        return res.status(404).json({ message: 'Foto não encontrada' });
+      }
+      console.error('[R2-PROXY] Erro ao servir foto:', error.message);
+      res.status(500).json({ message: 'Erro ao carregar foto' });
+    }
+  });
+
   // Test R2 connection
   app.get("/api/r2/test", async (req: Request, res: Response) => {
     try {
@@ -2269,9 +2304,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`Acesso autorizado: o fotógrafo ${req.user.id} está acessando seu próprio projeto ${project.id}`);
       }
       
-      // Esta é uma rota pública, então retornamos o projeto completo para clientes
-      // Em um ambiente de produção, poderíamos adicionar alguma forma de autenticação
-      // como um token único para cada cliente, mas para simplificar, mantemos público
+      // Reescreve URLs de fotos v1 (cdn.fottufy.com) para o proxy autenticado do backend
+      // Isso contorna limitações de acesso público do R2 sem depender do CDN externo
+      if (project.photos && Array.isArray(project.photos)) {
+        project.photos = project.photos.map((p: any) => {
+          if (p.url && p.url.includes('cdn.fottufy.com/')) {
+            const filename = p.url.split('cdn.fottufy.com/')[1];
+            if (filename) return { ...p, url: `/api/r2-proxy/${filename}` };
+          }
+          return p;
+        });
+      }
+
       res.json(project);
     } catch (error) {
       console.error(`Erro ao buscar projeto: ${error}`);

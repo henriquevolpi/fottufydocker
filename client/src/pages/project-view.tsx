@@ -397,8 +397,17 @@ export default function ProjectView({ params }: { params?: { id: string } }) {
   // Função para adaptar o formato do projeto (servidor ou localStorage)
   const adaptProject = (project: any): Project => {
     // Helpers para garantir URLs corretas
+    // Fotos v1 usam cdn.fottufy.com — redireciona para o proxy autenticado do backend
+    // que acessa o R2 diretamente com credenciais, contornando limitações de acesso público
     const ensureValidImageUrl = (url: string): string => {
       if (!url) return '/placeholder.jpg';
+      // URL relativa (proxy backend ou local) — usar como está
+      if (url.startsWith('/')) return url;
+      // Fotos v1 com CDN externo — redirecionar para proxy autenticado (fallback caso servidor não tenha reescrito)
+      if (url.includes('cdn.fottufy.com/')) {
+        const filename = url.split('cdn.fottufy.com/')[1];
+        if (filename) return `/api/r2-proxy/${filename}`;
+      }
       if (url.startsWith('http')) return url;
       if (url.includes('.r2.cloudflarestorage.com')) return `https://${url}`;
       const accountId = import.meta.env.VITE_R2_ACCOUNT_ID;

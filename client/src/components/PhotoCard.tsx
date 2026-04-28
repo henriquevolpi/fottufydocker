@@ -135,9 +135,8 @@ export const PhotoCard = memo(function PhotoCard({
     setImageLoaded(true);
   }, []);
 
-  const handleImageError = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
+  const handleImageError = useCallback(() => {
     setImageError(true);
-    e.currentTarget.src = '/placeholder.jpg';
   }, []);
 
   const isProcessing = photo.processingStatus === 'pending' || photo.processingStatus === 'processing';
@@ -172,6 +171,13 @@ export const PhotoCard = memo(function PhotoCard({
                 <div className="animate-pulse">
                   <ImageIcon className="h-10 w-10 text-slate-300" />
                 </div>
+              </div>
+            )}
+
+            {!isProcessing && imageError && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-100 z-10 gap-1">
+                <ImageIcon className="h-10 w-10 text-slate-300" />
+                <span className="text-xs text-slate-400">Foto indisponível</span>
               </div>
             )}
 
