@@ -65,6 +65,7 @@ const HOTMART_OFFER_TO_PLAN_MAP: Record<string, { planType: string; billingPerio
   "ze3jhsob": { planType: "basic_v2", billingPeriod: "monthly" },
   "6fm4k0j3": { planType: "basic_v2", billingPeriod: "monthly" },
   "z0fgxfr5": { planType: "basic_v2", billingPeriod: "monthly" },
+  "c1ogilsp": { planType: "basic_v2", billingPeriod: "monthly" },
   "tpfhcllk": { planType: "standard_v2", billingPeriod: "monthly" },
   "hjb8gqn7": { planType: "standard_v2", billingPeriod: "monthly" },
   "2rkaudbb": { planType: "standard_v2", billingPeriod: "monthly" },
