@@ -177,16 +177,29 @@ export const corsConfig = {
       'https://fottufy.com',
       'https://www.fottufy.com',
       process.env.FRONTEND_URL,
-      process.env.ALLOWED_ORIGIN
-    ].filter(Boolean);
+      process.env.ALLOWED_ORIGIN,
+      // Railway public domain injected automatically as env var
+      process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : undefined,
+      process.env.RAILWAY_STATIC_URL,
+    ].filter(Boolean) as string[];
     
     // Em desenvolvimento, permitir qualquer origem
     if (process.env.NODE_ENV === 'development') {
       return callback(null, true);
     }
+
+    // Sem origin (chamadas server-to-server, health checks, Postman, etc.)
+    if (!origin) {
+      return callback(null, true);
+    }
+
+    // Permitir qualquer subdomínio de railway.app
+    if (origin.endsWith('.railway.app') || origin.endsWith('.up.railway.app')) {
+      return callback(null, true);
+    }
     
     // Em produção, verificar lista de origens permitidas
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       console.warn(`[SECURITY] CORS blocked request from origin: ${origin}`);

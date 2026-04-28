@@ -112,6 +112,12 @@ export const upload = multer({
 // Initialize Express and configure middleware
 const app = express();
 
+// Trust Railway's (and other PaaS) reverse proxy so that:
+// - req.ip reflects the real client IP (needed for rate limiting)
+// - secure cookies work correctly over HTTPS
+// - X-Forwarded-* headers are trusted
+app.set('trust proxy', 1);
+
 // ==================== SECURITY MIDDLEWARE ====================
 // Headers de segurança básicos (helmet)
 app.use(securityHeaders);
@@ -501,7 +507,7 @@ app.use((req, res, next) => {
       const backupScheduler = initializeBackupScheduler();
       backupScheduler.start();
       console.log('[BACKUP] ✅ Sistema de backup automático iniciado');
-      console.log('[BACKUP] 📁 Backup local: /home/runner/workspace/backups (rotação 7 dias)');
+      console.log(`[BACKUP] 📁 Backup local: ${process.env.BACKUP_DIR || path.join(process.cwd(), 'backups')} (rotação 7 dias)`);
       console.log('[BACKUP] 📧 Backup por email: Resend configurado');
       console.log('[BACKUP] ⏰ Execução diária: 3:00 AM (configurável)');
       console.log('[BACKUP] 🎯 Sistema: Local + Email (100% automático)');

@@ -1,83 +1,76 @@
-# Multi-stage build otimizado para Node.js + React (Vite) no Railway
-FROM node:18-alpine AS base
+# Multi-stage build para Node.js + React (Vite) no Railway
+FROM node:18-alpine AS deps
 
-# Instalar dependências do sistema necessárias
+# Dependências nativas necessárias para sharp e outros pacotes nativos
 RUN apk add --no-cache \
     python3 \
     make \
     g++ \
-    cairo-dev \
     jpeg-dev \
     pango-dev \
     musl-dev \
     giflib-dev \
     pixman-dev \
-    pangomm-dev \
     libjpeg-turbo-dev \
     freetype-dev
 
-# Definir diretório de trabalho
 WORKDIR /app
 
-# Copiar package.json e package-lock.json
 COPY package*.json ./
 
-# Instalar dependências
-RUN npm ci --only=production && npm cache clean --force
+# Instalar TODAS as dependências (dev + prod) para o build
+RUN npm ci
 
-# Copiar código fonte
+# ---- Build Stage ----
+FROM deps AS build
+
 COPY . .
 
-# Build da aplicação frontend
-FROM base AS build
-RUN npm ci
+# Build frontend (Vite → dist/public) e backend (esbuild → dist/index.js)
 RUN npm run build
 
-# Imagem final de produção
+# ---- Production Stage ----
 FROM node:18-alpine AS production
 
-# Instalar dependências do sistema para produção
+# Dependências nativas para produção (sharp, etc.)
 RUN apk add --no-cache \
     python3 \
     make \
     g++ \
-    cairo-dev \
     jpeg-dev \
     pango-dev \
     musl-dev \
     giflib-dev \
     pixman-dev \
-    pangomm-dev \
     libjpeg-turbo-dev \
     freetype-dev
 
 WORKDIR /app
 
-# Copiar dependências de produção
 COPY package*.json ./
-RUN npm ci --only=production && npm cache clean --force
 
-# Copiar aplicação compilada
+# Instalar apenas dependências de produção
+RUN npm ci --omit=dev && npm cache clean --force
+
+# Copiar saída compilada (dist/index.js + dist/public/)
 COPY --from=build /app/dist ./dist
-COPY --from=build /app/server ./server
-COPY --from=build /app/shared ./shared
+
+# Copiar arquivos estáticos da pasta public/ (reset-password.html, etc.)
 COPY --from=build /app/public ./public
-COPY --from=build /app/migrations ./migrations
-COPY --from=build /app/drizzle.config.ts ./
-COPY --from=build /app/tsconfig.json ./
+
+# Criar diretório de uploads e backups com permissões corretas
+RUN mkdir -p uploads backups && chmod 755 uploads backups
 
 # Criar usuário não-root para segurança
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S nextjs -u 1001
-RUN chown -R nextjs:nodejs /app
-USER nextjs
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S appuser -u 1001 -G nodejs && \
+    chown -R appuser:nodejs /app
 
-# Expor porta
+USER appuser
+
 EXPOSE 3000
 
-# Definir variáveis de ambiente
 ENV NODE_ENV=production
 ENV PORT=3000
 
-# Comando de inicialização
-CMD ["npm", "start"]
+CMD ["node", "dist/index.js"]

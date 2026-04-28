@@ -23,7 +23,7 @@ class LocalBackupSystem {
 
   constructor() {
     this.config = {
-      backupDir: '/home/runner/workspace/backups',
+      backupDir: process.env.BACKUP_DIR || path.join(process.cwd(), 'backups'),
       maxBackups: 7, // Mantém últimos 7 backups
       compressionLevel: 9 // Máxima compressão
     };

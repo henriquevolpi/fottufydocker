@@ -20,40 +20,37 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import multer from "multer";
 import { processImage } from "./imageProcessor";
 
-// Check for required environment variables
-if (!process.env.R2_ACCESS_KEY_ID) {
-  throw new Error('R2_ACCESS_KEY_ID is not defined in environment variables');
+// Check for required environment variables — warn instead of throwing so the server
+// can still start and respond to health checks even when R2 is not yet configured.
+export const R2_CONFIGURED =
+  !!process.env.R2_ACCESS_KEY_ID &&
+  !!process.env.R2_SECRET_ACCESS_KEY &&
+  !!process.env.R2_BUCKET_NAME &&
+  !!process.env.R2_ACCOUNT_ID;
+
+if (!R2_CONFIGURED) {
+  console.warn('[R2] WARNING: One or more R2 environment variables are missing.');
+  console.warn('[R2] R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME and R2_ACCOUNT_ID must be set.');
+  console.warn('[R2] Photo upload/download features will be unavailable until these are configured.');
 }
 
-if (!process.env.R2_SECRET_ACCESS_KEY) {
-  throw new Error('R2_SECRET_ACCESS_KEY is not defined in environment variables');
-}
-
-if (!process.env.R2_BUCKET_NAME) {
-  throw new Error('R2_BUCKET_NAME is not defined in environment variables');
-}
-
-if (!process.env.R2_ACCOUNT_ID) {
-  throw new Error('R2_ACCOUNT_ID is not defined in environment variables');
-}
-
-// Set default region if not provided
 const R2_REGION = process.env.R2_REGION || 'auto';
-export const BUCKET_NAME = process.env.R2_BUCKET_NAME;
+export const BUCKET_NAME = process.env.R2_BUCKET_NAME || '';
 
-// Create S3 client that points to Cloudflare R2
-// Per Cloudflare R2 requirements, use a simple endpoint without bucket name
-// The endpoint should be in the format: https://<account_id>.r2.cloudflarestorage.com
-const endpoint = `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`;
+const endpoint = process.env.R2_ACCOUNT_ID
+  ? `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`
+  : 'https://placeholder.r2.cloudflarestorage.com';
 
-console.log(`Using R2 endpoint: ${endpoint}`);
+if (R2_CONFIGURED) {
+  console.log(`[R2] Using R2 endpoint: ${endpoint}`);
+}
 
 export const r2Client = new S3Client({
-  region: "auto", // Always use "auto" for Cloudflare R2
+  region: "auto",
   endpoint: endpoint,
   credentials: {
-    accessKeyId: process.env.R2_ACCESS_KEY_ID,
-    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
+    accessKeyId: process.env.R2_ACCESS_KEY_ID || 'placeholder',
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY || 'placeholder',
   },
 });
 
