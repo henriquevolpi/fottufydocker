@@ -26,6 +26,16 @@ FROM deps AS build
 
 COPY . .
 
+# Variáveis de build do Vite (precisam estar disponíveis durante o build do frontend)
+# Configure esses valores no painel de variáveis do Railway
+ARG VITE_STRIPE_PUBLIC_KEY
+ARG VITE_R2_ACCOUNT_ID
+ARG VITE_R2_BUCKET_NAME
+
+ENV VITE_STRIPE_PUBLIC_KEY=$VITE_STRIPE_PUBLIC_KEY
+ENV VITE_R2_ACCOUNT_ID=$VITE_R2_ACCOUNT_ID
+ENV VITE_R2_BUCKET_NAME=$VITE_R2_BUCKET_NAME
+
 # Build frontend (Vite → dist/public) e backend (esbuild → dist/index.js)
 RUN npm run build
 

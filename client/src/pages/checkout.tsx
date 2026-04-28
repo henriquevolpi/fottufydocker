@@ -10,10 +10,12 @@ import { useAuth } from "@/hooks/use-auth";
 
 // Carregamos o Stripe fora do componente para evitar recriar o objeto Stripe em cada renderização
 if (!import.meta.env.VITE_STRIPE_PUBLIC_KEY) {
-  throw new Error('Chave pública do Stripe não encontrada. Defina VITE_STRIPE_PUBLIC_KEY nas variáveis de ambiente.');
+  console.warn('VITE_STRIPE_PUBLIC_KEY não configurada. A página de checkout não funcionará.');
 }
 
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
+const stripePromise = import.meta.env.VITE_STRIPE_PUBLIC_KEY
+  ? loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY)
+  : null;
 
 // Componente do formulário de pagamento
 const CheckoutForm = ({ planType }: { planType: string }) => {
