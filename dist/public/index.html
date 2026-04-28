@@ -2,48 +2,48 @@
 <html lang="en">
   <head>
     <style data-vite-theme="" data-inject-first="">:root {
-      --background: 0 0% 100%;
---foreground: 20 14.3% 4.1%;
---muted: 60 4.8% 95.9%;
---muted-foreground: 25 5.3% 44.7%;
---popover: 0 0% 100%;
---popover-foreground: 20 14.3% 4.1%;
---card: 0 0% 100%;
---card-foreground: 20 14.3% 4.1%;
---border: 20 5.9% 90%;
---input: 20 5.9% 90%;
---primary: 222 47% 11%;
---primary-foreground: 221 8% 97%;
---secondary: 60 4.8% 95.9%;
---secondary-foreground: 24 9.8% 10%;
---accent: 60 4.8% 95.9%;
---accent-foreground: 24 9.8% 10%;
+      --background: 265 74% 82%;
+--foreground: 275 100% 11%;
+--muted: 267 71% 72%;
+--muted-foreground: 275 100% 11%;
+--popover: 263 100% 99%;
+--popover-foreground: 275 100% 11%;
+--card: 263 100% 99%;
+--card-foreground: 275 100% 11%;
+--border: 267 71% 72%;
+--input: 267 71% 72%;
+--primary: 268 100% 74%;
+--primary-foreground: 263 100% 99%;
+--secondary: 265 100% 88%;
+--secondary-foreground: 275 100% 11%;
+--accent: 265 100% 88%;
+--accent-foreground: 275 100% 11%;
 --destructive: 0 84.2% 60.2%;
 --destructive-foreground: 60 9.1% 97.8%;
---ring: 20 14.3% 4.1%;
---radius: 0.5rem;
+--ring: 268 100% 74%;
+--radius: 1rem;
   }
   .dark {
-      --background: 240 10% 3.9%;
---foreground: 0 0% 98%;
---muted: 240 3.7% 15.9%;
---muted-foreground: 240 5% 64.9%;
---popover: 240 10% 3.9%;
---popover-foreground: 0 0% 98%;
---card: 240 10% 3.9%;
---card-foreground: 0 0% 98%;
---border: 240 3.7% 15.9%;
---input: 240 3.7% 15.9%;
---primary: 222 47% 11%;
---primary-foreground: 221 8% 97%;
---secondary: 240 3.7% 15.9%;
---secondary-foreground: 0 0% 98%;
---accent: 240 3.7% 15.9%;
---accent-foreground: 0 0% 98%;
+      --background: 260 100% 1%;
+--foreground: 264 100% 97%;
+--muted: 270 53% 35%;
+--muted-foreground: 264 100% 97%;
+--popover: 271 73% 12%;
+--popover-foreground: 264 100% 97%;
+--card: 271 73% 12%;
+--card-foreground: 264 100% 97%;
+--border: 270 53% 35%;
+--input: 270 53% 35%;
+--primary: 270 68% 61%;
+--primary-foreground: 263 81% 99%;
+--secondary: 270 53% 35%;
+--secondary-foreground: 264 100% 97%;
+--accent: 270 53% 35%;
+--accent-foreground: 264 100% 97%;
 --destructive: 0 62.8% 30.6%;
 --destructive-foreground: 0 0% 98%;
---ring: 240 4.9% 83.9%;
---radius: 0.5rem;
+--ring: 270 68% 61%;
+--radius: 1rem;
   }</style>
 
     <meta charset="UTF-8" />
@@ -58,7 +58,7 @@
         // Verifica se o token de redefinição de senha está presente na URL ou no localStorage
         const urlParams = new URLSearchParams(window.location.search);
         const resetToken = urlParams.get('token');
-        
+
         if (resetToken) {
           console.log("Token detectado na URL:", resetToken);
           try {
@@ -77,13 +77,69 @@
         }
       })();
     </script>
-    <script type="module" crossorigin src="/assets/index-8N9z4e68.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-D5PDA205.css">
+    <script type="module" crossorigin src="/assets/index-DLOh9M6t.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-Byazb3sM.css">
   </head>
-  <script src="//code.jivosite.com/widget/njKtWA4AEl" async></script>
   <body>
     <div id="root"></div>
     <!-- This is a replit script which adds a banner on the top of the page when opened in development mode outside the replit environment -->
     <script src="https://replit.com/public/js/replit-dev-banner.js"></script>
+
+    <!-- Botão flutuante do WhatsApp -->
+    <a
+      id="whatsapp-button"
+      href="https://wa.me/5581981948607?text=Olá,%20quero%20saber%20mais%20sobre%20a%20plataforma!"
+      style="
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        z-index: 9999;
+        background-color: #25d366;
+        border-radius: 50%;
+        width: 39px;
+        height: 39px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      "
+      target="_blank"
+      rel="noopener"
+      title="Fale conosco no WhatsApp"
+    >
+      <img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/whatsapp.svg" alt="WhatsApp" width="22" height="22" style="filter: invert(1);" />
+    </a>
+
+    <!-- Script para esconder o botão do WhatsApp na página project-view e project -->
+    <script>
+      (function() {
+        function toggleWhatsAppButton() {
+          const whatsappButton = document.getElementById('whatsapp-button');
+          if (whatsappButton) {
+            // Esconde o botão se estiver na página project-view, project ou admin
+            if (window.location.pathname.includes('/project-view/') || 
+                window.location.pathname.includes('/project/') ||
+                window.location.pathname.includes('/admin')) {
+              whatsappButton.style.display = 'none';
+            } else {
+              whatsappButton.style.display = 'flex';
+            }
+          }
+        }
+
+        // Executa quando a página carrega
+        toggleWhatsAppButton();
+
+        // Monitora mudanças de rota (para SPAs)
+        let currentPath = window.location.pathname;
+        setInterval(function() {
+          if (window.location.pathname !== currentPath) {
+            currentPath = window.location.pathname;
+            toggleWhatsAppButton();
+          }
+        }, 100);
+      })();
+    </script>
+
   </body>
 </html>

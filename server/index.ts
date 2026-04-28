@@ -3,13 +3,8 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import multer from "multer";
 import path from "path";
-import { dirname } from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
-import { fileURLToPath } from "url";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 import { nanoid } from "nanoid";
 import { testConnection, pool, startDbHealthCheck } from "./db";
 import { storage as dbStorage } from "./storage";
@@ -36,9 +31,9 @@ import dotenv from "dotenv";
 // Carregar variáveis de ambiente do arquivo .env
 dotenv.config();
 
-// Compatibilidade com Node < 21 (import.meta.dirname não existe antes do Node 21.2)
+// Compatibilidade Node < 21: import.meta.dirname não existe antes do Node 21.2
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const __dirname = path.dirname(__filename);
 
 // Habilitar garbage collection manual se não estiver disponível
 if (!global.gc) {

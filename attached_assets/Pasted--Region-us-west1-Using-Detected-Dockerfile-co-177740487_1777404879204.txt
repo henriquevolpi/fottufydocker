@@ -1,0 +1,99 @@
+[Region: us-west1]
+=========================
+Using Detected Dockerfile
+=========================
+
+context: m316-MljV
+
+internal
+load build definition from Dockerfile
+0ms
+
+internal
+load metadata for docker.io/library/node:20-alpine
+159ms
+
+internal
+load .dockerignore
+0ms
+
+internal
+load build context
+1ms
+
+1
+FROM docker.io/library/node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293 cached
+0ms
+
+deps
+RUN apk add --no-cache     python3     make     g++     jpeg-dev     pango-dev     musl-dev     giflib-dev     pixman-dev     libjpeg-turbo-dev     freetype-dev
+5s
+OK: 407.7 MiB in 157 packages
+
+deps
+WORKDIR /app
+74ms
+
+deps
+COPY package*.json ./
+25ms
+
+production
+RUN npm ci --omit=dev && npm cache clean --force
+20s
+npm warn using --force Recommended protections disabled.
+
+build
+RUN npm run build
+12s
+> rest-express@1.0.0 build
+> vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist
+vite v5.4.14 building for production...
+transforming...
+Browserslist: browsers data (caniuse-lite) is 18 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+✓ 2969 modules transformed.
+rendering chunks...
+../dist/public/index.html                     5.07 kB │ gzip:   1.91 kB
+../dist/public/assets/index-Byazb3sM.css    239.60 kB │ gzip:  53.51 kB
+../dist/public/assets/index-BVNH_B4E.js   1,339.09 kB │ gzip: 380.59 kB
+▲ [WARNING] Duplicate member "getUserPortfolios" in class body [duplicate-class-member]
+    server/storage.ts:2858:8:
+      2858 │   async getUserPortfolios(userId: number): Promise<any[]> {
+           ╵         ~~~~~~~~~~~~~~~~~
+  The original member "getUserPortfolios" is here:
+    server/storage.ts:2236:8:
+      2236 │   async getUserPortfolios(userId: number): Promise<any[]> {
+           ╵         ~~~~~~~~~~~~~~~~~
+▲ [WARNING] Duplicate member "createPortfolio" in class body [duplicate-class-member]
+    server/storage.ts:2890:8:
+      2890 │   async createPortfolio(data: any): Promise<any> {
+           ╵         ~~~~~~~~~~~~~~~
+  The original member "createPortfolio" is here:
+    server/storage.ts:2249:8:
+      2249 │   async createPortfolio(data: any): Promise<any> {
+           ╵         ~~~~~~~~~~~~~~~
+▲ [WARNING] Duplicate member "getPortfolio" in class body [duplicate-class-member]
+    server/storage.ts:2923:8:
+      2923 │   async getPortfolio(id: number): Promise<any | undefined> {
+           ╵         ~~~~~~~~~~~~
+  The original member "getPortfolio" is here:
+    server/storage.ts:2269:8:
+      2269 │   async getPortfolio(id: number): Promise<any | undefined> {
+           ╵         ~~~~~~~~~~~~
+▲ [WARNING] Duplicate member "getPortfolioBySlug" in class body [duplicate-class-member]
+    server/storage.ts:2953:8:
+      2953 │   async getPortfolioBySlug(slug: string): Promise<any | undefine...
+           ╵         ~~~~~~~~~~~~~~~~~~
+  The original member "getPortfolioBySlug" is here:
+    server/storage.ts:2286:8:
+      2286 │   async getPortfolioBySlug(slug: string): Promise<any | undefine...
+           ╵         ~~~~~~~~~~~~~~~~~~
+4 of 8 warnings and all 2 errors shown (disable the message limit with --log-limit=0)
+Dockerfile:30
+-------------------
+28 |
+30 | >>> RUN npm run build
+-------------------
+ERROR: failed to build: failed to solve: process "/bin/sh -c npm run build" did not complete successfully: exit code: 1
