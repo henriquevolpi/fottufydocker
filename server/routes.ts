@@ -43,6 +43,7 @@ import { processImage } from "./imageProcessor";
 import { sendEmail } from "./utils/sendEmail";
 import { sendWelcomeEmail } from "./utils/welcomeEmail";
 import { mpRouter } from "./mercadopago";
+import { Readable } from "stream";
 
 // Normaliza nome de arquivo para NFC (resolve acentos decompostos do macOS)
 const nfc = (s: string) => s.normalize('NFC');
@@ -247,7 +248,13 @@ const requireActiveUser = (req: Request, res: Response, next: Function) => {
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
-  
+
+  // Healthcheck endpoint — must be first, before any auth or DB middleware.
+  // Railway (and any load balancer) hits this to confirm the process is alive.
+  app.get("/health", (_req, res) => {
+    res.status(200).json({ status: "ok", ts: Date.now() });
+  });
+
   // Inicializar Stripe
   if (!process.env.STRIPE_SECRET_KEY) {
     console.warn('Chave secreta do Stripe não encontrada. As funcionalidades de pagamento não funcionarão corretamente.');
@@ -273,7 +280,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (r2Response.ContentLength) {
         res.setHeader('Content-Length', r2Response.ContentLength);
       }
-      const { Readable } = await import('stream');
       const stream = r2Response.Body as any;
       if (typeof stream.pipe === 'function') {
         stream.pipe(res);

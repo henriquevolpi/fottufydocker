@@ -16,21 +16,18 @@ export function log(message: string, source = "express") {
 }
 
 export async function setupVite(app: Express, server: Server) {
-  // Dynamic imports: vite is only loaded in development (devDependency)
+  // Dynamic import of "vite" keeps it out of the production bundle entirely.
+  // We do NOT import ../vite.config.js here — esbuild (without --splitting) would
+  // inline that local file into dist/index.js, pulling devDependencies like
+  // "vite", "@vitejs/plugin-react", etc. into the production bundle.
+  // Instead we point createViteServer at the config file path so Vite loads it
+  // itself at runtime (development only) using its own resolver.
   const { createServer: createViteServer, createLogger } = await import("vite");
-  const { default: viteConfig } = await import("../vite.config.js");
 
   const viteLogger = createLogger();
 
-  const serverOptions = {
-    middlewareMode: true,
-    hmr: { server },
-    allowedHosts: true,
-  };
-
   const vite = await createViteServer({
-    ...viteConfig,
-    configFile: false,
+    configFile: path.resolve(process.cwd(), "vite.config.ts"),
     customLogger: {
       ...viteLogger,
       error: (msg, options) => {
@@ -38,7 +35,11 @@ export async function setupVite(app: Express, server: Server) {
         process.exit(1);
       },
     },
-    server: serverOptions,
+    server: {
+      middlewareMode: true,
+      hmr: { server },
+      allowedHosts: true,
+    },
     appType: "custom",
   });
 
@@ -48,8 +49,7 @@ export async function setupVite(app: Express, server: Server) {
 
     try {
       const clientTemplate = path.resolve(
-        import.meta.dirname,
-        "..",
+        process.cwd(),
         "client",
         "index.html",
       );
