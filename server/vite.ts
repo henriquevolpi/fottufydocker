@@ -82,10 +82,21 @@ export function serveStatic(app: Express) {
     );
   }
 
-  app.use(express.static(distPath));
+  // Assets com hash no nome (ex: index-B3kx9.js) podem ser cacheados por 1 ano
+  app.use("/assets", express.static(path.join(distPath, "assets"), {
+    maxAge: "1y",
+    immutable: true,
+  }));
+
+  // Demais arquivos estáticos: cache curto para garantir atualizações
+  app.use(express.static(distPath, {
+    maxAge: "10m",
+    etag: true,
+  }));
 
   // fall through to index.html if the file doesn't exist
   app.use("*", (_req, res) => {
+    res.setHeader("Cache-Control", "no-cache");
     res.sendFile(path.resolve(distPath, "index.html"));
   });
 }

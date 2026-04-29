@@ -29,5 +29,18 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes("node_modules/@stripe")) return "vendor-stripe";
+          if (id.includes("node_modules/@tanstack")) return "vendor-query";
+          if (id.includes("node_modules/@radix-ui")) return "vendor-ui";
+          if (id.includes("node_modules/react") || id.includes("node_modules/wouter") || id.includes("node_modules/scheduler")) return "vendor-react";
+          if (id.includes("node_modules/lucide-react") || id.includes("node_modules/react-icons")) return "vendor-icons";
+          if (id.includes("node_modules/")) return "vendor-misc";
+        },
+      },
+    },
+    chunkSizeWarningLimit: 1000,
   },
 });

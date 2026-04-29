@@ -1,4 +1,5 @@
 import express, { type Request, Response, NextFunction } from "express";
+import compression from "compression";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import multer from "multer";
@@ -116,6 +117,9 @@ export const upload = multer({
 
 // Initialize Express and configure middleware
 const app = express();
+
+// Gzip/Brotli compression — reduz tamanho dos assets e respostas da API em ~70-80%
+app.use(compression());
 
 // Trust Railway's (and other PaaS) reverse proxy so that:
 // - req.ip reflects the real client IP (needed for rate limiting)
