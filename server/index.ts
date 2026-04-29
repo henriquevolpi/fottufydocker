@@ -412,6 +412,24 @@ app.use((req, res, next) => {
     
     // Inicializar o monitor de uso de memória
     setupMemoryMonitor();
+
+    // Keep-alive: evita que o Railway durma o container por inatividade
+    if (process.env.NODE_ENV === 'production') {
+      const selfPingUrl = (() => {
+        const domain = process.env.RAILWAY_PUBLIC_DOMAIN || process.env.APP_URL || 'fottufy.com';
+        return `https://${domain.replace(/^https?:\/\//, '')}/health`;
+      })();
+
+      log(`[KEEP-ALIVE] Auto-ping ativado → ${selfPingUrl} (a cada 4 min)`);
+      setInterval(async () => {
+        try {
+          const res = await fetch(selfPingUrl, { signal: AbortSignal.timeout(8000) });
+          if (!res.ok) log(`[KEEP-ALIVE] Ping retornou status ${res.status}`);
+        } catch {
+          // silencioso — falha ocasional não é problema
+        }
+      }, 4 * 60 * 1000); // 4 minutos
+    }
   });
   
   // Função para monitorar o uso de memória
