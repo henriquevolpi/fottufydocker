@@ -232,8 +232,9 @@ export function setupAuth(app: Express) {
       maxAge: 7 * 24 * 60 * 60 * 1000,
       // HttpOnly for security, except in development for debugging
       httpOnly: process.env.NODE_ENV === 'production',
-      // Stricter sameSite in production
-      sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+      // lax permite navegação normal cross-site (links, redirects)
+      // strict bloqueia cookies no Safari iOS em muitos cenários normais
+      sameSite: 'lax',
       path: '/',
       // No domain restriction for better compatibility
       domain: undefined
@@ -361,10 +362,10 @@ export function setupAuth(app: Express) {
         // Definir o cookie de backup com configurações mais seguras
         try {
           res.cookie('user_id', user.id, {
-            httpOnly: process.env.NODE_ENV === 'production', // Mais seguro em produção
+            httpOnly: process.env.NODE_ENV === 'production',
             maxAge: 7 * 24 * 60 * 60 * 1000, // 7 dias
             path: '/',
-            sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+            sameSite: 'lax',
             secure: process.env.NODE_ENV === 'production',
             domain: undefined
           });
@@ -425,12 +426,11 @@ export function setupAuth(app: Express) {
         try {
           // Cookie de backup para recuperação de sessão
           res.cookie('user_id', user.id, {
-            httpOnly: process.env.NODE_ENV === 'production', // Mais seguro em produção
+            httpOnly: process.env.NODE_ENV === 'production',
             maxAge: 7 * 24 * 60 * 60 * 1000, // 7 dias
             path: '/',
-            sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+            sameSite: 'lax',
             secure: process.env.NODE_ENV === 'production',
-            // Força o cookie a ser definido mesmo em contextos de iframe
             domain: undefined
           });
         } catch (cookieError) {
