@@ -1,0 +1,79 @@
+PostgreSQL init process complete; ready for start up.
+2026-04-28 21:54:55.341 UTC [3] LOG:  starting PostgreSQL 18.3 (Debian 18.3-1.pgdg13+1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+2026-04-28 21:54:55.341 UTC [3] LOG:  listening on IPv4 address "0.0.0.0", port 5432
+2026-04-28 21:54:55.341 UTC [3] LOG:  listening on IPv6 address "::", port 5432
+2026-04-28 21:54:55.348 UTC [3] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+2026-04-28 21:54:55.356 UTC [85] LOG:  database system was shut down at 2026-04-28 21:54:55 UTC
+2026-04-28 21:54:55.361 UTC [3] LOG:  database system is ready to accept connections
+2026-04-28 21:59:55.455 UTC [83] LOG:  checkpoint starting: time
+2026-04-28 22:00:05.710 UTC [117] ERROR:  relation "subscriptions" does not exist at character 160
+2026-04-28 22:00:05.710 UTC [117] STATEMENT:  SELECT 'users' as tabela, COUNT(*) as registros FROM users UNION ALL SELECT 'projects', COUNT(*) FROM projects UNION ALL SELECT 'subscriptions', COUNT(*) FROM subscriptions UNION ALL SELECT 'photos', COUNT(*) FROM photos;
+2026-04-28 22:03:24.779 UTC [83] LOG:  checkpoint complete: wrote 2093 buffers (12.8%), wrote 3 SLRU buffers; 0 WAL file(s) added, 0 removed, 1 recycled; write=209.291 s, sync=0.013 s, total=209.325 s; sync files=173, longest=0.004 s, average=0.001 s; distance=14843 kB, estimate=14843 kB; lsn=0/4377F78, redo lsn=0/2A1E868
+2026-04-28 22:09:55.967 UTC [83] LOG:  checkpoint starting: time
+2026-04-28 22:11:18.249 UTC [83] LOG:  checkpoint complete: wrote 823 buffers (5.0%), wrote 1 SLRU buffers; 0 WAL file(s) added, 0 removed, 2 recycled; write=82.254 s, sync=0.007 s, total=82.283 s; sync files=39, longest=0.003 s, average=0.001 s; distance=25969 kB, estimate=25969 kB; lsn=0/4388B50, redo lsn=0/437B060
+2026-04-28 22:14:55.347 UTC [83] LOG:  checkpoint starting: time
+2026-04-28 22:14:57.077 UTC [83] LOG:  checkpoint complete: wrote 17 buffers (0.1%), wrote 1 SLRU buffers; 0 WAL file(s) added, 0 removed, 0 recycled; write=1.708 s, sync=0.007 s, total=1.730 s; sync files=12, longest=0.005 s, average=0.001 s; distance=111 kB, estimate=23384 kB; lsn=0/4396D18, redo lsn=0/4396CC0
+2026-04-28 22:19:55.175 UTC [83] LOG:  checkpoint starting: time
+2026-04-28 22:19:57.503 UTC [83] LOG:  checkpoint complete: wrote 23 buffers (0.1%), wrote 1 SLRU buffers; 0 WAL file(s) added, 0 removed, 0 recycled; write=2.310 s, sync=0.006 s, total=2.329 s; sync files=18, longest=0.004 s, average=0.001 s; distance=120 kB, estimate=21057 kB; lsn=0/43B4F98, redo lsn=0/43B4F40
+2026-04-28 22:34:55.803 UTC [83] LOG:  checkpoint starting: time
+2026-04-28 22:34:56.023 UTC [83] LOG:  checkpoint complete: wrote 2 buffers (0.0%), wrote 1 SLRU buffers; 0 WAL file(s) added, 0 removed, 0 recycled; write=0.203 s, sync=0.006 s, total=0.221 s; sync files=2, longest=0.004 s, average=0.003 s; distance=10 kB, estimate=18953 kB; lsn=0/43B7880, redo lsn=0/43B7828
+2026-04-28 22:44:55.223 UTC [83] LOG:  checkpoint starting: time
+2026-04-28 22:44:55.745 UTC [83] LOG:  checkpoint complete: wrote 5 buffers (0.0%), wrote 1 SLRU buffers; 0 WAL file(s) added, 0 removed, 0 recycled; write=0.505 s, sync=0.006 s, total=0.523 s; sync files=5, longest=0.003 s, average=0.002 s; distance=20 kB, estimate=17059 kB; lsn=0/43BCAD8, redo lsn=0/43BCA80
+2026-04-28 22:49:55.960 UTC [83] LOG:  checkpoint complete: wrote 1 buffers (0.0%), wrote 0 SLRU buffers; 0 WAL file(s) added, 0 removed, 0 recycled; write=0.101 s, sync=0.004 s, total=0.117 s; sync files=1, longest=0.004 s, average=0.004 s; distance=3 kB, estimate=15354 kB; lsn=0/43BD9A8, redo lsn=0/43BD950
+2026-04-28 22:49:55.843 UTC [83] LOG:  checkpoint starting: time
+2026-04-28 23:09:56.359 UTC [83] LOG:  checkpoint starting: time
+2026-04-28 23:09:59.791 UTC [83] LOG:  checkpoint complete: wrote 34 buffers (0.2%), wrote 1 SLRU buffers; 0 WAL file(s) added, 0 removed, 0 recycled; write=3.413 s, sync=0.008 s, total=3.433 s; sync files=22, longest=0.005 s, average=0.001 s; distance=198 kB, estimate=13838 kB; lsn=0/43EF2F8, redo lsn=0/43EF268
+2026-04-28 23:14:56.891 UTC [83] LOG:  checkpoint starting: time
+2026-04-28 23:14:57.008 UTC [83] LOG:  checkpoint complete: wrote 1 buffers (0.0%), wrote 0 SLRU buffers; 0 WAL file(s) added, 0 removed, 0 recycled; write=0.101 s, sync=0.004 s, total=0.118 s; sync files=1, longest=0.004 s, average=0.004 s; distance=8 kB, estimate=12455 kB; lsn=0/43F1430, redo lsn=0/43F13D8
+2026-04-28 23:19:56.107 UTC [83] LOG:  checkpoint starting: time
+2026-04-28 23:19:56.728 UTC [83] LOG:  checkpoint complete: wrote 6 buffers (0.0%), wrote 1 SLRU buffers; 0 WAL file(s) added, 0 removed, 0 recycled; write=0.605 s, sync=0.006 s, total=0.622 s; sync files=7, longest=0.003 s, average=0.001 s; distance=40 kB, estimate=11214 kB; lsn=0/43FB858, redo lsn=0/43FB7C8
+2026-04-28 23:29:56.927 UTC [83] LOG:  checkpoint starting: time
+2026-04-28 23:29:57.044 UTC [83] LOG:  checkpoint complete: wrote 1 buffers (0.0%), wrote 0 SLRU buffers; 0 WAL file(s) added, 0 removed, 0 recycled; write=0.101 s, sync=0.004 s, total=0.118 s; sync files=1, longest=0.004 s, average=0.004 s; distance=6 kB, estimate=10093 kB; lsn=0/43FD130, redo lsn=0/43FD0D8
+2026-04-28 23:44:56.343 UTC [83] LOG:  checkpoint starting: time
+2026-04-28 23:44:58.482 UTC [83] LOG:  checkpoint complete: wrote 21 buffers (0.1%), wrote 1 SLRU buffers; 0 WAL file(s) added, 0 removed, 0 recycled; write=2.113 s, sync=0.014 s, total=2.140 s; sync files=17, longest=0.010 s, average=0.001 s; distance=155 kB, estimate=9099 kB; lsn=0/4423FE8, redo lsn=0/4423F58
+2026-04-28 23:59:57.202 UTC [83] LOG:  checkpoint complete: wrote 4 buffers (0.0%), wrote 1 SLRU buffers; 0 WAL file(s) added, 0 removed, 0 recycled; write=0.404 s, sync=0.006 s, total=0.424 s; sync files=5, longest=0.003 s, average=0.002 s; distance=19 kB, estimate=8191 kB; lsn=0/4428E40, redo lsn=0/4428DE8
+2026-04-28 23:59:56.779 UTC [83] LOG:  checkpoint starting: time
+2026-04-29 00:04:56.302 UTC [83] LOG:  checkpoint starting: time
+2026-04-29 00:05:00.238 UTC [83] LOG:  checkpoint complete: wrote 39 buffers (0.2%), wrote 1 SLRU buffers; 0 WAL file(s) added, 0 removed, 0 recycled; write=3.914 s, sync=0.007 s, total=3.937 s; sync files=20, longest=0.005 s, average=0.001 s; distance=257 kB, estimate=7398 kB; lsn=0/4469338, redo lsn=0/44692E0
+2026-04-29 00:09:56.338 UTC [83] LOG:  checkpoint starting: time
+2026-04-29 00:09:58.265 UTC [83] LOG:  checkpoint complete: wrote 19 buffers (0.1%), wrote 1 SLRU buffers; 0 WAL file(s) added, 0 removed, 0 recycled; write=1.907 s, sync=0.007 s, total=1.928 s; sync files=13, longest=0.004 s, average=0.001 s; distance=114 kB, estimate=6669 kB; lsn=0/448CA78, redo lsn=0/4485B80
+2026-04-29 00:14:56.364 UTC [83] LOG:  checkpoint starting: time
+2026-04-29 00:14:58.896 UTC [83] LOG:  checkpoint complete: wrote 25 buffers (0.2%), wrote 1 SLRU buffers; 0 WAL file(s) added, 0 removed, 0 recycled; write=2.511 s, sync=0.006 s, total=2.533 s; sync files=17, longest=0.003 s, average=0.001 s; distance=191 kB, estimate=6021 kB; lsn=0/44B5858, redo lsn=0/44B5800
+2026-04-29 00:19:56.995 UTC [83] LOG:  checkpoint starting: time
+2026-04-29 00:19:57.332 UTC [83] LOG:  checkpoint complete: wrote 3 buffers (0.0%), wrote 1 SLRU buffers; 0 WAL file(s) added, 0 removed, 0 recycled; write=0.313 s, sync=0.012 s, total=0.337 s; sync files=4, longest=0.009 s, average=0.003 s; distance=22 kB, estimate=5421 kB; lsn=0/44BB1A8, redo lsn=0/44BB150
+2026-04-29 00:24:56.431 UTC [83] LOG:  checkpoint starting: time
+2026-04-29 00:24:57.856 UTC [83] LOG:  checkpoint complete: wrote 14 buffers (0.1%), wrote 1 SLRU buffers; 0 WAL file(s) added, 0 removed, 0 recycled; write=1.407 s, sync=0.006 s, total=1.426 s; sync files=11, longest=0.003 s, average=0.001 s; distance=95 kB, estimate=4889 kB; lsn=0/44D2F88, redo lsn=0/44D2F30
+2026-04-29 00:26:22.154 UTC [783] ERROR:  CREATE INDEX CONCURRENTLY cannot run inside a transaction block
+2026-04-29 00:26:22.154 UTC [783] STATEMENT:  
+	CREATE INDEX CONCURRENTLY IF NOT EXISTS photos_project_id_idx ON photos(project_id);
+	CREATE INDEX CONCURRENTLY IF NOT EXISTS photos_processing_status_idx ON photos(processing_status);
+	CREATE INDEX CONCURRENTLY IF NOT EXISTS projects_photographer_id_idx ON projects(photographer_id);
+	CREATE INDEX CONCURRENTLY IF NOT EXISTS projects_created_at_idx ON projects(created_at DESC);
+	CREATE INDEX CONCURRENTLY IF NOT EXISTS new_projects_user_id_idx ON new_projects(user_id);
+	CREATE INDEX CONCURRENTLY IF NOT EXISTS new_projects_created_at_idx ON new_projects(created_at DESC);
+	
+2026-04-29 00:26:29.284 UTC [789] ERROR:  deadlock detected
+2026-04-29 00:26:29.284 UTC [789] DETAIL:  Process 789 waits for ShareUpdateExclusiveLock on relation 16517 of database 16384; blocked by process 788.
+	Process 788 waits for ShareLock on virtual transaction 13/31; blocked by process 789.
+	Process 789: CREATE INDEX CONCURRENTLY IF NOT EXISTS photos_project_id_idx ON photos(project_id);
+	Process 788: CREATE INDEX CONCURRENTLY IF NOT EXISTS photos_processing_status_idx ON photos(processing_status);
+2026-04-29 00:26:29.284 UTC [789] HINT:  See server log for query details.
+2026-04-29 00:26:29.284 UTC [789] STATEMENT:  CREATE INDEX CONCURRENTLY IF NOT EXISTS photos_project_id_idx ON photos(project_id);
+2026-04-29 00:29:56.955 UTC [83] LOG:  checkpoint starting: time
+2026-04-29 00:30:04.096 UTC [83] LOG:  checkpoint complete: wrote 71 buffers (0.4%), wrote 1 SLRU buffers; 0 WAL file(s) added, 0 removed, 0 recycled; write=7.121 s, sync=0.009 s, total=7.141 s; sync files=39, longest=0.005 s, average=0.001 s; distance=1318 kB, estimate=4532 kB; lsn=0/461CAD0, redo lsn=0/461CA78
+2026-04-29 00:34:56.195 UTC [83] LOG:  checkpoint starting: time
+2026-04-29 00:34:58.026 UTC [83] LOG:  checkpoint complete: wrote 18 buffers (0.1%), wrote 1 SLRU buffers; 0 WAL file(s) added, 0 removed, 0 recycled; write=1.810 s, sync=0.007 s, total=1.831 s; sync files=15, longest=0.005 s, average=0.001 s; distance=156 kB, estimate=4094 kB; lsn=0/4643D10, redo lsn=0/4643CB8
+2026-04-29 00:38:09.526 UTC [890] LOG:  SSL error: unexpected eof while reading
+2026-04-29 00:38:09.526 UTC [890] LOG:  could not receive data from client: Connection reset by peer
+2026-04-29 00:38:09.526 UTC [885] LOG:  SSL error: unexpected eof while reading
+2026-04-29 00:38:09.526 UTC [889] LOG:  SSL error: unexpected eof while reading
+2026-04-29 00:38:09.526 UTC [885] LOG:  could not receive data from client: Connection reset by peer
+2026-04-29 00:38:09.526 UTC [889] LOG:  could not receive data from client: Connection reset by peer
+2026-04-29 00:38:09.526 UTC [887] LOG:  SSL error: unexpected eof while reading
+2026-04-29 00:38:09.526 UTC [887] LOG:  could not receive data from client: Connection reset by peer
+2026-04-29 00:38:09.526 UTC [891] LOG:  SSL error: unexpected eof while reading
+2026-04-29 00:38:09.526 UTC [891] LOG:  could not receive data from client: Connection reset by peer
+2026-04-29 00:38:09.527 UTC [886] LOG:  SSL error: unexpected eof while reading
+2026-04-29 00:38:09.527 UTC [886] LOG:  could not receive data from client: Connection reset by peer
+2026-04-29 00:39:56.124 UTC [83] LOG:  checkpoint starting: time
+2026-04-29 00:40:00.760 UTC [83] LOG:  checkpoint complete: wrote 46 buffers (0.3%), wrote 2 SLRU buffers; 0 WAL file(s) added, 0 removed, 0 recycled; write=4.618 s, sync=0.007 s, total=4.636 s; sync files=23, longest=0.004 s, average=0.001 s; distance=398 kB, estimate=3725 kB; lsn=0/46A7778, redo lsn=0/46A7720
