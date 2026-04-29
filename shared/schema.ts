@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb, uuid, primaryKey, foreignKey, varchar, json } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, uuid, primaryKey, foreignKey, varchar, json, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
@@ -231,7 +231,10 @@ export const projects = pgTable("projects", {
   includedPhotos: integer("included_photos").default(0), // Number of photos included in base price (0 = unlimited)
   additionalPhotoPrice: integer("additional_photo_price").default(0), // Price in cents for each additional photo
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (table) => ({
+  photographerIdIdx: index("projects_photographer_id_idx").on(table.photographerId),
+  createdAtIdx: index("projects_created_at_idx").on(table.createdAt),
+}));
 
 export const insertProjectSchema = createInsertSchema(projects).omit({
   id: true,
@@ -254,7 +257,10 @@ export const newProjects = pgTable("new_projects", {
   contractedPhotos: integer("contracted_photos").default(0),  // Fotos contratadas/inclusas no pacote
   additionalPhotoPrice: integer("additional_photo_price").default(0), // Valor em centavos por foto extra
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (table) => ({
+  userIdIdx: index("new_projects_user_id_idx").on(table.userId),
+  createdAtIdx: index("new_projects_created_at_idx").on(table.createdAt),
+}));
 
 // Relations for the new projects table
 export const newProjectsRelations = relations(newProjects, ({ one, many }) => ({
@@ -281,7 +287,10 @@ export const photos = pgTable("photos", {
   thumbnailUrl: text("thumbnail_url"), // URL do thumb gerado pelo Sharp (400px)
   processingStatus: text("processing_status").default('pending'), // 'pending' | 'processing' | 'ready' | 'error'
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (table) => ({
+  projectIdIdx: index("photos_project_id_idx").on(table.projectId),
+  processingStatusIdx: index("photos_processing_status_idx").on(table.processingStatus),
+}));
 
 // Relations for the photos table
 export const photosRelations = relations(photos, ({ one, many }) => ({
