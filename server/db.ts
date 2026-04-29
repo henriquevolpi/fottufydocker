@@ -13,15 +13,18 @@ if (!process.env.DATABASE_URL) {
 const isReplit = process.env.REPL_ID !== undefined;
 const isProduction = process.env.NODE_ENV === 'production';
 
+// Conexões internas do Railway (.railway.internal) não usam SSL.
+// Conexões externas (Render, Neon, etc.) exigem SSL.
+const dbUrl = process.env.DATABASE_URL || '';
+const isRailwayInternal = dbUrl.includes('.railway.internal');
+const sslConfig = isRailwayInternal ? false : { rejectUnauthorized: false };
+
 const poolConfig: PoolConfig = {
-  connectionString: process.env.DATABASE_URL,
+  connectionString: dbUrl,
   max: isReplit ? 10 : 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: isReplit ? 15000 : 10000,
-  // SSL necessário para conectar ao banco
-  ssl: {
-    rejectUnauthorized: false
-  }
+  ssl: sslConfig
 };
 
 // Log database connection status
